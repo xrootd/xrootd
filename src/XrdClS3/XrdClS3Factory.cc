@@ -198,6 +198,17 @@ XrdCl::FilePlugIn *
 Factory::CreateFile(const std::string & /*url*/) {
     if (!m_initialized) {return nullptr;}
     InitS3Config();
+    
+    // Some server side implementations of HTTP or S3 do not support
+    // vectored reads, and this cannot be determined by the code.
+    // If we know that our server does not implement, we can force using
+    // normal reads instead. It will be slower, yet it will work.
+    bool dummy;
+    auto env = XrdCl::DefaultEnv::GetEnv();
+    if (!env->GetBool("XrdClS3ForceBasicReadV", dummy))
+        env->PutBool("XrdClS3ForceBasicReadV", true);
+    env->ImportInt("XrdClS3ForceBasicReadV", "XRDCLS3_FORCEBASICREADV");
+    
     return new File(m_log);
 }
 
@@ -382,15 +393,6 @@ void
 Factory::InitS3Config()
 {
     auto env = XrdCl::DefaultEnv::GetEnv();
-    
-    // Some server side implementations of HTTP or S3 do not support
-    // vectored reads, and this cannot be determined by the code.
-    // If we know that our server does not implement, we can force using
-    // normal reads instead. It will be slower, yet it will work.
-    bool dummy;
-    if (!env->GetBool("HttpForceBasicReadV", dummy))
-        env->PutBool("HttpForceBasicReadV", true);
-    env->ImportInt("HttpForceBasicReadV", "XRD_HTTPFORCEBASICREADV");
     
     m_default_creds_direct = false;
             
