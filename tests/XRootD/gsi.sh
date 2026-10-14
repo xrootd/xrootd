@@ -24,7 +24,7 @@ function setup_gsi() {
 }
 
 function teardown_gsi() {
-	pwd && ls && rm authdb gridmap proxy.{crt,crtp}
+	pwd && ls && rm -f authdb gridmap {,i,r}proxy.{crt,crtp}
 }
 
 function test_gsi() {
@@ -57,6 +57,9 @@ function test_gsi() {
 
 	# Check that authentication fails with a bad (invalid) proxy certificate
 	assert_failure env X509_USER_PROXY=iproxy.crt xrdfs "${HOST}" query config version
+
+	# Check that authentication fails with a revoked proxy certificate
+	assert_failure env X509_USER_PROXY=rproxy.crt xrdfs "${HOST}" query config version
 
 	# Check that authentication fails with a bad (insecure) proxy certificate
 	chmod 644 "${X509_USER_PROXY}"

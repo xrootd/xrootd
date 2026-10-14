@@ -426,12 +426,13 @@ int XrdCryptosslX509Crl::LoadCache()
          XrdSutCacheEntry *cent = cache.Get((const char *)tagser, rdlock);
          if (!cent) {
             DEBUG("problems getting entry in the cache");
+            OPENSSL_free(tagser);
             return -1;
          }
          // Add revocation date
          cent->mtime = XrdCryptosslASN1toUTC(X509_REVOKED_get0_revocationDate(rev));
          // Set status
-         cent->mtime = kCE_ok;
+         cent->status = kCE_ok;
          // Release the string for the serial number
          OPENSSL_free(tagser);
          // Unlock the entry
@@ -580,21 +581,41 @@ bool XrdCryptosslX509Crl::IsRevoked(int serialnumber, int when)
       return 0;
    }
 
-   // Ok, build the tag
-   char tagser[20] = {0};
-   sprintf(tagser,"%x",serialnumber);
+   // A serial number is never negative
+   if (serialnumber < 0) {
+      DEBUG("invalid serial number: "<<serialnumber);
+      return 0;
+   }
+
+   // Ok, build the tag: the cache is keyed with the serial number in the
+   // format produced by BN_bn2hex(), i.e. upper case with an even number
+   // of digits, so we must use the same format here
+   BIGNUM *bn = BN_new();
+   if (!bn) {
+      DEBUG("could not allocate a big number");
+      return 0;
+   }
+   BN_set_word(bn, (BN_ULONG)serialnumber);
+   char *tagser = BN_bn2hex(bn);
+   BN_free(bn);
+   if (!tagser) {
+      DEBUG("could not format the serial number");
+      return 0;
+   }
 
    // Look into the cache
+   bool revoked = false;
    XrdSutCacheEntry *cent = cache.Get((const char *)tagser);
-   if (cent && cent->status == kCE_ok) {
+   if (cent) {
       // Check the revocation time
-      if (now > cent->mtime) {
+      if (cent->status == kCE_ok && now > cent->mtime) {
          DEBUG("certificate "<<tagser<<" has been revoked");
-         cent->rwmtx.UnLock();
-         return 1;
+         revoked = true;
       }
       cent->rwmtx.UnLock();
    }
+   OPENSSL_free(tagser);
+   if (revoked) return 1;
 
    // Certificate not revoked
    return 0;
@@ -622,16 +643,17 @@ bool XrdCryptosslX509Crl::IsRevoked(const char *sernum, int when)
    }
 
    // Look into the cache
+   bool revoked = false;
    XrdSutCacheEntry *cent = cache.Get((const char *)sernum);
-   if (cent && cent->status == kCE_ok) {
+   if (cent) {
       // Check the revocation time
-      if (now > cent->mtime) {
+      if (cent->status == kCE_ok && now > cent->mtime) {
          DEBUG("certificate "<<sernum<<" has been revoked");
-         cent->rwmtx.UnLock();
-         return 1;
+         revoked = true;
       }
       cent->rwmtx.UnLock();
    }
+   if (revoked) return 1;
 
    // Certificate not revoked
    return 0;
