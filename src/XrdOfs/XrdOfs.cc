@@ -2274,14 +2274,36 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
    XrdOucTList *tp = pargs.paths;
    int retc;
 
+// Keep any connection mapping intact when this request returns, including an
+// early authorization failure. The prepare handler may use the final path's
+// mapping while it is running.
+//
+   struct RequestNameRestore
+          {const XrdSecEntity *entity;
+           std::string name;
+           RequestNameRestore(const XrdSecEntity *client) : entity(client)
+              {if (entity) entity->eaAPI->Get("request.name", name);}
+          ~RequestNameRestore()
+              {if (entity) entity->eaAPI->Add("request.name", name, true);}
+          } restoreName(prepAuth ? client : nullptr);
+
 // Run through the paths to make sure client can read each one unless we aren't
 // supposed to apply authorization.
 //
    if (prepAuth)
-      while(tp)
-           {AUTHORIZE(client,0,AOP_Read,"prepare",tp->text,out_error);
+      {XrdOucTList *opaque = pargs.oinfo;
+       while(tp)
+           {XrdOucEnv pathEnv(opaque ? opaque->text : nullptr, 0, client);
+
+// An authorizer may publish a mapped name for one path. As in rename(), reset
+// it before each check so that another path cannot inherit that authorization.
+//
+            if (client) client->eaAPI->Add("request.name", "", true);
+            AUTHORIZE(client,&pathEnv,AOP_Read,"prepare",tp->text,out_error);
             tp = tp->next;
+            if (opaque) opaque = opaque->next;
            }
+      }
 
 // If there is a prepare plugin, invoke it and return the result.
 //
