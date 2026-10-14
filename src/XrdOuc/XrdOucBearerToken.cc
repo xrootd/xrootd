@@ -42,27 +42,50 @@ XrdOucBearerToken::Result XrdOucBearerToken::FromEnvValue(const char* value, siz
 XrdOucBearerToken::Result XrdOucBearerToken::ReadFile(const char* path, size_t maxSize) {
     if (!path || !*path) return {};
 
-    struct stat st;
-    if (stat(path, &st) != 0) {
+    // Check the opened object, not a prior stat of the path. Symlinks are followed.
+    const int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
         if (errno == ENOENT) return {};
         return {Status::Error, {}, errno, path, {}};
     }
 
+    struct stat st;
+    if (fstat(fd, &st) != 0) {
+        const int err = errno;
+        close(fd);
+        return {Status::Error, {}, err, path, {}};
+    }
+
     const size_t limit = TokenLimit(maxSize);
-    if (static_cast<size_t>(st.st_size) > limit) return {Status::Error, {}, EMSGSIZE, path, {}};
+    if (st.st_size < 0 || static_cast<size_t>(st.st_size) > limit) {
+        close(fd);
+        return {Status::Error, {}, EMSGSIZE, path, {}};
+    }
 
     // make sure the file is not accessible to anyone but the owner
-    if (st.st_mode & (S_IRWXG | S_IRWXO)) return {Status::Error, {}, EPERM, path, {}};
+    if (st.st_mode & (S_IRWXG | S_IRWXO)) {
+        close(fd);
+        return {Status::Error, {}, EPERM, path, {}};
+    }
 
-    int fd = open(path, O_RDONLY);
-    if (fd < 0) return {Status::Error, {}, errno, path, {}};
-
-    std::string token(static_cast<size_t>(st.st_size), '\0');
-    ssize_t nread = read(fd, &token[0], static_cast<size_t>(st.st_size));
-    int readErr = errno;
+    const size_t need = static_cast<size_t>(st.st_size);
+    std::string token(need, '\0');
+    size_t got = 0;
+    while (got < need) {
+        const ssize_t nread = read(fd, &token[got], need - got);
+        if (nread < 0) {
+            if (errno == EINTR) continue;
+            const int err = errno;
+            close(fd);
+            return {Status::Error, {}, err, path, {}};
+        }
+        if (nread == 0) {
+            close(fd);
+            return {Status::Error, {}, EIO, path, {}};
+        }
+        got += static_cast<size_t>(nread);
+    }
     close(fd);
-
-    if (nread != st.st_size) return {Status::Error, {}, nread < 0 ? readErr : EIO, path, {}};
 
     XrdOucUtils::trim(token);
     if (token.empty()) return {};
