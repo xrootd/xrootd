@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClLog.hh>
 #include <cerrno>
 #include <cstdio>
@@ -16,6 +17,7 @@
 #include <sys/param.h>
 
 #include "XrdClHttp/XrdClHttpUtil.hh"
+#include "XrdOuc/XrdOucBearerToken.hh"
 
 namespace {
 
@@ -216,6 +218,48 @@ TEST_F(XrdClHttpGetBearerTokenTests, DiscoveryErrorIsLogged) {
     ASSERT_NE(std::string::npos, at) << log.out->messages;
     EXPECT_EQ(std::string::npos, log.out->messages.find(sentence, at + sentence.size()));
     unlink(path.c_str());
+}
+
+TEST_F(XrdClHttpGetBearerTokenTests, EnforcesProtocolMaxSize) {
+    std::string accepted(XrdOucBearerToken::MaxSize - 1, 'a');
+    {
+        EnvGuard env("BEARER_TOKEN", accepted.c_str());
+        EXPECT_EQ(accepted, XrdClHttp::GetBearerToken());
+    }
+
+    std::string rejected(XrdOucBearerToken::MaxSize, 'b');
+    EnvGuard env("BEARER_TOKEN", rejected.c_str());
+    TestLogger log;
+
+    EXPECT_TRUE(XrdClHttp::GetBearerToken(&log.logger).empty());
+    const std::string sentence =
+        "Bearer token discovery failed at BEARER_TOKEN: token exceeds the maximum allowed size";
+    EXPECT_NE(std::string::npos, log.out->messages.find(sentence)) << log.out->messages;
+    EXPECT_EQ(std::string::npos, log.out->messages.find(rejected));
+}
+
+TEST_F(XrdClHttpGetBearerTokenTests, ConfiguredTokenAtMaxSizeDoesNotFallThrough) {
+    auto* env = XrdCl::DefaultEnv::GetEnv();
+    ASSERT_NE(nullptr, env);
+    std::string previous;
+    const bool had = env->GetString("BearerToken", previous);
+
+    std::string rejected(XrdOucBearerToken::MaxSize, 'c');
+    ASSERT_TRUE(env->PutString("BearerToken", rejected));
+    EnvGuard fallback("BEARER_TOKEN", "env-token");
+    TestLogger log;
+
+    EXPECT_TRUE(XrdClHttp::GetBearerToken(&log.logger).empty());
+    const std::string sentence =
+        "Bearer token discovery failed at BearerToken: token exceeds the maximum allowed size";
+    EXPECT_NE(std::string::npos, log.out->messages.find(sentence)) << log.out->messages;
+    EXPECT_EQ(std::string::npos, log.out->messages.find(rejected));
+    EXPECT_EQ(std::string::npos, log.out->messages.find("env-token"));
+
+    if (had)
+        env->PutString("BearerToken", previous);
+    else
+        env->DelString("BearerToken");
 }
 
 TEST_F(XrdClHttpGetBearerTokenTests, DiscoveryErrorWithoutLoggerReturnsEmpty) {
