@@ -203,11 +203,13 @@ Factory::CreateFile(const std::string & /*url*/) {
     // vectored reads, and this cannot be determined by the code.
     // If we know that our server does not implement, we can force using
     // normal reads instead. It will be slower, yet it will work.
-    bool dummy;
     auto env = XrdCl::DefaultEnv::GetEnv();
-    if (!env->GetBool("HttpForceBasicReadV", dummy))
-        env->PutBool("HttpForceBasicReadV", true);
-    env->ImportString("HttpForceBasicReadV", "XRDCLS3_FORCEBASICREADV");
+    int ival; std::string sval;
+    if (!env->GetInt("HttpForceBasicReadV", ival) && !env->GetString("HttpForceBasicReadV", sval)) {
+        const char *ev = getenv("XRDCLS3_FORCEBASICREADV");
+        if (ev) env->PutString("HttpForceBasicReadV", ev);
+        else env->PutBool("HttpForceBasicReadV", true);
+    }
     
     return new File(m_log);
 }
