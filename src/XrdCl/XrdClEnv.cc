@@ -189,7 +189,7 @@ namespace XrdCl
       // Found some human string... make it lowercase
       transform(strval.begin(), strval.end(), strval.begin(), ::tolower);
       value = false;
-      if ((strval == "yes") || (strval == "true") )  {
+      if ((strval == "yes") || (strval == "true") || (strval == "y") )  {
         value = true;
         return true;
       } else {
