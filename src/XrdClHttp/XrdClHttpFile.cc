@@ -190,6 +190,120 @@ private:
     XrdCl::ResponseHandler *m_handler;
 };
 
+// Collects the results of the individual reads issued by File::VectorRead_dumb
+// and, once every chunk has completed, invokes the user handler with a single
+// VectorReadInfo (or with the first error encountered).
+//
+// Completion is tracked per chunk and is idempotent: File::Read may both invoke
+// the handler and return an error (e.g., when continuing a prefetch fails), so a
+// chunk may be reported more than once.  Only the first report counts.
+//
+// The object is reference-counted; each chunk handler holds a reference so a
+// late callback never touches freed memory.
+class VectorReadDumbAggregator {
+public:
+    VectorReadDumbAggregator(const XrdCl::ChunkList &chunks, XrdCl::ResponseHandler *handler)
+        : m_chunks(chunks), m_lengths(chunks.size(), 0), m_done(chunks.size(), false),
+          m_remaining(chunks.size() + 1), m_handler(handler)
+    {}
+
+    // Record the outcome of the read for chunk `idx`; takes ownership of `status` and `response`.
+    // A null status means the chunk was not read (e.g., it is zero-length or was never issued).
+    void ChunkDone(size_t idx, XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *response_raw) {
+        std::unique_ptr<XrdCl::XRootDStatus> status(status_raw);
+        std::unique_ptr<XrdCl::AnyObject> response(response_raw);
+        {
+            std::lock_guard<std::mutex> lg(m_mutex);
+            if (m_done[idx]) return;
+            m_done[idx] = true;
+            if (status && !status->IsOK()) {
+                if (m_status.IsOK()) m_status = *status;
+            } else if (status && response) {
+                XrdCl::ChunkInfo *ci = nullptr;
+                response->Get(ci);
+                if (ci) m_lengths[idx] = ci->GetLength();
+            }
+        }
+        Release();
+    }
+
+    bool IsChunkDone(size_t idx) {
+        std::lock_guard<std::mutex> lg(m_mutex);
+        return m_done[idx];
+    }
+
+    // Record an error that occurred while issuing the reads.
+    void SetError(const XrdCl::XRootDStatus &status) {
+        std::lock_guard<std::mutex> lg(m_mutex);
+        if (m_status.IsOK()) m_status = status;
+    }
+
+    // Ensure the user handler is never invoked (the error is returned synchronously instead).
+    void Abandon() {
+        std::lock_guard<std::mutex> lg(m_mutex);
+        m_handler = nullptr;
+    }
+
+    // Drop the reference held by the issuing thread (or by a completed chunk).
+    void Release() {
+        XrdCl::ResponseHandler *handler = nullptr;
+        {
+            std::lock_guard<std::mutex> lg(m_mutex);
+            if (--m_remaining) return;
+            handler = m_handler;
+            m_handler = nullptr;
+        }
+        if (handler) Finish(handler);
+    }
+
+    const XrdCl::ChunkList &GetChunks() const {return m_chunks;}
+
+private:
+    // Invoked exactly once, after every chunk has completed.  No lock is needed:
+    // all writers are done by the time m_remaining reaches zero.
+    void Finish(XrdCl::ResponseHandler *handler) {
+        if (!m_status.IsOK()) {
+            handler->HandleResponse(new XrdCl::XRootDStatus(m_status), nullptr);
+            return;
+        }
+        auto vr = std::make_unique<XrdCl::VectorReadInfo>();
+        uint32_t total = 0;
+        for (size_t idx = 0; idx < m_chunks.size(); idx++) {
+            vr->GetChunks().emplace_back(m_chunks[idx].GetOffset(), m_lengths[idx], m_chunks[idx].GetBuffer());
+            total += m_lengths[idx];
+        }
+        vr->SetSize(total);
+        auto obj = new XrdCl::AnyObject();
+        obj->Set(vr.release());
+        handler->HandleResponse(new XrdCl::XRootDStatus(), obj);
+    }
+
+    XrdCl::ChunkList m_chunks; // Copy of the request, with buffers resolved to their final location.
+    std::vector<uint32_t> m_lengths; // Bytes actually read for each chunk.
+    std::vector<bool> m_done; // Whether each chunk has been accounted for.
+    size_t m_remaining; // Chunks not yet accounted for, plus one for the issuing thread.
+    std::mutex m_mutex; // Protects all of the above, m_status, and m_handler.
+    XrdCl::XRootDStatus m_status;
+    XrdCl::ResponseHandler *m_handler;
+};
+
+// Response handler for one of the individual reads issued by File::VectorRead_dumb.
+class VectorReadDumbChunkHandler : public XrdCl::ResponseHandler {
+public:
+    VectorReadDumbChunkHandler(std::shared_ptr<VectorReadDumbAggregator> aggregator, size_t idx)
+        : m_aggregator(std::move(aggregator)), m_idx(idx)
+    {}
+
+    virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) {
+        std::unique_ptr<VectorReadDumbChunkHandler> holder(this);
+        m_aggregator->ChunkDone(m_idx, status ? status : new XrdCl::XRootDStatus(), response);
+    }
+
+private:
+    std::shared_ptr<VectorReadDumbAggregator> m_aggregator;
+    size_t m_idx;
+};
+
 } // anonymous namespace
 
 // Note: these values are typically overwritten by `CurlFactory::CurlFactory`;
@@ -757,6 +871,16 @@ File::VectorRead(const XrdCl::ChunkList &chunks,
                  XrdCl::ResponseHandler *handler,
                  time_t                  timeout )
 {
+    
+    // Some server side implementations of HTTP or S3 do not support
+    // vectored reads, and this cannot be determined by the code.
+    // If we know that our server does not implement, we can force using
+    // normal reads instead. It will be slower, yet it will work.
+    bool forcebasicreadv = false;
+    XrdCl::DefaultEnv::GetEnv()->GetBool( "HttpForceBasicReadV", forcebasicreadv );
+    if (forcebasicreadv)
+        return VectorRead_dumb(chunks, buffer, handler, timeout);
+    
     if (!m_is_opened) {
         m_logger->Error(kLogXrdClHttp, "Cannot do vector read: URL isn't open");
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp);
@@ -790,6 +914,86 @@ File::VectorRead(const XrdCl::ChunkList &chunks,
         m_logger->Warning(kLogXrdClHttp, "Failed to add vector read op to queue");
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError);
     }
+
+    return XrdCl::XRootDStatus();
+}
+
+XrdCl::XRootDStatus
+File::VectorRead_dumb(const XrdCl::ChunkList &chunks,
+                      void                   *buffer,
+                      XrdCl::ResponseHandler *handler,
+                      time_t                  timeout )
+{
+    if (!m_is_opened) {
+        m_logger->Error(kLogXrdClHttp, "Cannot do vector read: URL isn't open");
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp);
+    } else if (m_full_download.load(std::memory_order_relaxed)) {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp, 0, "Only sequential reads are supported when in full-download mode");
+    }
+    if (chunks.empty()) {
+        if (handler) {
+            auto status = new XrdCl::XRootDStatus();
+            auto vr = std::make_unique<XrdCl::VectorReadInfo>();
+            vr->SetSize(0);
+            auto obj = new XrdCl::AnyObject();
+            obj->Set(vr.release());
+            handler->HandleResponse(status, obj);
+        }
+        return XrdCl::XRootDStatus();
+    }
+
+    // Resolve where each chunk lands: contiguously in `buffer` if provided, otherwise in the chunk's own buffer.
+    XrdCl::ChunkList resolved(chunks);
+    if (buffer) {
+        auto cursor = static_cast<char *>(buffer);
+        for (auto &chunk : resolved) {
+            chunk.buffer = cursor;
+            cursor += chunk.GetLength();
+        }
+    } else {
+        for (const auto &chunk : resolved) {
+            if (chunk.GetLength() && !chunk.buffer) {
+                return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs, 0, "Vector read chunk has no buffer");
+            }
+        }
+    }
+
+    m_logger->Debug(kLogXrdClHttp, "Read %s (%lld chunks as individual reads; first chunk is %u bytes at offset %lld)", m_url.c_str(), static_cast<long long>(chunks.size()), static_cast<unsigned>(chunks[0].GetLength()), static_cast<long long>(chunks[0].GetOffset()));
+
+    auto aggregator = std::make_shared<VectorReadDumbAggregator>(resolved, handler);
+    const auto &agg_chunks = aggregator->GetChunks();
+    size_t issued = 0;
+    for (size_t idx = 0; idx < agg_chunks.size(); idx++) {
+        const auto &chunk = agg_chunks[idx];
+        if (!chunk.GetLength()) {
+            aggregator->ChunkDone(idx, nullptr, nullptr);
+            continue;
+        }
+        auto st = Read(chunk.GetOffset(), chunk.GetLength(), chunk.buffer,
+                       new VectorReadDumbChunkHandler(aggregator, idx), timeout);
+        if (st.IsOK()) {
+            issued++;
+            continue;
+        }
+        // Read() failed, but on some paths (e.g., a failed prefetch continuation) it has
+        // already invoked the handler, which then deleted itself.  We therefore never delete
+        // the chunk handler here; if it was not invoked it is leaked, and if it is invoked
+        // later the aggregator ignores the duplicate report for this chunk.
+        bool reported = aggregator->IsChunkDone(idx);
+        if (issued || reported) {
+            // A callback is pending or already happened; report the failure through the handler.
+            aggregator->SetError(st);
+        } else {
+            // Nothing has been reported to the caller; return the failure synchronously.
+            aggregator->Abandon();
+        }
+        for (; idx < agg_chunks.size(); idx++) {
+            aggregator->ChunkDone(idx, nullptr, nullptr);
+        }
+        aggregator->Release();
+        return (issued || reported) ? XrdCl::XRootDStatus() : st;
+    }
+    aggregator->Release();
 
     return XrdCl::XRootDStatus();
 }

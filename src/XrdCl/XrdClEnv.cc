@@ -169,6 +169,39 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get Bool
+  //----------------------------------------------------------------------------
+  bool Env::GetBool( const std::string &k, bool &value ) {
+    int intval;
+    if (GetInt(k, intval)) {
+      value = (intval != 0);
+      return true;
+    }
+
+    std::string strval;
+    if (GetString(k, strval)) {
+      std::transform(strval.begin(), strval.end(), strval.begin(),
+                     [](unsigned char c){ return std::tolower(c); });
+      value = (strval == "yes" || strval == "true" ||
+               strval == "y" || strval == "1");
+      return true;
+    }
+
+    return false;
+  }
+  
+  
+  //----------------------------------------------------------------------------
+  // Put bool
+  //----------------------------------------------------------------------------
+  bool Env::PutBool( const std::string &k, bool value ) {
+    if (value)
+      return PutInt(k, 1);
+    
+    return PutInt(k, 0);
+  }
+  
+  //----------------------------------------------------------------------------
   // Delete int
   //----------------------------------------------------------------------------
   bool Env::DelInt( const std::string &k )

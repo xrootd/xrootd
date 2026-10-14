@@ -22,8 +22,12 @@
 #include "XrdClS3File.hh"
 
 #include <XrdCl/XrdClLog.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 
 using namespace XrdClS3;
+
+
+
 
 namespace {
 
@@ -224,6 +228,7 @@ File::VectorRead(const XrdCl::ChunkList &chunks,
                  XrdCl::ResponseHandler *handler,
                  time_t                  timeout )
 {
+
     return m_wrapped_file->VectorRead(chunks, buffer, handler, timeout);
 }
 

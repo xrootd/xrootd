@@ -81,6 +81,23 @@ namespace XrdCl
       bool PutInt( const std::string &key, int value );
 
       //------------------------------------------------------------------------
+      //! Get a boolean associated to the given key
+      //! Note that the boolean could have been set as "yes", "no", 0 or nonzero
+      //!  "false" or "true"
+      //!
+      //! @return true if the value was found, false otherwise
+      //------------------------------------------------------------------------
+      bool GetBool( const std::string &key, bool &value );
+      
+      //------------------------------------------------------------------------
+      //! Associate a boolean with the given key. Use an integer to store it.
+      //!
+      //! @return false if there is already a shell-imported setting for this
+      //!         key, true otherwise
+      //------------------------------------------------------------------------
+      bool PutBool( const std::string &key, bool value );
+      
+      //------------------------------------------------------------------------
       //! Remove the int associated with the given key
       //!
       //! @return false if there is a shell-imported setting for this key,

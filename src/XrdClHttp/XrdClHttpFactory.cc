@@ -201,8 +201,8 @@ Factory::Initialize()
         if (!env->GetString("HttpHeaders", val) || val.empty()) {
             env->PutString("HttpHeaders", "");
             env->ImportString("HttpHeaders", "XRD_HTTPHEADERS");
-        }
-
+        }     
+       
         // Start up the cache for the OPTIONS response
         auto &cache = XrdClHttp::VerbsCache::Instance();
 
