@@ -51,7 +51,7 @@ target_link_libraries(${XrdMacaroons}
 )
 
 target_include_directories(${XrdMacaroons}
-  PRIVATE
+  SYSTEM PRIVATE
     ${JSON_INCLUDE_DIRS}
     ${MACAROONS_INCLUDES}
 )
