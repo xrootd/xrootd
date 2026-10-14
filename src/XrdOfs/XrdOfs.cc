@@ -2780,7 +2780,9 @@ int XrdOfs::SetupCksRT(XrdCksCalc*& cP, XrdOucEnv& Env,const char*& cT)
 
 // All done
 //
-   return -ENOTSUP;
+   cP = 0;
+   cT = 0;
+   return 0;
 }
 
 /******************************************************************************/
