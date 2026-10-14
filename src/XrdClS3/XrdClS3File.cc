@@ -25,6 +25,9 @@
 
 using namespace XrdClS3;
 
+
+
+
 namespace {
 
 class OpenResponseHandler : public XrdCl::ResponseHandler {

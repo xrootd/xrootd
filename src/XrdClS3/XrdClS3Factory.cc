@@ -45,8 +45,33 @@ std::string Factory::m_region = "";
 std::string Factory::m_url_style = "path";
 std::string Factory::m_mkdir_sentinel;
 Factory::Credentials Factory::m_default_creds;
+bool Factory::m_default_creds_direct = false;
 std::unordered_map<std::string, Factory::Credentials> Factory::m_bucket_location_map;
 std::unordered_map<std::string, std::pair<Factory::Credentials, std::chrono::steady_clock::time_point>> Factory::m_bucket_auth_map;
+
+
+
+
+// "host:80" / "host:443" -> "host"
+// "[::1]:443" -> "[::1]"
+// "host:8080" / "host" unchanged
+std::string strip_default_port(std::string_view hostport) {
+    auto last_colon = hostport.rfind(':');
+    if (last_colon == std::string_view::npos)
+        return std::string(hostport);
+    
+    // IPv6 without brackets and without a port has multiple colons; leave it.
+    if (hostport.front() != '[' && hostport.find(':') != last_colon)
+        return std::string(hostport);
+    
+    auto port = hostport.substr(last_colon + 1);
+    if (port == "80" || port == "443")
+        return std::string(hostport.substr(0, last_colon));
+    
+    return std::string(hostport);
+}
+
+
 
 
 namespace {
@@ -355,22 +380,26 @@ void
 Factory::InitS3Config()
 {
     auto env = XrdCl::DefaultEnv::GetEnv();
+    m_default_creds_direct = false;
+    
     SetDefault(env, "XrdClS3MkdirSentinel", "XRDCLS3_MKDIRSENTINEL", m_mkdir_sentinel, ".xrdcls3.dirsentinel");
     SetDefault(env, "XrdClS3Endpoint", "XRDCLS3_ENDPOINT", m_endpoint, "");
     SetDefault(env, "XrdClS3UrlStyle", "XRDCLS3_URLSTYLE", m_url_style, "path");
     SetDefault(env, "XrdClS3Region", "XRDCLS3_REGION", m_region, "");
-    std::string access_key;
-    SetDefault(env, "XrdClS3AccessKeyLocation", "XRDCLS3_ACCESSKEYLOCATION", access_key, "");
-    std::string secret_key;
-    SetDefault(env, "XrdClS3SecretKeyLocation", "XRDCLS3_SECRETKEYLOCATION", secret_key, "");
-    if (!access_key.empty() && !secret_key.empty()) {
-        m_default_creds = {access_key, secret_key};
-    } else if (access_key.empty() && secret_key.empty()) {
-        m_log->Info(kLogXrdClS3, "Defaulting to public bucket access");
-    } else if (access_key.empty() && !secret_key.empty()) {
-        m_log->Warning(kLogXrdClS3, "Secret key location set (%s) but access key location is empty; authorization will not work.", secret_key.c_str());
-    } else if (!access_key.empty() && secret_key.empty()) {
-        m_log->Warning(kLogXrdClS3, "Access key location set (%s) but secret key location is empty; authorization will not work.", access_key.c_str());
+    
+    std::string access_key_loc;
+    SetDefault(env, "XrdClS3AccessKeyLocation", "XRDCLS3_ACCESSKEYLOCATION", access_key_loc, "");
+    std::string secret_key_loc;
+    SetDefault(env, "XrdClS3SecretKeyLocation", "XRDCLS3_SECRETKEYLOCATION", secret_key_loc, "");
+    
+    if (!access_key_loc.empty() && !secret_key_loc.empty()) {
+        m_default_creds = {access_key_loc, secret_key_loc};
+    } else if (access_key_loc.empty() && secret_key_loc.empty()) {
+        m_log->Info(kLogXrdClS3, "No explicit location given for S3 secret and access keys");
+    } else if (access_key_loc.empty() && !secret_key_loc.empty()) {
+        m_log->Warning(kLogXrdClS3, "Secret key location set (%s) but access key location is empty; authorization will not work.", secret_key_loc.c_str());
+    } else if (!access_key_loc.empty() && secret_key_loc.empty()) {
+        m_log->Warning(kLogXrdClS3, "Access key location set (%s) but secret key location is empty; authorization will not work.", access_key_loc.c_str());
     }
 
     // Parse the per-bucket configuration of credentials.
@@ -407,6 +436,30 @@ Factory::InitS3Config()
             }
         }
     }
+    else {
+        m_log->Info(kLogXrdClS3, "No per-bucket S3 configuration provided");
+
+    }
+    
+    if ( access_key_loc.empty() && secret_key_loc.empty() && bucket_configs.empty() ) {
+        std::string access_key, secret_key;
+        
+        SetDefault(env, "XrdClS3AccessKey", "XRDCLS3_ACCESS_KEY", access_key, "");
+        SetDefault(env, "XrdClS3SecretKey", "XRDCLS3_SECRET_KEY", secret_key, "");
+
+        if (!access_key.empty() && !secret_key.empty()) {
+            m_default_creds = {access_key, secret_key};
+        } else if (access_key.empty() && secret_key.empty()) {
+            m_log->Info(kLogXrdClS3, "No explicit S3 secret and access keys given. Defaulting to public access.");            
+        } else if (access_key.empty() && !secret_key.empty()) {
+            m_log->Warning(kLogXrdClS3, "Secret key set but access key location is empty; authorization will not work.");
+        } else if (!access_key.empty() && secret_key.empty()) {
+            m_log->Warning(kLogXrdClS3, "Access key set but secret key location is empty; authorization will not work.");
+        }
+        
+        m_default_creds = {access_key, secret_key};
+        m_default_creds_direct = true;
+    }
 }
 
 bool
@@ -423,17 +476,36 @@ Factory::GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std:
         login = bucket.substr(0, at_loc);
         bucket = bucket.substr(at_loc + 1);
     }
-    std::string endpoint = m_endpoint;
+    std::string endpoint = m_endpoint;   
     std::string region = m_region;
     if ((bucket == m_endpoint) || m_endpoint.empty()) {
         endpoint = bucket;
+        
         auto old_loc = loc + 1;
-        loc = s3_url.find('/', loc + 1);
-        if (loc == std::string::npos) {
-            err_msg = "Provided S3 URL does not contain a bucket in path";
-            return false;
+        
+        
+        // Check if virtual url style, with the bucket in the hostname
+        if (m_url_style == "virtual") {
+            auto p = bucket.find('.');
+            if ((p == std::string::npos) || (p < 1)) {
+                err_msg = "Provided S3 URL does not contain a bucket in the hostname";
+                return false;
+            }
+            
+            bucket.resize(p);
+     
         }
-        bucket = s3_url.substr(old_loc, loc - old_loc);
+        else {
+            // Otherwise check the path url style
+            loc = s3_url.find('/', loc + 1);
+            if (loc == std::string::npos) {
+                err_msg = "Provided S3 URL does not contain a bucket in path";
+                return false;
+            }
+        
+            bucket = s3_url.substr(old_loc, loc - old_loc);
+            
+        }
     } else {
         auto authority = ExtractHostname(s3_url);
         std::string test_endpoint = "." + endpoint;
@@ -463,15 +535,27 @@ Factory::GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std:
     if (obj_result) {
         *obj_result = obj;
     }
+    
+    endpoint = strip_default_port(endpoint);
+    
     if (m_url_style == "virtual" || m_url_style.empty()) {
-        https_url = "https://" + bucket + "." + m_region + "." + endpoint + (obj_result ? "" : ("/" + obj));
+        if (!m_region.empty()) {
+            https_url = "https://" + bucket + "." + m_region + "." + endpoint + (obj_result ? "" : ("/" + obj));
+        } else {
+            https_url = "https://" + endpoint + (obj_result ? "" : ("/" + obj));
+        }
+        
+        m_log->Debug(kLogXrdClS3, "https_url is %s", https_url.c_str());            
         return true;
     } else if (m_url_style == "path") {
         if (!m_region.empty()) {
-            https_url = "https://" + m_region + "." + endpoint + "/" + bucket + (obj_result ? "" : ("/" + obj));
+            //https_url = "https://" + m_region + "." + endpoint + "/" + bucket + (obj_result ? "" : ("/" + obj));   
+            https_url = "https://" + endpoint + "/" + bucket + (obj_result ? "" : ("/" + obj));   
         } else {
             https_url = "https://" + endpoint + "/" + bucket + (obj_result ? "" : ("/" + obj));
         }
+        
+        m_log->Debug(kLogXrdClS3, "https_url is %s", https_url.c_str());
         return true;
     } else {
         err_msg = "Server configuration has invalid setting for URL style";
@@ -501,6 +585,7 @@ Factory::GenerateV4Signature(const std::string &url, const std::string &verb, st
     //
 
     auto canonicalURI = PathEncode(url);
+    m_log->Debug(kLogXrdClS3, "canonical URI is %s", canonicalURI.c_str());
 
     // The canonical query string is the alphabetically sorted list of
     // URI-encoded parameter names '=' values, separated by '&'s.
@@ -613,6 +698,8 @@ Factory::GenerateV4Signature(const std::string &url, const std::string &verb, st
         verb + "\n" + canonicalURI + "\n" + canonicalQueryString + "\n" +
         canonicalHeaders + "\n" + signedHeaders + "\n" + payload_hash;
 
+    m_log->Debug(kLogXrdClS3, "canonical request is %s", canonicalRequest.c_str());
+    
     //
     // Create task 2's inputs.
     //
@@ -737,6 +824,9 @@ Factory::GetBucketFromHttpsUrl(const std::string &url) {
 std::tuple<std::string, std::string, bool>
 Factory::GetCredentialsForBucket(const std::string &bucket, std::string &err_msg)
 {
+    if (m_default_creds_direct)
+        return {m_default_creds.m_accesskey, m_default_creds.m_secretkey, true};
+    
     auto now = std::chrono::steady_clock::now();
     {
         std::shared_lock lock(m_bucket_auth_map_mutex);

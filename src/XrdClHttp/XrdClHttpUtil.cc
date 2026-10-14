@@ -1366,7 +1366,8 @@ CurlWorker::Run() {
                 OpRecord(*op, OpKind::Error);
                 continue;
             }
-            m_logger->Debug(kLogXrdClHttp, "Added request for URL %s to worker thread for processing", op->GetUrl().c_str());
+            m_logger->Debug(kLogXrdClHttp, "Added request %s for URL %s to worker thread for processing", op->GetVerbString(op->GetVerb()).c_str(), op->GetUrl().c_str());
+            
             running_handles += 1;
         }
 

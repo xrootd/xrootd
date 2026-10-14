@@ -131,7 +131,11 @@ private:
     };
 
     // Default credentials if not specified for a bucket.
+    // NB: if !m_default_creds_direct then the code will treat this as filesystem locations for the keys
+    //  if m_default_creds_direct then this structure will contain the actual keys
+    // NBB: these are static vars, we can't have multiple client instances and configure them differently
     static Credentials m_default_creds;
+    static bool m_default_creds_direct;
 
     // Map from bucket name to credentials to use
     static std::unordered_map<std::string, Credentials> m_bucket_location_map;
