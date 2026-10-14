@@ -534,22 +534,26 @@ int XrdOfs::ConfigCksRT(XrdSysError &Eroute, XrdOucEnv* envP)
        return 1;
       }
 
-// Record the default checksum that is to be used
-//
-   CksRTDflt = strdup(csList[0].c_str());
-
 // Configure the automatic checksum if applicable
 //
-   if (CksRTName)
-      {if (!strcmp(CksRTName, "default"))
-          {free(CksRTName);
-           CksRTName = CksRTDflt;
+   if (CksRTName || CksRTCgi) // CksRTName non-zero if "on" or "default"
+      {if (csList.size() == 0)
+          {Eroute.Say("Config failure: cksrt directive conflict; "
+                      "checksums not configured!");
+           return 1;
           }
 
-       if (!(CksRTCalc = Cks->Object(CksRTName)))
-          {Eroute.Say("Config failure: cksrt auto ", CksRTName,
-                      " checksum either non-native or not configured!");
+       const char* rtDflt = csList[0].c_str();
+
+       if (!(CksRTCalc = Cks->Object(rtDflt)))
+          {Eroute.Say("Config failure: cksrt default checksum ", rtDflt,
+                  " configuration failed!");
            return 1;
+          }
+
+       if (CksRTName)
+          {free(CksRTName);
+           CksRTName = strdup(rtDflt);
           }
       }
 
