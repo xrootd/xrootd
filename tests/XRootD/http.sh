@@ -109,6 +109,35 @@ function test_http() {
 		assert xrdcp "${DAV_HOST}/${TMPDIR}/${i}.ref" "${TMPDIR}/${i}.dat"
 	done
 
+	# Upload multiple sources to an HTTP directory in one xrdcp invocation.
+	MULTI_UPLOAD_DIR="${TMPDIR}/multi-upload"
+	printf 'first HTTP directory copy\n' > "${TMPDIR}/multi-one.ref"
+	printf 'second HTTP directory copy\n' > "${TMPDIR}/multi-two.ref"
+	printf 'nested HTTP directory copy\n' > "${TMPDIR}/multi-three.ref"
+	assert xrdfs "${DAV_HOST}" mkdir -p "${MULTI_UPLOAD_DIR}/nested"
+	assert xrdcp --parallel 2 \
+		"${TMPDIR}/multi-one.ref" "${TMPDIR}/multi-two.ref" \
+		"${DAV_HOST}/${MULTI_UPLOAD_DIR}"
+	assert xrdcp "${TMPDIR}/multi-three.ref" \
+		"${DAV_HOST}/${MULTI_UPLOAD_DIR}/nested/multi-three.ref"
+
+	# Preserve nested paths with or without a trailing slash and query.
+	for SUFFIX in "" "/" "?test=directory/token" "/?test=directory/token"; do
+		RECURSIVE_DOWNLOAD_DIR=$(mktemp -d "${TMPDIR}/recursive-XXXXXX")
+		assert xrdcp --recursive "${DAV_HOST}/${MULTI_UPLOAD_DIR}${SUFFIX}" \
+			"${RECURSIVE_DOWNLOAD_DIR}"
+		assert cmp "${TMPDIR}/multi-one.ref" \
+			"${RECURSIVE_DOWNLOAD_DIR}/multi-upload/multi-one.ref"
+		assert cmp "${TMPDIR}/multi-two.ref" \
+			"${RECURSIVE_DOWNLOAD_DIR}/multi-upload/multi-two.ref"
+		assert cmp "${TMPDIR}/multi-three.ref" \
+			"${RECURSIVE_DOWNLOAD_DIR}/multi-upload/nested/multi-three.ref"
+	done
+
+	# Require query credentials on probes, listings, and transfers. The fixture
+	# also serves malformed and incomplete listings to verify CLI failure.
+	assert python3 "${SOURCE_DIR}/http-directory.py" "$(command -v xrdcp)"
+
 	# check that all checksums for downloaded files match
 
 	for i in $FILES; do
