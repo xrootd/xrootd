@@ -205,9 +205,9 @@ Factory::CreateFile(const std::string & /*url*/) {
     // normal reads instead. It will be slower, yet it will work.
     bool dummy;
     auto env = XrdCl::DefaultEnv::GetEnv();
-    if (!env->GetBool("XrdClS3ForceBasicReadV", dummy))
-        env->PutBool("XrdClS3ForceBasicReadV", true);
-    env->ImportInt("XrdClS3ForceBasicReadV", "XRDCLS3_FORCEBASICREADV");
+    if (!env->GetBool("HttpForceBasicReadV", dummy))
+        env->PutBool("HttpForceBasicReadV", true);
+    env->ImportString("HttpForceBasicReadV", "XRDCLS3_FORCEBASICREADV");
     
     return new File(m_log);
 }
