@@ -382,8 +382,18 @@ void
 Factory::InitS3Config()
 {
     auto env = XrdCl::DefaultEnv::GetEnv();
-    m_default_creds_direct = false;
     
+    // Some server side implementations of HTTP or S3 do not support
+    // vectored reads, and this cannot be determined by the code.
+    // If we know that our server does not implement, we can force using
+    // normal reads instead. It will be slower, yet it will work.
+    bool dummy;
+    if (!env->GetBool("HttpForceBasicReadV", dummy))
+        env->PutBool("HttpForceBasicReadV", true);
+    env->ImportInt("HttpForceBasicReadV", "XRD_HTTPFORCEBASICREADV");
+    
+    m_default_creds_direct = false;
+            
     SetDefault(env, "XrdClS3MkdirSentinel", "XRDCLS3_MKDIRSENTINEL", m_mkdir_sentinel, ".xrdcls3.dirsentinel");
     SetDefault(env, "XrdClS3Endpoint", "XRDCLS3_ENDPOINT", m_endpoint, "");
     SetDefault(env, "XrdClS3UrlStyle", "XRDCLS3_URLSTYLE", m_url_style, "path");

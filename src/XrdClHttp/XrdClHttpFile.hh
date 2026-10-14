@@ -84,6 +84,15 @@ public:
                                         XrdCl::ResponseHandler *handler,
                                         time_t                  timeout ) override;
 
+    // Same semantics as VectorRead, but implemented by issuing one Read per
+    // chunk instead of a single multi-range GET.  If `buffer` is non-null, the
+    // chunks are stored contiguously into it (in the order of `chunks`);
+    // otherwise each chunk's own buffer is used.
+    XrdCl::XRootDStatus VectorRead_dumb(const XrdCl::ChunkList &chunks,
+                                        void                   *buffer,
+                                        XrdCl::ResponseHandler *handler,
+                                        time_t                  timeout);
+
     virtual XrdCl::XRootDStatus Write(uint64_t            offset,
                                 uint32_t                size,
                                 const void             *buffer,
