@@ -197,12 +197,14 @@ Factory::CanonicalizeQueryString(const std::string &url) {
 XrdCl::FilePlugIn *
 Factory::CreateFile(const std::string & /*url*/) {
     if (!m_initialized) {return nullptr;}
+    InitS3Config();
     return new File(m_log);
 }
 
 XrdCl::FileSystemPlugIn *
 Factory::CreateFileSystem(const std::string & url) {
     if (!m_initialized) {return nullptr;}
+    InitS3Config();
     return new Filesystem(url, m_log);
 }
 

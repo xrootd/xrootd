@@ -100,10 +100,10 @@ namespace XrdCl
     // If the protocol is HTTP(S) or DAV(S), change the default port number
     //--------------------------------------------------------------------------
     if (pProtocol == "http" || pProtocol == "dav") {
-      pPort = 80;
+      pPort = 0;
     }
     if (pProtocol == "https" || pProtocol == "davs") {
-      pPort = 443;
+      pPort = 0;
     }
 
     //--------------------------------------------------------------------------
@@ -559,8 +559,14 @@ namespace XrdCl
     {
       if( pProtocol == "file" )
         o << pHostName;
-      else
-        o << pHostName << ":" << pPort << "/";
+      else {
+        
+        // Note that if the original url had no port specified, we shall not specify one here
+        if (pPort)
+          o << pHostName << ":" << pPort << "/";
+        else
+          o << pHostName << "/";
+      }
     }
 
     o << GetPathWithParams();
