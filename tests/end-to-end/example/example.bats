@@ -31,10 +31,6 @@ teardown() {
     kill_pid_files
 }
 
-bats::on_failure() {
-	print_log_files
-}
-
 @test "create file from stdin should succeed" {
     run bats_pipe -0 echo 'hello world!' \| xrdcp - root://localhost:1094//remotefile
 }

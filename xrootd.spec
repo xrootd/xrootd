@@ -84,6 +84,11 @@ BuildRequires:	openssl
 BuildRequires:	procps-ng
 BuildRequires:	python3-pytest
 BuildRequires:	sqlite
+%if 0%{?fedora}
+BuildRequires:	util-linux-script
+%else
+BuildRequires:	util-linux
+%endif
 %endif
 
 %if %{with xrdec}

@@ -52,9 +52,6 @@ namespace XrdCl
       //! @return         status of the copy operation
       //------------------------------------------------------------------------
       virtual XRootDStatus Run( CopyProgressHandler *progress = 0 );
-
-    private:
-      CopyJob      *pJob;
   };
 }
 

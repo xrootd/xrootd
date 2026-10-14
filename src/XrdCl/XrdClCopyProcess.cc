@@ -269,6 +269,9 @@ namespace XrdCl
     if( !p.HasProperty( "thirdParty" ) )
       p.Set( "thirdParty", "none" );
 
+    if( !p.HasProperty( "thirdPartyMode" ) )
+      p.Set( "thirdPartyMode", "pull" );
+
     if( !p.HasProperty( "checkSumMode" ) )
       p.Set( "checkSumMode", "none" );
     else
