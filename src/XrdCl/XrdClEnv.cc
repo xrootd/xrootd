@@ -174,31 +174,19 @@ namespace XrdCl
   bool Env::GetBool( const std::string &k, bool &value ) {
     int intval;
     if (GetInt(k, intval)) {
-      if (intval) {
-        value = true;
-        return true;
-      } else {
-        value = false;
-        return false;
-      }
+      value = (intval != 0);
+      return true;
     }
-    
-    // No integer... let's check for a hooman string
+
     std::string strval;
     if (GetString(k, strval)) {
-      // Found some human string... make it lowercase
-      transform(strval.begin(), strval.end(), strval.begin(), ::tolower);
-      value = false;
-      if ((strval == "yes") || (strval == "true") || (strval == "y") || (strval == "1") )  {
-        value = true;
-        return true;
-      } else {
-        value = false;
-        return false;
-      }
-        
+      std::transform(strval.begin(), strval.end(), strval.begin(),
+                     [](unsigned char c){ return std::tolower(c); });
+      value = (strval == "yes" || strval == "true" ||
+               strval == "y" || strval == "1");
+      return true;
     }
-    
+
     return false;
   }
   
