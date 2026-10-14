@@ -26,6 +26,9 @@ done
 
 set -xe
 
+ERRFILE=$(mktemp)
+trap 'rm -f "${ERRFILE}"' EXIT
+
 ${XRDCP} --version
 
 # hostname-address pair, so that we can keep track of files more easily
@@ -54,18 +57,17 @@ XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDCP} -f ${HOST_SRV2}//file1 /dev/null
 dd if=/dev/zero of=data/srv-pfc/file1 bs=1 count=1 conv=notrunc
 
 set +e
-XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDCP} -f ${HOST_SRV2}//file1 /dev/null 2> /tmp/err.txt
+XRD_CONNECTIONRETRY=0 ${TIMEOUTCMD} 10 ${XRDCP} -f ${HOST_SRV2}//file1 /dev/null 2> "${ERRFILE}"
 ret1=$?
-grep -q "Run: \[ERROR\] Server responded with an error: \[3019\]" /tmp/err.txt
+grep -q "Run: \[ERROR\] Server responded with an error: \[3019\]" "${ERRFILE}"
 ret2=$?
-cat /tmp/err.txt
+cat "${ERRFILE}"
 if [ $ret1 -ne 54 -o $ret2 -ne 0 ]; then
   echo "${host}: did not get the expected error on corrupted file"
   exit 1
 fi
 
 set -e
-rm -f /tmp/err.txt
 
 echo "ALL TESTS PASSED"
 exit 0
