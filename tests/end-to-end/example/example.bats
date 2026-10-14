@@ -17,8 +17,6 @@ setup_file() {
 setup() {
 	launch_xrootd example.cfg example
 
-	sleep 0.5
-
     echo 'example file!' | xrdcp - root://localhost:1094//examplefile
 
     # workdir as test tmp dir (all files are removed after execution)

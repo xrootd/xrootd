@@ -13,12 +13,8 @@ readonly XROOTD_DST="localhost:8459"
 setup() {
 	cd $BATS_TEST_TMPDIR
 
-	sleep 0.5
-
 	PORT=${XROOTD_SRC##*:} launch_xrootd bigfiles.cfg xrootd_src
 	PORT=${XROOTD_DST##*:} launch_xrootd bigfiles.cfg xrootd_dst
-
-	sleep 0.5
 
 	head -c 1 /dev/zero | xrdcp - http://${XROOTD_SRC}//file_1gb
 	head -c 1 /dev/zero | xrdcp - http://${XROOTD_SRC}//file_10gb

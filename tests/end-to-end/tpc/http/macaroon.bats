@@ -16,12 +16,8 @@ setup() {
 
 	openssl rand -base64 -out macaroon-secret 64
 
-	sleep 0.5
-
 	PORT=${XROOTD_SRC##*:} launch_xrootd macaroon.cfg xrootd_src
 	PORT=${XROOTD_DST##*:} launch_xrootd macaroon.cfg xrootd_dst
-
-	sleep 0.5
 
 	src_token=$(curl --fail --show-error -k --cert $BATS_SUITE_TMPDIR/client.crt --key $BATS_SUITE_TMPDIR/client.key -X POST -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' -H 'Content-Type: application/macaroon-request' https://${XROOTD_SRC}/ | jq -r .macaroon)
 	echo $src_token >  token-file

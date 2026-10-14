@@ -19,12 +19,8 @@ readonly XROOTD_DST="localhost:8519"
 setup() {
 	cd $BATS_TEST_TMPDIR
 
-	sleep 0.5
-
 	PORT=${XROOTD_SRC##*:} launch_xrootd protocol.cfg xrootd_src
 	PORT=${XROOTD_DST##*:} launch_xrootd protocol.cfg xrootd_dst
-
-	sleep 0.5
 
 	echo 'source content' > xrootd_src/file_src
 	echo 'overwrite me!'  > xrootd_dst/file_dst_overwrite

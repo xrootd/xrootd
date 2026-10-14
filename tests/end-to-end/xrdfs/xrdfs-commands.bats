@@ -11,7 +11,6 @@ readonly endpoint=root://localhost:11966
 
 setup() {
     launch_xrootd xrdfs-commands.cfg xrdfs-commands
-    sleep 0.5
 
     run bats_pipe -0 printf '0123456789abcdef\n' \| xrdcp - \
         "$endpoint//file"
@@ -19,10 +18,6 @@ setup() {
 
 teardown() {
     kill_pid_files 2>/dev/null || true
-}
-
-bats::on_failure() {
-    print_log_files
 }
 
 @test "global options validate their arguments" {
