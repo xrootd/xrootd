@@ -1638,7 +1638,7 @@ std::string obfuscateAuth(const std::string& input)
 {
   static const regex_t auth_regex = []() {
     constexpr char re[] =
-      "(authz=|(transferheader)?(www-|proxy-)?auth(orization|enticate)[[:space:]]*:[[:space:]]*)"
+      "(authz=|(transferheader)?(www-|proxy-)?auth(orization|enticate)([[:space:]]*:[[:space:]]*|[[:space:]]+))"
       "(Bearer([[:space:]]|%20)?(token([[:space:]]|%20)?)?)?";
 
     regex_t regex;
