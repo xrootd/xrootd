@@ -32,6 +32,14 @@ Methods
 .. automethod:: XRootD.client.FileSystem.statvfs
 .. automethod:: XRootD.client.FileSystem.protocol
 .. automethod:: XRootD.client.FileSystem.dirlist
+.. automethod:: XRootD.client.FileSystem.listdir
+.. automethod:: XRootD.client.FileSystem.scandir
+.. automethod:: XRootD.client.FileSystem.checksum
+.. automethod:: XRootD.client.FileSystem.remove_tree
+.. automethod:: XRootD.client.FileSystem.exists
+.. automethod:: XRootD.client.FileSystem.is_file
+.. automethod:: XRootD.client.FileSystem.is_dir
+.. automethod:: XRootD.client.FileSystem.makedirs
 .. automethod:: XRootD.client.FileSystem.sendinfo
 .. automethod:: XRootD.client.FileSystem.prepare
 .. automethod:: XRootD.client.FileSystem.set_property

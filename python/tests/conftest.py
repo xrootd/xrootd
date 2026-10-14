@@ -15,15 +15,25 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from env import SERVER_PORT, SERVER_URL, release_reserved_port
+from env import SERVER_PORT, SERVER_URL, release_reserved_port  # noqa: E402
+
+collect_ignore = []
+if sys.version_info < (3, 11):
+    collect_ignore = ['test_aio.py', 'test_aio_helpers.py',
+                      'test_asyncstream.py', 'test_fsspec.py',
+                      'test_fsspec_contracts.py']
 
 CONFIG = Path(__file__).resolve().parent / 'xrootd.cfg'
 
 # The remaining test modules do not talk to a server, so there is no point in
 # starting one for them.
 
-NEEDS_SERVER = {'test_copy.py', 'test_file.py', 'test_filesystem.py',
-                'test_glob.py', 'test_threads.py'}
+NEEDS_SERVER = {'test_aio.py', 'test_aio_helpers.py', 'test_asyncstream.py',
+                'test_copy.py',
+                'test_file.py',
+                'test_filesystem.py', 'test_filesystem_helpers.py',
+                'test_fsspec.py', 'test_fsspec_contracts.py',
+                'test_glob.py', 'test_stream.py', 'test_threads.py'}
 
 TIMEOUT = 30
 
@@ -65,7 +75,8 @@ shutil.rmtree(basedir, ignore_errors=True)
 def xrootd_server(request):
     """Run an XRootD server for the duration of the test session."""
 
-    collected = {os.path.basename(str(getattr(item, 'path', None) or item.fspath))
+    collected = {os.path.basename(str(getattr(item, 'path', None) or
+                                      item.fspath))
                  for item in request.session.items}
 
     if not collected & NEEDS_SERVER:
@@ -184,8 +195,9 @@ def wait_until_ready(server, xrdfs, logfile):
     # instead of failing, which would make every startup take seconds. Short
     # timeouts are safe precisely because each attempt is a fresh process.
 
-    environ = dict(os.environ, XRD_CONNECTIONWINDOW='3', XRD_CONNECTIONRETRY='2',
-                   XRD_REQUESTTIMEOUT='5', XRD_TIMEOUTRESOLUTION='1')
+    environ = dict(os.environ, XRD_CONNECTIONWINDOW='3',
+                   XRD_CONNECTIONRETRY='2', XRD_REQUESTTIMEOUT='5',
+                   XRD_TIMEOUTRESOLUTION='1')
 
     # Give the server a moment to bind its port, so that the first query
     # usually succeeds at once instead of waiting out a connection window.

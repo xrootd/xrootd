@@ -23,11 +23,63 @@
 #-------------------------------------------------------------------------------
 from __future__ import absolute_import, division, print_function
 
+import errno
+import posixpath
+
 from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
+from XRootD.client.responses import XRootDNotFoundError, raise_as_oserror
+from XRootD.client.responses import checksum_query_path, parse_checksum
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.utils import CallbackWrapper
-from XRootD.client.flags import AccessMode
+from XRootD.client.url import URL
+from XRootD.client.flags import AccessMode, DirListFlags, MkDirFlags
+from XRootD.client.flags import QueryCode, StatInfoFlags
+
+
+class DirectoryEntry(object):
+  """A directory entry with its remote path and stat information."""
+
+  def __init__(self, parent, entry, statinfo):
+    self.name = entry.name
+    base, separator, params = parent.partition('?')
+    prefix = base.rstrip('/')
+    if not prefix and base.startswith('//'):
+      prefix = '/'
+    self.path = prefix + '/' + self.name
+    if separator:
+      self.path += '?' + params
+    self.hostaddr = getattr(entry, 'hostaddr', None)
+    self.statinfo = statinfo
+
+  def is_dir(self):
+    return bool(self.statinfo.flags & StatInfoFlags.IS_DIR)
+
+  def is_file(self):
+    return not bool(self.statinfo.flags &
+                    (StatInfoFlags.IS_DIR | StatInfoFlags.OTHER))
+
+  def stat(self):
+    return self.statinfo
+
+  @property
+  def size(self):
+    return int(self.statinfo.size)
+
+
+class RemoveTreeResult(object):
+  """Counts of files, directories, and bytes removed by ``remove_tree``."""
+
+  def __init__(self):
+    self.files_removed = 0
+    self.directories_removed = 0
+    self.size_removed = 0
+
+  def as_dict(self):
+    return {'FilesRemoved': self.files_removed,
+            'DirectoriesRemoved': self.directories_removed,
+            'SizeRemoved': self.size_removed}
+
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
@@ -311,6 +363,126 @@ class FileSystem(object):
     status, response = self.__fs.dirlist(path, flags, timeout)
     if response: response = DirectoryList(response)
     return XRootDStatus(status), response
+
+  def stat_info(self, path, timeout=0):
+    """Return native stat metadata; raise an OSError subclass on failure.
+
+    Unlike ``stat``, this convenience method does not return a status tuple.
+    """
+    status, info = self.stat(path, timeout=timeout)
+    raise_as_oserror(status, path)
+    return info
+
+  def unlink(self, path, missing_ok=False, timeout=0):
+    """Remove one file, optionally ignoring a missing path."""
+    status, _ = self.rm(path, timeout=timeout)
+    try:
+      raise_as_oserror(status, path)
+    except FileNotFoundError:
+      if not missing_ok:
+        raise
+
+  def _stat_if_exists(self, path, timeout=0):
+    status, info = self.stat(path, timeout=timeout)
+    if status.ok:
+      return info
+    if isinstance(status.exception(), XRootDNotFoundError):
+      return None
+    raise_as_oserror(status, path)
+
+  def exists(self, path, timeout=0):
+    """Return whether a path exists; raise for errors other than not found."""
+    return self._stat_if_exists(path, timeout) is not None
+
+  def is_file(self, path, timeout=0):
+    """Return whether a path is a regular file."""
+    info = self._stat_if_exists(path, timeout)
+    return bool(info and not info.flags & (StatInfoFlags.IS_DIR |
+                                           StatInfoFlags.OTHER))
+
+  def is_dir(self, path, timeout=0):
+    """Return whether a path is a directory."""
+    info = self._stat_if_exists(path, timeout)
+    return bool(info and info.flags & StatInfoFlags.IS_DIR)
+
+  def listdir(self, path, timeout=0):
+    """Return directory entry names, like :func:`os.listdir`."""
+    status, listing = self.dirlist(path, flags=DirListFlags.NONE,
+                                   timeout=timeout)
+    raise_as_oserror(status, path)
+    return [entry.name for entry in listing]
+
+  def scandir(self, path, timeout=0):
+    """Return entries with full remote paths and stat data."""
+    status, listing = self.dirlist(path, flags=DirListFlags.STAT,
+                                   timeout=timeout)
+    raise_as_oserror(status, path)
+    result = []
+    for entry in listing:
+      item = DirectoryEntry(path, entry, entry.statinfo)
+      if item.statinfo is None:
+        status, item.statinfo = self.stat(item.path, timeout=timeout)
+        raise_as_oserror(status, item.path)
+      result.append(item)
+    return result
+
+  def checksum(self, path, algorithm=None, timeout=0):
+    """Return the server checksum as an ``(algorithm, value)`` tuple."""
+    query_path = checksum_query_path(path, algorithm)
+    status, response = self.query(QueryCode.CHECKSUM, query_path,
+                                  timeout=timeout)
+    raise_as_oserror(status, path)
+    return parse_checksum(response, algorithm)
+
+  def remove_tree(self, path, missing_ok=False, timeout=0):
+    """Remove a directory recursively and report successful removals."""
+    if path.startswith('root://'):
+      path = URL(path).path_with_params
+    normalized = posixpath.normpath(path.partition('?')[0])
+    if normalized.rstrip('/') in ('', '.', '..'):
+      raise ValueError('refusing to remove the remote root')
+    info = self._stat_if_exists(path, timeout)
+    if info is None:
+      if missing_ok:
+        return RemoveTreeResult()
+      raise FileNotFoundError(errno.ENOENT, 'No such directory', path)
+    if not info.flags & StatInfoFlags.IS_DIR:
+      raise NotADirectoryError(errno.ENOTDIR, 'Not a directory', path)
+
+    result = RemoveTreeResult()
+
+    def remove_directory(directory):
+      for entry in self.scandir(directory, timeout=timeout):
+        if entry.is_dir():
+          remove_directory(entry.path)
+        elif entry.is_file():
+          status, _ = self.rm(entry.path, timeout=timeout)
+          raise_as_oserror(status, entry.path)
+          result.files_removed += 1
+          result.size_removed += entry.size
+        else:
+          raise OSError(errno.EIO, 'Unsupported directory entry', entry.path)
+      status, _ = self.rmdir(directory, timeout=timeout)
+      raise_as_oserror(status, directory)
+      result.directories_removed += 1
+
+    remove_directory(path)
+    return result
+
+  def makedirs(self, path, mode=0, exist_ok=False, timeout=0):
+    """Create a directory and its parents, like :func:`os.makedirs`."""
+    info = self._stat_if_exists(path, timeout)
+    if info is not None:
+      if exist_ok and info.flags & StatInfoFlags.IS_DIR:
+        return
+      raise FileExistsError(errno.EEXIST, 'File exists', path)
+    status, _ = self.mkdir(path, flags=MkDirFlags.MAKEPATH, mode=mode,
+                           timeout=timeout)
+    if status.ok:
+      return
+    if exist_ok and self.is_dir(path, timeout=timeout):
+      return
+    raise_as_oserror(status, path)
 
   def sendinfo(self, info, timeout=0, callback=None):
     """Send info to the server (up to 1024 characters).
