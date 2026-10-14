@@ -1327,7 +1327,11 @@ int XrdHttpReq::ProcessHTTPReq() {
         l = resourceplusopaque.length() + 1;
         xrdreq.open.dlen = htonl(l);
         xrdreq.open.mode = htons(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
-        if (! XrdHttpProtocol::usingEC)
+        // 'Overwrite: F' (e.g. forwarded by a TPC push) forbids replacing
+        // an existing file; the open then fails with kXR_ItExists (409).
+        auto overwrite = XrdOucTUtils::caseInsensitiveFind(allheaders, "overwrite");
+        bool noOverwrite = overwrite != allheaders.end() && overwrite->second == "F";
+        if (! XrdHttpProtocol::usingEC && ! noOverwrite)
           xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_delete);
         else
           xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_new);
