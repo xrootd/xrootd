@@ -380,6 +380,55 @@ TEST_F(XrdOucBearerTokenTests, ReadFileAcceptsOwnerOnlyToken) {
     unlink(path.c_str());
 }
 
+TEST_F(XrdOucBearerTokenTests, ReadFileFollowsSymlinkToOwnerOnlyTarget) {
+    auto path = TempTokenPath();
+    ASSERT_FALSE(path.empty());
+    ASSERT_TRUE(WriteTokenFile(path, "symlink-token\n", S_IRUSR | S_IWUSR));
+
+    auto link = TempTokenPath();
+    ASSERT_FALSE(link.empty());
+    ASSERT_EQ(0, symlink(path.c_str(), link.c_str())) << strerror(errno);
+
+    auto result = XrdOucBearerToken::ReadFile(link.c_str());
+    ASSERT_EQ(XrdOucBearerToken::Status::Found, result.status);
+    EXPECT_EQ("symlink-token", result.token);
+    EXPECT_EQ(link, result.location);
+
+    unlink(link.c_str());
+    unlink(path.c_str());
+}
+
+TEST_F(XrdOucBearerTokenTests, ReadFileRejectsSymlinkToGroupReadableTarget) {
+    auto path = TempTokenPath();
+    ASSERT_FALSE(path.empty());
+    ASSERT_TRUE(WriteTokenFile(path, "secret-token", S_IRUSR | S_IRGRP));
+
+    auto link = TempTokenPath();
+    ASSERT_FALSE(link.empty());
+    ASSERT_EQ(0, symlink(path.c_str(), link.c_str())) << strerror(errno);
+
+    auto result = XrdOucBearerToken::ReadFile(link.c_str());
+    ASSERT_EQ(XrdOucBearerToken::Status::Error, result.status);
+    EXPECT_EQ(EPERM, result.errnum);
+    EXPECT_EQ(link, result.location);
+    EXPECT_TRUE(result.token.empty());
+
+    unlink(link.c_str());
+    unlink(path.c_str());
+}
+
+TEST_F(XrdOucBearerTokenTests, ReadFileMissesDanglingSymlink) {
+    auto missing = TempTokenPath();
+    ASSERT_FALSE(missing.empty());
+    auto link = TempTokenPath();
+    ASSERT_FALSE(link.empty());
+    ASSERT_EQ(0, symlink(missing.c_str(), link.c_str())) << strerror(errno);
+
+    ExpectMiss(XrdOucBearerToken::ReadFile(link.c_str()));
+
+    unlink(link.c_str());
+}
+
 TEST_F(XrdOucBearerTokenTests, ResolveEntryBearerTokenEnv) {
     EnvGuard env("BEARER_TOKEN", "env-token");
 
