@@ -4,6 +4,7 @@ add_executable(xrdcl-unit-tests
   XrdClPoller.cc
   XrdClSocket.cc
   XrdClUtilsTest.cc
+  XrdClProtocolRespTest.cc
   )
 
 target_link_libraries(xrdcl-unit-tests
