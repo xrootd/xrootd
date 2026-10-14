@@ -1593,6 +1593,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 /* Function: xpers
 
    Purpose:  To parse the directive: persist [auto | manual | off]
+                                             [preclose {data | none}]
                                              [hold <sec>] [logdir <dirp>]
                                              [sync <snum>]
 
@@ -1602,6 +1603,8 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
              <sec>     Seconds inclomplete files held (default 10m)
              <dirp>    Directory to hold POSC recovery log (default adminpath)
              <snum>    Number of outstanding equests before syncing to disk.
+             preclose  When data is specified fsync( is called before close().
+                       When none is specified, the default, this is skipped.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1609,7 +1612,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 {
    char *val;
-   int snum = -1, htime = -1, popt = -2;
+   int snum = -1, htime = -1, popt = -2, fopt = -12;
 
    if (!(val = Config.GetWord()))
       {Eroute.Emsg("Config","persist option not specified");return 1;}
@@ -1641,7 +1644,20 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
                       return 1;
                      }
                   if (poscLog) free(poscLog);
-                  poscLog = strdup(val);
+
+                                    poscLog = strdup(val);
+                 }
+         else if (!strcmp(val, "preclose"))
+                 {if (!(val = Config.GetWord()))
+                     {Eroute.Emsg("Config","persist preclose parm not specified");
+                      return 1;
+                     }
+                       if (!strcmp(val, "data")) fopt = 1;
+                  else if (!strcmp(val, "none")) fopt = 0;
+                  else {Eroute.Emsg("Config","Invalid persist preclose parm -",
+                                              val);
+                        return 1;
+                       }
                  }
          else if (!strcmp(val, "sync"))
                  {if (!(val = Config.GetWord()))
@@ -1658,6 +1674,7 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 // Set values as needed
 //
    if (htime >= 0) poscHold = htime;
+   if (fopt  > -1) XrdOfsFile::ocFsync  = fopt;
    if (popt  > -2) poscAuto = popt;
    if (snum  > -1) poscSync = snum;
    return 0;
