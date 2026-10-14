@@ -29,7 +29,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <atomic>
 class  XrdLink;
+struct XrdLinkActivityWaiter;
+class  XrdJob;
 class  XrdPoll;
 struct pollfd;
 
@@ -37,19 +40,28 @@ class XrdPollInfo
 {
 public:
 
+enum TerminalState : unsigned char {terminalNone, terminalSelected, terminalStarted};
+
 XrdPollInfo   *Next;        // Chain of links waiting for a PollPoll event
 XrdLink       &Link;        // Link associated with this object (always the same)
+XrdJob        *DispatchJob = 0; // Cached readiness job; retained across reuse
+XrdLinkActivityWaiter *ActivityWaitQ = 0; // Close waiters; initialized once
+int            Activity = 0; // Active Process/callback scopes; opMutex protected
 struct pollfd *PollEnt;     // Used only by PollPoll
 XrdPoll       *Poller;      // -> Poller object associated with this object
 int            FD;          // Associated target file descriptor number
+unsigned int   Generation;  // Immutable while registered with a poller
 bool           inQ;         // True -> in a PollPoll event queue
-bool           isEnabled;   // True -> interrupts are enabled
+std::atomic<bool> isEnabled; // True -> interrupts are enabled
 char           rsv[2];      // Reserved for future flags
+bool           closePending; // Explicit close requested; blocks new activity
+unsigned char  terminalState; // Selected/started terminal dispatch
 
 void           Zorch() {Next      = 0;     PollEnt  = 0;
-                        Poller    = 0;     FD       = -1;
+                        Poller    = 0;     FD       = -1; Generation = 0;
                         isEnabled = false; inQ      = false;
                         rsv[0]    = 0;     rsv[1]   = 0;
+                        closePending = false; terminalState = terminalNone;
                        }
 
                XrdPollInfo(XrdLink &lnk) : Link(lnk) {Zorch();}
