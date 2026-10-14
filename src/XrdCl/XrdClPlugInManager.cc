@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <vector>
+#include <set>
 #include <string>
 #include <algorithm>
 
@@ -228,27 +229,48 @@ namespace XrdCl
       log->Debug( PlugInMgrMsg,
                   "No default plug-in, loading plug-in configs..." );
 
-      ProcessConfigDir( "/etc/xrootd/client.plugins.d" );
+      std::vector<std::string> dirs;
+
+      std::string customPlugIns = DefaultPlugInConfDir;
+      env->GetString( "PlugInConfDir", customPlugIns );
+      if( !customPlugIns.empty() )
+        dirs.push_back( customPlugIns );
 
       XrdSysPwd pwdHandler;
       passwd *pwd = pwdHandler.Get( getuid() );
       if( pwd )
-      {
-        std::string userPlugIns = pwd->pw_dir;
-        userPlugIns += "/.xrootd/client.plugins.d";
-        ProcessConfigDir( userPlugIns );
-      }
-      std::string customPlugIns = DefaultPlugInConfDir;
-      env->GetString( "PlugInConfDir", customPlugIns );
-      if( !customPlugIns.empty() )
-        ProcessConfigDir( customPlugIns );
+        dirs.push_back( std::string( pwd->pw_dir ) + "/.xrootd/client.plugins.d" );
+
+      dirs.push_back( "/etc/xrootd/client.plugins.d" );
+
+      ProcessConfigDirs( dirs );
     }
+  }
+
+  //----------------------------------------------------------------------------
+  // Process the configuration directories in order of priority
+  //----------------------------------------------------------------------------
+  void PlugInManager::ProcessConfigDirs( const std::vector<std::string> &dirs )
+  {
+    std::set<std::string> settled;
+    for( const auto &dir : dirs )
+      ProcessConfigDir( dir, settled );
   }
 
   //----------------------------------------------------------------------------
   // Process the configuration directory and load plug in definitions
   //----------------------------------------------------------------------------
   void PlugInManager::ProcessConfigDir( const std::string &dir )
+  {
+    std::set<std::string> settled;
+    ProcessConfigDir( dir, settled );
+  }
+
+  //----------------------------------------------------------------------------
+  // Process the configuration directory, skipping the settled URLs
+  //----------------------------------------------------------------------------
+  void PlugInManager::ProcessConfigDir( const std::string     &dir,
+                                        std::set<std::string> &settled )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( PlugInMgrMsg, "Processing plug-in definitions in %s...",
@@ -265,6 +287,7 @@ namespace XrdCl
     }
     std::sort( entries.begin(), entries.end() );
 
+    std::set<std::string> decided;
     for( it = entries.begin(); it != entries.end(); ++it )
     {
       std::string confFile = dir + "/" + *it;
@@ -274,14 +297,27 @@ namespace XrdCl
       if( !std::equal( suffix.rbegin(), suffix.rend(), confFile.rbegin() ) )
         continue;
 
-      ProcessPlugInConfig( confFile );
+      ProcessPlugInConfig( confFile, settled, decided );
    }
+
+    settled.insert( decided.begin(), decided.end() );
   }
 
   //----------------------------------------------------------------------------
   // Process a plug-in config file and load the plug-in if possible
   //----------------------------------------------------------------------------
   void PlugInManager::ProcessPlugInConfig( const std::string &confFile )
+  {
+    std::set<std::string> settled, decided;
+    ProcessPlugInConfig( confFile, settled, decided );
+  }
+
+  //----------------------------------------------------------------------------
+  // Process a plug-in config file, skipping the settled URLs
+  //----------------------------------------------------------------------------
+  void PlugInManager::ProcessPlugInConfig( const std::string           &confFile,
+                                           const std::set<std::string> &settled,
+                                           std::set<std::string>       &decided )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( PlugInMgrMsg, "Processing: %s", confFile.c_str() );
@@ -320,12 +356,41 @@ namespace XrdCl
                "enable='%s'", confFile.c_str(), url.c_str(), lib.c_str(),
                enable.c_str() );
 
+    //--------------------------------------------------------------------------
+    // Skip the URLs decided by a directory with higher priority
+    //--------------------------------------------------------------------------
+    std::vector<std::string> tokens;
+    if( url == "*" )
+      tokens.push_back( url );
+    else
+      Utils::splitString( tokens, url, ";" );
+
+    std::vector<std::string> normURLs;
+    std::string urls;
+    for( const auto &token : tokens )
+    {
+      std::string key = token == "*" ? token : NormalizeURL( token );
+      if( settled.count( key ) )
+      {
+        log->Debug( PlugInMgrMsg, "Skipping %s for '%s', set by a directory "
+                    "with higher priority", lib.c_str(), token.c_str() );
+        continue;
+      }
+      normURLs.push_back( key );
+      if( !urls.empty() )
+        urls += ";";
+      urls += token;
+    }
+
+    if( urls.empty() )
+      return;
+
     std::pair<XrdOucPinLoader*, PlugInFactory *> pg;
     pg.first = 0; pg.second = 0;
     if( enable == "true" )
     {
       log->Debug( PlugInMgrMsg, "Trying to load a plug-in for '%s' from '%s'",
-                  url.c_str(), lib.c_str() );
+                  urls.c_str(), lib.c_str() );
 
       pg = LoadFactory( lib, config );
 
@@ -334,9 +399,11 @@ namespace XrdCl
     }
     else
       log->Debug( PlugInMgrMsg, "Trying to disable plug-in for '%s'",
-                  url.c_str() );
+                  urls.c_str() );
 
-    if( !RegisterFactory( url, lib, pg.second, pg.first ) )
+    decided.insert( normURLs.begin(), normURLs.end() );
+
+    if( !RegisterFactory( urls, lib, pg.second, pg.first ) )
     {
       delete pg.first;
       delete pg.second;

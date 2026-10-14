@@ -30,8 +30,12 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
+#include <vector>
+
+class PlugInManagerFixture;
 
 namespace XrdCl
 {
@@ -40,6 +44,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class PlugInManager
   {
+    friend class ::PlugInManagerFixture;
+
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -78,9 +84,9 @@ namespace XrdCl
       //! by the XRD_PLUGIN envvar. If this fails it will scan the configuration
       //! files located in:
       //!
-      //! 1) system directory: /etc/xrootd/client.plugins.d/
-      //! 2) user direvtory:   ~/.xrootd/client.plugins.d/
-      //! 3) directory pointed to by XRD_PLUGINCONFDIR envvar
+      //! 1) directory pointed to by XRD_PLUGINCONFDIR envvar
+      //! 2) user directory:   ~/.xrootd/client.plugins.d/
+      //! 3) system directory: /etc/xrootd/client.plugins.d/
       //!
       //! In that order.
       //!
@@ -90,14 +96,18 @@ namespace XrdCl
       //! Mandatory keys are:
       //! url - a semicolon separated list of URLs the plug-in applies to
       //! lib - plugin library to be loaded
-      //! enabled - determines whether the plug-in should be enabled or not
+      //! enable - determines whether the plug-in should be enabled or not
       //!
       //! You may use any other keys for your own purposes.
       //!
-      //! The config files are processed in alphabetic order, any satteing
-      //! found later superseeds the previous one. Any setting applied via
-      //! environment or config files superseeds any setting done
-      //! programatically.
+      //! The first directory with a setting for a URL decides it, and the
+      //! directories after it cannot change it. This applies to disabled
+      //! plug-ins as well. Within one directory, the config files are
+      //! processed in alphabetic order, and a setting for a URL found later
+      //! supersedes the previous one. However, only the first enabled
+      //! plug-in for all URLs ('url = *') is loaded. Any setting applied via
+      //! environment or config files supersedes any setting done
+      //! programmatically.
       //!
       //! The plug-in library must implement the following C function:
       //!
@@ -140,9 +150,30 @@ namespace XrdCl
       void ProcessConfigDir( const std::string &dir );
 
       //------------------------------------------------------------------------
+      //! Process the configuration directories in order of priority, the
+      //! first directory with a setting for a URL decides it
+      //------------------------------------------------------------------------
+      void ProcessConfigDirs( const std::vector<std::string> &dirs );
+
+      //------------------------------------------------------------------------
+      //! Process the configuration directory, skipping the URLs in settled,
+      //! and add the URLs decided by this directory to settled
+      //------------------------------------------------------------------------
+      void ProcessConfigDir( const std::string     &dir,
+                             std::set<std::string> &settled );
+
+      //------------------------------------------------------------------------
       //! Process a plug-in config file and load the plug-in if possible
       //------------------------------------------------------------------------
       void ProcessPlugInConfig( const std::string &confFile );
+
+      //------------------------------------------------------------------------
+      //! Process a plug-in config file, skipping the URLs in settled, and add
+      //! the URLs it decides to decided
+      //------------------------------------------------------------------------
+      void ProcessPlugInConfig( const std::string           &confFile,
+                                const std::set<std::string> &settled,
+                                std::set<std::string>       &decided );
 
       //------------------------------------------------------------------------
       //! Load the plug-in and create the factory
