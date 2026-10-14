@@ -127,13 +127,18 @@ namespace PyXRootD
       {
         return Py_BuildValue("{sNsNsNsNsNsNsNsNsNsNsNsNsNsNsN}",
             "id",         Py_BuildValue("s", info->GetId().c_str()),
-            "size",       Py_BuildValue("k", info->GetSize()),
+            "size",       Py_BuildValue("K",
+                          static_cast<unsigned long long>(info->GetSize())),
             "flags",      Py_BuildValue("I", info->GetFlags()),
-            "mtime",      Py_BuildValue("k", info->GetModTime()),
-            "modtime",    Py_BuildValue("k", info->GetModTime()),
+            "mtime",      Py_BuildValue("K",
+                          static_cast<unsigned long long>(info->GetModTime())),
+            "modtime",    Py_BuildValue("K",
+                          static_cast<unsigned long long>(info->GetModTime())),
             "modtimestr", Py_BuildValue("s", info->GetModTimeAsString().c_str()),
-            "ctime",      Py_BuildValue("k", info->GetChangeTime()),
-            "atime",      Py_BuildValue("k", info->GetAccessTime()),
+            "ctime",      Py_BuildValue("K",
+                          static_cast<unsigned long long>(info->GetChangeTime())),
+            "atime",      Py_BuildValue("K",
+                          static_cast<unsigned long long>(info->GetAccessTime())),
             "mode",       Py_BuildValue("s", info->GetModeAsString().c_str()),
             "modeoctstr", Py_BuildValue("s", info->GetModeAsOctString().c_str()),
             "owner",      Py_BuildValue("s", info->GetOwner().c_str()),
@@ -148,11 +153,15 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::StatInfoVFS *info )
       {
-        return Py_BuildValue( "{sksksksksbsb}",
-            "nodes_rw",            info->GetNodesRW(),
-            "nodes_staging",       info->GetNodesStaging(),
-            "free_rw",             info->GetFreeRW(),
-            "free_staging",        info->GetFreeStaging(),
+        return Py_BuildValue( "{sKsKsKsKsbsb}",
+            "nodes_rw",
+              static_cast<unsigned long long>(info->GetNodesRW()),
+            "nodes_staging",
+              static_cast<unsigned long long>(info->GetNodesStaging()),
+            "free_rw",
+              static_cast<unsigned long long>(info->GetFreeRW()),
+            "free_staging",
+              static_cast<unsigned long long>(info->GetFreeStaging()),
             "utilization_rw",      info->GetUtilizationRW(),
             "utilization_staging", info->GetUtilizationStaging() );
       }
@@ -284,7 +293,8 @@ namespace PyXRootD
 
           PyList_SET_ITEM( pychunks, i,
               Py_BuildValue( "{sNsNsO}",
-                  "offset", Py_BuildValue( "k", chunk.offset ),
+                  "offset", Py_BuildValue( "K",
+                            static_cast<unsigned long long>(chunk.offset) ),
                   "length", Py_BuildValue( "I", chunk.length ),
                   "buffer", buffer ) );
           Py_DECREF( buffer );
@@ -332,7 +342,7 @@ namespace PyXRootD
           key = "size";
           if(result->HasProperty(key))
           {
-            uint64_t s;
+            unsigned long long s;
             result->Get(key, s);
             kO = Py_BuildValue("s", key);
             vO = Py_BuildValue("K", s);

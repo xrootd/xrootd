@@ -101,24 +101,28 @@ namespace PyXRootD
 
     val = XrdCl::DefaultCPInitTimeout;
     env->GetInt( "CPInitTimeout", val );
-    time_t initTimeout = val;
+    long long initTimeout_val = val;
 
     val = XrdCl::DefaultCPTPCTimeout;
     env->GetInt( "CPTPCTimeout", val );
-    time_t tpcTimeout = val;
+    long long tpcTimeout_val = val;
 
     val = XrdCl::DefaultCPTimeout;
     env->GetInt( "CPTimeout", val );
-    time_t cpTimeout = val;
+    long long cpTimeout_val = val;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHbHLLLbs:add_job",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHLLbLLLLbs:add_job",
          (char**) kwlist,
          &source, &target, &sourceLimit, &force, &posc,
          &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
-         &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks, &initTimeout,
-         &tpcTimeout, &rmBadCksum, &cpTimeout, &xRateThreshold, &xRate,
+         &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks, &initTimeout_val,
+         &tpcTimeout_val, &rmBadCksum, &cpTimeout_val, &xRateThreshold, &xRate,
          &retry, &cont, &rtrplc ) )
       return NULL;
+
+    time_t initTimeout = static_cast<time_t>(initTimeout_val);
+    time_t tpcTimeout = static_cast<time_t>(tpcTimeout_val);
+    time_t cpTimeout = static_cast<time_t>(cpTimeout_val);
 
     XrdCl::PropertyList properties;
     self->results->push_back(XrdCl::PropertyList());

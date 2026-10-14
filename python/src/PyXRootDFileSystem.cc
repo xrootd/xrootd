@@ -44,7 +44,7 @@ namespace PyXRootD
     PyObject               *pystatus = NULL;
     CopyProcess            *copyprocess = NULL;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|i:copy",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|b:copy",
          (char**) kwlist, &source, &target, &force ) ) return NULL;
 
     CopyProcessType.tp_new = PyType_GenericNew;
@@ -82,14 +82,20 @@ namespace PyXRootD
   {
     static const char      *kwlist[] = { "path", "flags", "timeout", "callback",
                                          NULL };
-    const  char            *path;
-    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
-    time_t                  timeout  = 0;
+    const char             *path;
+    unsigned int            flags_val =
+      static_cast<unsigned int>(XrdCl::OpenFlags::None);
+    long long               timeout_val = 0;
     PyObject               *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:locate",
-         (char**) kwlist, &path, &flags, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|LO:locate",
+         (char**) kwlist, &path, &flags_val, &timeout_val, &callback ) )
+      return NULL;
+
+    XrdCl::OpenFlags::Flags flags =
+      static_cast<XrdCl::OpenFlags::Flags>(flags_val);
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
@@ -120,14 +126,20 @@ namespace PyXRootD
   {
     static const char      *kwlist[] = { "path", "flags", "timeout", "callback",
                                          NULL };
-    const  char            *path;
-    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::PrefName;
-    time_t                  timeout  = 0;
+    const char             *path;
+    unsigned int            flags_val =
+      static_cast<unsigned int>(XrdCl::OpenFlags::PrefName);
+    long long               timeout_val = 0;
     PyObject               *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:deeplocate",
-         (char**) kwlist, &path, &flags, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|LO:deeplocate",
+         (char**) kwlist, &path, &flags_val, &timeout_val, &callback ) )
+      return NULL;
+
+    XrdCl::OpenFlags::Flags flags =
+      static_cast<XrdCl::OpenFlags::Flags>(flags_val);
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
@@ -158,14 +170,17 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "source", "dest", "timeout", "callback",
                                      NULL };
-    const  char        *source;
-    const  char        *dest;
-    time_t              timeout  = 0;
+    const char         *source;
+    const char         *dest;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HO:mv", (char**) kwlist,
-        &source, &dest, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|LO:mv",
+         (char**) kwlist, &source, &dest, &timeout_val, &callback ) )
+      return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -192,15 +207,20 @@ namespace PyXRootD
   {
     static const char     *kwlist[] = { "querycode", "arg", "timeout",
                                         "callback", NULL };
-    const  char           *arg;
-    time_t                 timeout  = 0;
+    unsigned int           queryCode_val;
+    const char            *arg;
+    long long              timeout_val = 0;
     PyObject              *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
-    XrdCl::QueryCode::Code queryCode;
     XrdCl::XRootDStatus    status;
     XrdCl::Buffer          argbuffer;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "is|HO:query",
-         (char**) kwlist, &queryCode, &arg, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "Is|LO:query",
+         (char**) kwlist, &queryCode_val, &arg, &timeout_val, &callback ) )
+      return NULL;
+
+    XrdCl::QueryCode::Code queryCode =
+      static_cast<XrdCl::QueryCode::Code>(queryCode_val);
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     argbuffer.FromString(arg);
 
@@ -233,13 +253,16 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "size", "timeout", "callback", NULL };
     const  char        *path;
-    uint64_t            size     = 0;
-    time_t              timeout  = 0;
+    uint64_t            size = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sK|HO:truncate",
-         (char**) kwlist, &path, &size, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sK|LO:truncate",
+         (char**) kwlist, &path, &size, &timeout_val, &callback ) )
+      return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -266,12 +289,14 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    time_t              timeout  = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rm", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|LO:rm",
+         (char**) kwlist, &path, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -298,15 +323,25 @@ namespace PyXRootD
   {
     static const char       *kwlist[] = { "path", "flags", "mode", "timeout",
                                           "callback", NULL };
-    const  char             *path;
-    XrdCl::MkDirFlags::Flags flags    = XrdCl::MkDirFlags::None;
-    XrdCl::Access::Mode      mode     = XrdCl::Access::None;
-    time_t                   timeout  = 0;
+    const char              *path;
+    unsigned int             flags_val =
+      static_cast<unsigned int>(XrdCl::MkDirFlags::None);
+    unsigned int             mode_val =
+      static_cast<unsigned int>(XrdCl::Access::None);
+    long long                timeout_val = 0;
     PyObject                *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus      status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:mkdir", (char**) kwlist,
-        &path, &flags, &mode, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|IILO:mkdir",
+         (char**) kwlist, &path, &flags_val, &mode_val, &timeout_val,
+         &callback ) )
+      return NULL;
+
+    XrdCl::MkDirFlags::Flags flags =
+      static_cast<XrdCl::MkDirFlags::Flags>(flags_val);
+    XrdCl::Access::Mode mode =
+      static_cast<XrdCl::Access::Mode>(mode_val);
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -333,12 +368,14 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    time_t              timeout  = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rmdir", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|LO:rmdir",
+         (char**) kwlist, &path, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -365,13 +402,19 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "mode", "timeout", "callback", NULL };
     const  char        *path;
-    XrdCl::Access::Mode mode     = XrdCl::Access::None;
-    time_t              timeout  = 0;
+    unsigned int        mode_val =
+      static_cast<unsigned int>(XrdCl::Access::None);
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:chmod", (char**) kwlist,
-        &path, &mode, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sI|LO:chmod",
+         (char**) kwlist, &path, &mode_val, &timeout_val, &callback ) )
+      return NULL;
+
+    XrdCl::Access::Mode mode =
+      static_cast<XrdCl::Access::Mode>(mode_val);
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -397,12 +440,14 @@ namespace PyXRootD
   PyObject* FileSystem::Ping( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
-    time_t              timeout  = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:ping", (char**) kwlist,
-        &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|LO:ping",
+         (char**) kwlist, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -429,12 +474,14 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    time_t              timeout  = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:stat", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|LO:stat",
+         (char**) kwlist, &path, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
@@ -465,12 +512,14 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    time_t              timeout  = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:statvfs", (char**) kwlist,
-        &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|LO:statvfs",
+         (char**) kwlist, &path, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfoVFS>( callback );
@@ -500,12 +549,14 @@ namespace PyXRootD
   PyObject* FileSystem::Protocol( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
-    time_t              timeout  = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:protocol", (char**) kwlist,
-         &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|LO:protocol",
+         (char**) kwlist, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ProtocolInfo>( callback );
@@ -536,14 +587,20 @@ namespace PyXRootD
   {
     static const char         *kwlist[] = { "path", "flags", "timeout",
                                             "callback", NULL };
-    const  char               *path;
-    XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
-    time_t                     timeout  = 0;
+    const char                *path;
+    unsigned int               flags_val =
+      static_cast<unsigned int>(XrdCl::DirListFlags::None);
+    long long                  timeout_val = 0;
     PyObject                  *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bHO:dirlist",
-         (char**) kwlist, &path, &flags, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|ILO:dirlist",
+         (char**) kwlist, &path, &flags_val, &timeout_val, &callback ) )
+      return NULL;
+
+    XrdCl::DirListFlags::Flags flags =
+      static_cast<XrdCl::DirListFlags::Flags>(flags_val);
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::DirectoryList>( callback );
@@ -574,12 +631,14 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "info", "timeout", "callback", NULL };
     const  char        *info;
-    time_t              timeout  = 0;
+    long long           timeout_val = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:sendinfo",
-         (char**) kwlist, &info, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|LO:sendinfo",
+         (char**) kwlist, &info, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
@@ -610,16 +669,19 @@ namespace PyXRootD
   {
     static const char         *kwlist[] = { "files", "flags", "priority",
                                             "timeout", "callback", NULL };
-    uint16_t                   flagval  = 0;
+    unsigned int               flags_val = 0;
     uint8_t                    priority = 0;
-    time_t                     timeout  = 0;
+    long long                  timeout_val = 0;
     PyObject                  *pyfiles = NULL, *callback = NULL;
     PyObject                  *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "OH|bHO:prepare",
-         (char**) kwlist, &pyfiles, &flagval, &priority, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "OI|bLO:prepare",
+         (char**) kwlist, &pyfiles, &flags_val, &priority, &timeout_val,
+         &callback ) )
       return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( !PyList_Check( pyfiles ) ) {
       PyErr_SetString( PyExc_TypeError, "files parameter must be a list" );
@@ -639,8 +701,8 @@ namespace PyXRootD
       files.emplace_back(PyUnicode_AsUTF8(item));
     }
 
-    XrdCl::PrepareFlags::Flags flags;
-    flags = static_cast<XrdCl::PrepareFlags::Flags>(flagval);
+    XrdCl::PrepareFlags::Flags flags =
+      static_cast<XrdCl::PrepareFlags::Flags>(flags_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
@@ -745,13 +807,16 @@ namespace PyXRootD
 
     char *path = 0;
     std::vector<XrdCl::xattr_t>  attrs;
-    time_t timeout = 0;
+    long long timeout_val = 0;
     PyObject    *callback = NULL, *pystatus    = NULL;
     PyObject    *pyattrs  = NULL,  *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|HO:set_xattr",
-         (char**) kwlist, &path, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|LO:set_xattr",
+         (char**) kwlist, &path, &pyattrs, &timeout_val, &callback ) )
+      return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -814,13 +879,16 @@ namespace PyXRootD
 
     char *path = 0;
     std::vector<std::string>  attrs;
-    time_t timeout = 0;
+    long long timeout_val = 0;
     PyObject    *callback = NULL, *pystatus    = NULL;
     PyObject    *pyattrs  = NULL,  *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|HO:set_xattr",
-         (char**) kwlist, &path, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|LO:set_xattr",
+         (char**) kwlist, &path, &pyattrs, &timeout_val, &callback ) )
+      return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -871,13 +939,16 @@ namespace PyXRootD
 
     char *path = 0;
     std::vector<std::string>  attrs;
-    time_t timeout = 0;
+    long long timeout_val = 0;
     PyObject    *callback = NULL, *pystatus    = NULL;
     PyObject    *pyattrs  = NULL,  *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|HO:set_xattr",
-         (char**) kwlist, &path, &pyattrs, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|LO:set_xattr",
+         (char**) kwlist, &path, &pyattrs, &timeout_val, &callback ) )
+      return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     // it should be a list
     if( !PyList_Check( pyattrs ) )
@@ -927,12 +998,14 @@ namespace PyXRootD
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
 
     char *path = 0;
-    time_t timeout = 0;
+    long long timeout_val = 0;
     PyObject    *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:set_xattr",
-         (char**) kwlist, &path, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|LO:set_xattr",
+         (char**) kwlist, &path, &timeout_val, &callback ) ) return NULL;
+
+    time_t timeout = static_cast<time_t>(timeout_val);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<std::vector<XrdCl::XAttr>>( callback );
