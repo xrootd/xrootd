@@ -180,3 +180,13 @@ TEST( ProtocolRespTest, TruncatedSecVec )
   ASSERT_NE( server.GetPort(), 0 );
   EXPECT_FALSE( StatRogue( server ).IsOK() );
 }
+
+//------------------------------------------------------------------------------
+// A body length that wraps the 32-bit buffer size must be rejected
+//------------------------------------------------------------------------------
+TEST( ProtocolRespTest, WrappedBodyLength )
+{
+  RogueServer server( 0xFFFFFFFF, ProtocolBody( 0, 4096 ) );
+  ASSERT_NE( server.GetPort(), 0 );
+  EXPECT_FALSE( StatRogue( server ).IsOK() );
+}
