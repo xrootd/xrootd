@@ -42,7 +42,8 @@ class XrdOucBearerToken {
      * Read a bearer token from a file.
      *
      * The file must be readable only by its owner. Group or world-accessible
-     * files are rejected with EPERM.
+     * files are rejected with EPERM. Symlinks are followed; the mode and size
+     * checks apply to the object open() returns.
      *
      * @param path    path to the token file
      * @param maxSize tighter exclusive maximum, or 0 to use @c MaxSize. A
