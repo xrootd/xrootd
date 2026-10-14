@@ -32,7 +32,6 @@
 #include <XrdCl/XrdClXRootDResponses.hh>
 #include <XrdCks/XrdCksData.hh>
 #include <XrdOuc/XrdOucBearerToken.hh>
-#include <XrdOuc/XrdOucUtils.hh>
 #include <XrdOuc/XrdOucCRC.hh>
 #include <XrdOuc/XrdOucPrivateUtils.hh>
 #include <XrdSys/XrdSysPageSize.hh>
@@ -117,20 +116,37 @@ bool XrdClHttp::HTTPStatusIsError(unsigned status) {
 
 std::string XrdClHttp::GetBearerToken(XrdCl::Log *logger)
 {
+    auto warn = [logger](const XrdOucBearerToken::Result& result) {
+        if (logger && result.status == XrdOucBearerToken::Status::Error)
+            logger->Warning(kLogXrdClHttp, "%s", result.Failure().c_str());
+    };
+
     if (auto env = XrdCl::DefaultEnv::GetEnv()) {
-        std::string token;
-        if (env->GetString("BearerToken", token)) {
-            XrdOucUtils::trim(token);
-            if (!token.empty()) return token;
+        std::string configured;
+        if (env->GetString("BearerToken", configured)) {
+            auto parsed = XrdOucBearerToken::FromEnvValue(configured.c_str());
+            if (parsed.status == XrdOucBearerToken::Status::Found) {
+                if (logger)
+                    logger->Debug(kLogXrdClHttp, "BearerToken already set");
+                return parsed.token;
+            }
+            if (parsed.status == XrdOucBearerToken::Status::Error) {
+                parsed.entry = "BearerToken";
+                warn(parsed);
+                return {};
+            }
         }
     }
 
     auto result = XrdOucBearerToken::Discover();
-    if (result.status == XrdOucBearerToken::Status::Found) return result.token;
+    if (result.status == XrdOucBearerToken::Status::Found) {
+        if (logger)
+            logger->Debug(kLogXrdClHttp, "Bearer token found at %s",
+                          result.entry.c_str());
+        return result.token;
+    }
 
-    if (logger && result.status == XrdOucBearerToken::Status::Error)
-        logger->Warning(kLogXrdClHttp, "%s", result.Failure().c_str());
-
+    warn(result);
     return {};
 }
 
@@ -190,7 +206,7 @@ void XrdClHttp::InjectBearerToken(
     if(logger)
     {
         logger->Debug(kLogXrdClHttp,
-                      "Injecting bearer token from environment for %s",
+                      "Injecting bearer token for %s",
                       url.GetURL().c_str());
     }
     headers.emplace_back("Authorization", "Bearer " + token);

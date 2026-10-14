@@ -577,7 +577,9 @@ char  *XrdSecProtocolztnInit(const char     mode,
                   MaxTokSize = strtol(val, &endP, 10);
                   if (*endP == 'k' || *endP == 'K')
                      {MaxTokSize *= 1024; endP++;}
-                  if (MaxTokSize <= 0 || MaxTokSize > 524288 || *endP)
+                  if (MaxTokSize <= 0 ||
+                      static_cast<size_t>(MaxTokSize) > XrdOucBearerToken::MaxSize ||
+                      *endP)
                      {Fatal(erp, "-maxsz argument is invalid", EINVAL);
                       return 0;
                      }
