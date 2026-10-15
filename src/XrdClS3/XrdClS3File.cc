@@ -22,6 +22,7 @@
 #include "XrdClS3File.hh"
 
 #include <XrdCl/XrdClLog.hh>
+#include <XProtocol/XProtocol.hh>
 
 using namespace XrdClS3;
 
@@ -170,6 +171,22 @@ File::Open(const std::string      &url,
     if (IsOpen()) {
         m_logger->Error(kLogXrdClS3, "URL %s already open", url.c_str());
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidOp);
+    }
+
+    if (flags & (XrdCl::OpenFlags::Write | XrdCl::OpenFlags::Update |
+                 XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::New)) {
+        std::string https_url, obj, err_msg;
+        if (!Factory::GenerateHttpUrl(url, https_url, &obj, err_msg)) {
+            return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+        }
+        auto query = obj.find('?');
+        if (query != std::string::npos) {
+            obj.erase(query);
+        }
+        if (obj.empty() || obj.back() == '/') {
+            m_logger->Error(kLogXrdClS3, "Cannot open a directory: %s", url.c_str());
+            return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errErrorResponse, kXR_isDirectory, "Cannot open a directory");
+        }
     }
 
     auto [st, https_url, fs] = GetFileHandle(url);
