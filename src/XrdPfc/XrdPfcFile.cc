@@ -467,6 +467,7 @@ bool File::Open(XrdOucCacheIO* inputIO)
       TRACEF(Error, tpfx << "Open failed " << ERRNO_AND_ERRSTR(-res));
       errno = -res;
       delete m_data_file; m_data_file = 0;
+      if ( ! data_existed) myOss.Unlink(m_filename.c_str());
       return false;
    }
 
@@ -477,6 +478,7 @@ bool File::Open(XrdOucCacheIO* inputIO)
       TRACE(Error, tpfx << "Create failed for info file " << ifn << ERRNO_AND_ERRSTR(-res));
       errno = -res;
       m_data_file->Close(); delete m_data_file; m_data_file = 0;
+      if ( ! data_existed) myOss.Unlink(m_filename.c_str());
       return false;
    }
 
@@ -487,6 +489,10 @@ bool File::Open(XrdOucCacheIO* inputIO)
       errno = -res;
       delete m_info_file; m_info_file = 0;
       m_data_file->Close(); delete m_data_file;   m_data_file   = 0;
+      // Remove only what this call created, so a failed open leaves no
+      // uncounted data/cinfo pair behind.
+      if ( ! info_existed) myOss.Unlink(ifn.c_str());
+      if ( ! data_existed) myOss.Unlink(m_filename.c_str());
       return false;
    }
 
@@ -511,6 +517,16 @@ bool File::Open(XrdOucCacheIO* inputIO)
          if (data_existed)
             Cache::ResMon().register_file_purge(m_filename, data_stat.st_blocks);
       }
+   }
+   else if (info_existed)
+   {
+      // The info file is about to be rewritten, so the cached blocks are lost:
+      // reset it like a rejected file.
+      TRACEF(Warning, tpfx << "Reading existing info file failed, resetting info file, truncating data file.");
+      m_cfi.ResetAllAccessStats();
+      m_data_file->Ftruncate(0);
+      if (data_existed)
+         Cache::ResMon().register_file_purge(m_filename, data_stat.st_blocks);
    }
 
    if ( ! initialize_info_file && m_cfi.GetCkSumState() != conf.get_cs_Chk())
