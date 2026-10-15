@@ -78,16 +78,18 @@ int IOFile::initialStat(struct stat &sbuff)
    static const char* trace_pfx = "initialStat ";
 
    std::string fname = GetFilename();
-   if (m_cache.GetOss()->Stat(fname.c_str(), &sbuff) == XrdOssOK)
+   std::string iname = fname + Info::s_infoExtension;
+   if (m_cache.GetOss()->Stat(iname.c_str(), &sbuff) == XrdOssOK &&
+       m_cache.GetOss()->Stat(fname.c_str(), &sbuff) == XrdOssOK)
    {
       long long file_size = m_cache.DetermineFullFileSize(fname + Info::s_infoExtension);
       if (file_size >= 0)
       {
          sbuff.st_size = file_size;
-         TRACEIO(Info, trace_pfx << "successfully read size " << sbuff.st_size << " from info file");
+         TRACE(Info, trace_pfx << "successfully read size " << sbuff.st_size << " from info file " << iname);
          return 0;
       }
-      TRACEIO(Error, trace_pfx << "failed reading from info file " << XrdSysE2T(-file_size));
+      TRACE(Error, trace_pfx << "failed reading from info file " << iname  << " " << XrdSysE2T(-file_size));
    }
 
    int res = GetInput()->Fstat(sbuff);
@@ -156,7 +158,7 @@ int IOFile::Read(char *buff, long long off, int size)
 
    rh->m_cond.Lock();
    int retval = ReadBegin(buff, off, size, rh);
-   if (retval == -EWOULDBLOCK)
+   if (retval == kReadPending)
    {
       rh->m_cond.Wait();
       retval = rh->m_retval;
@@ -186,7 +188,7 @@ void IOFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
    TRACEIO(Dump, "Read() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
 
    int retval = ReadBegin(buff, off, size, rh);
-   if (retval != -EWOULDBLOCK)
+   if (retval != kReadPending)
    {
       rh->Done(retval);
    }
@@ -221,7 +223,7 @@ void IOFile::pgRead(XrdOucCacheIOCB &iocb, char *buff, long long off, int size,
       };
 
    int retval = ReadBegin(buff, off, size, rh);
-   if (retval != -EWOULDBLOCK)
+   if (retval != kReadPending)
    {
       rh->Done(retval);
    }
@@ -282,7 +284,7 @@ int IOFile::ReadV(const XrdOucIOVec *readV, int n)
 
    rh->m_cond.Lock();
    int retval = ReadVBegin(readV, n, rh);
-   if (retval == -EWOULDBLOCK)
+   if (retval == kReadPending)
    {
       rh->m_cond.Wait();
       retval = rh->m_retval;
@@ -309,7 +311,7 @@ void IOFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
    TRACEIO(Dump, "ReadV() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " n_chunks: " <<  n);
 
    int retval = ReadVBegin(readV, n, rh);
-   if (retval != -EWOULDBLOCK)
+   if (retval != kReadPending)
    {
       rh->Done(retval);
    }
