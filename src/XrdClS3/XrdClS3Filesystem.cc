@@ -380,10 +380,10 @@ DirListResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::A
                 auto lastModifiedChar = lastModifiedElem->GetText();
                 if (lastModifiedChar != nullptr) {
                     struct tm tm;
-                    // Example format: "2023-08-21T11:02:53.000Z"
+                    // LastModified is UTC, for example "2023-08-21T11:02:53.000Z".
                     if (strptime(lastModifiedChar, "%Y-%m-%dT%H:%M:%S", &tm) != nullptr) {
-                        tm.tm_isdst = -1;
-                        lastModified = mktime(&tm);
+                        tm.tm_isdst = 0;
+                        lastModified = timegm(&tm);
                     }
                 }
             }
