@@ -200,7 +200,25 @@ StatHandlerDirectory::HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObje
     if (!status || !status->IsOK()) {
         return m_handler->HandleResponse(status, response);
     }
-    auto stat_info = new XrdCl::StatInfo("nobody", 0, XrdCl::StatInfo::IsDir, 0);
+    time_t mtime = 0;
+    if (response) {
+        XrdCl::DirectoryList *list = nullptr;
+        response->Get(list);
+        const auto &sentinel = Factory::GetMkdirSentinel();
+        if (list && !sentinel.empty()) {
+            for (auto it = list->Begin(); it != list->End(); ++it) {
+                if ((*it)->GetName() != sentinel) {
+                    continue;
+                }
+                auto *info = (*it)->GetStatInfo();
+                if (info) {
+                    mtime = static_cast<time_t>(info->GetModTime());
+                }
+                break;
+            }
+        }
+    }
+    auto stat_info = new XrdCl::StatInfo("nobody", 0, XrdCl::StatInfo::IsDir, mtime);
     auto obj = new XrdCl::AnyObject();
     obj->Set(stat_info);
     delete response;
