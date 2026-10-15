@@ -20,6 +20,10 @@
 
 #include "gtest/gtest.h"
 #include "XrdClS3/XrdClS3Factory.hh"
+#include "XrdClS3/XrdClS3File.hh"
+
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XProtocol/XProtocol.hh>
 
 #include <filesystem>
 
@@ -291,4 +295,27 @@ TEST(Factory, CleanObjectName) {
     ASSERT_EQ(Factory::CleanObjectName("test.txt?foo=bar&authz=foo&foo=bar"), "test.txt?foo=bar&foo=bar");
     ASSERT_EQ(Factory::CleanObjectName("test.txt?&foo=bar&authz=foo&foo=bar"), "test.txt?foo=bar&foo=bar");
     ASSERT_EQ(Factory::CleanObjectName("test.txt?&foo=bar&oss.asize&authz=foo&foo=bar"), "test.txt?foo=bar&oss.asize&foo=bar");
+}
+
+TEST(File, RejectsWriteToDirectoryKey) {
+    Factory::SetEndpoint("s3.amazonaws.com");
+    Factory::SetUrlStyle("path");
+    XrdClS3::File file(XrdCl::DefaultEnv::GetLog());
+
+    auto directory = file.Open("s3://s3.amazonaws.com/bucket/foo/",
+                               XrdCl::OpenFlags::Update | XrdCl::OpenFlags::Delete,
+                               XrdCl::Access::None, nullptr, 0);
+    EXPECT_EQ(directory.status, XrdCl::stError);
+    EXPECT_EQ(directory.code, XrdCl::errErrorResponse);
+    EXPECT_EQ(directory.errNo, kXR_isDirectory);
+
+    auto empty = file.Open("s3://s3.amazonaws.com/bucket/",
+                           XrdCl::OpenFlags::Write,
+                           XrdCl::Access::None, nullptr, 0);
+    EXPECT_EQ(empty.errNo, kXR_isDirectory);
+
+    auto queried = file.Open("s3://s3.amazonaws.com/bucket/foo/?versionId=1",
+                             XrdCl::OpenFlags::New,
+                             XrdCl::Access::None, nullptr, 0);
+    EXPECT_EQ(queried.errNo, kXR_isDirectory);
 }
