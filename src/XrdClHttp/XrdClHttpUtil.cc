@@ -31,6 +31,7 @@
 #include <XrdCl/XrdClUtils.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>
 #include <XrdCks/XrdCksData.hh>
+#include <XrdOuc/XrdOucBearerToken.hh>
 #include <XrdOuc/XrdOucCRC.hh>
 #include <XrdOuc/XrdOucPrivateUtils.hh>
 #include <XrdSys/XrdSysPageSize.hh>
@@ -41,7 +42,6 @@
 #include <openssl/evp.h>
 
 #include <fcntl.h>
-#include <fstream>
 #ifdef __APPLE__
 #include <pthread.h>
 #else
@@ -54,6 +54,7 @@
 #include <cerrno>
 #include <cctype>
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -113,33 +114,40 @@ bool XrdClHttp::HTTPStatusIsError(unsigned status) {
      return (status < 100) || (status >= 400);
 }
 
-std::string XrdClHttp::GetBearerToken(XrdCl::Log *)
+std::string XrdClHttp::GetBearerToken(XrdCl::Log *logger)
 {
-    auto env = XrdCl::DefaultEnv::GetEnv();
-    if (!env) return {};
+    auto warn = [logger](const XrdOucBearerToken::Result& result) {
+        if (logger && result.status == XrdOucBearerToken::Status::Error)
+            logger->Warning(kLogXrdClHttp, "%s", result.Failure().c_str());
+    };
 
-    std::string token;
-    if (!env->GetString("BearerToken", token) || token.empty()) {
-        env->ImportString("BearerToken", "BEARER_TOKEN");
-        env->GetString("BearerToken", token);
-    }
-    if (!token.empty()) {
-        XrdCl::Utils::Trim(token);
-        return token;
+    if (auto env = XrdCl::DefaultEnv::GetEnv()) {
+        std::string configured;
+        if (env->GetString("BearerToken", configured)) {
+            auto parsed = XrdOucBearerToken::FromEnvValue(configured.c_str());
+            if (parsed.status == XrdOucBearerToken::Status::Found) {
+                if (logger)
+                    logger->Debug(kLogXrdClHttp, "BearerToken already set");
+                return parsed.token;
+            }
+            if (parsed.status == XrdOucBearerToken::Status::Error) {
+                parsed.entry = "BearerToken";
+                warn(parsed);
+                return {};
+            }
+        }
     }
 
-    std::string token_file;
-    if (!env->GetString("BearerTokenFile", token_file) || token_file.empty()) {
-        env->ImportString("BearerTokenFile", "BEARER_TOKEN_FILE");
-        env->GetString("BearerTokenFile", token_file);
+    auto result = XrdOucBearerToken::Discover();
+    if (result.status == XrdOucBearerToken::Status::Found) {
+        if (logger)
+            logger->Debug(kLogXrdClHttp, "Bearer token found at %s",
+                          result.entry.c_str());
+        return result.token;
     }
-    if (token_file.empty()) return {};
 
-    std::ifstream input(token_file);
-    if (!input) return {};
-    std::getline(input, token);
-    XrdCl::Utils::Trim(token);
-    return token;
+    warn(result);
+    return {};
 }
 
 bool XrdClHttp::ShouldUseBearerToken(const std::string &protocols,
@@ -198,7 +206,7 @@ void XrdClHttp::InjectBearerToken(
     if(logger)
     {
         logger->Debug(kLogXrdClHttp,
-                      "Injecting bearer token from environment for %s",
+                      "Injecting bearer token for %s",
                       url.GetURL().c_str());
     }
     headers.emplace_back("Authorization", "Bearer " + token);
