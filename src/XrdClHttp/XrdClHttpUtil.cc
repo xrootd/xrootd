@@ -54,6 +54,7 @@
 #include <cerrno>
 #include <cctype>
 #include <cstdlib>
+#include <ctime>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -456,6 +457,11 @@ bool HeaderParser::Parse(const std::string &header_line)
         }
         if (static_cast<unsigned>(m_allow_verbs) & ~static_cast<unsigned>(VerbsCache::HttpVerb::kUnknown)) {
             m_allow_verbs = static_cast<VerbsCache::HttpVerb>(static_cast<unsigned>(m_allow_verbs) & ~static_cast<unsigned>(VerbsCache::HttpVerb::kUnknown));
+        }
+    } else if (header_name == "Last-Modified") {
+        struct tm tm;
+        if (strptime(header_value.c_str(), "%a, %d %b %Y %H:%M:%S", &tm) != nullptr) {
+            m_modtime = timegm(&tm);
         }
     } else if (header_name == "Content-Length") {
          try {

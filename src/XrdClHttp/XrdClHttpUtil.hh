@@ -27,6 +27,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <ctime>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -98,6 +99,9 @@ public:
 
     int64_t GetContentLength() const {return m_content_length;}
 
+    // Modification time from Last-Modified, or -1 when the header is absent.
+    time_t GetModTime() const {return m_modtime;}
+
     uint64_t GetOffset() const {return m_response_offset;}
 
     static bool Canonicalize(std::string &headerName);
@@ -159,6 +163,7 @@ private:
     static bool validHeaderByte(unsigned char c);
 
     int64_t m_content_length{-1};
+    time_t m_modtime{-1};
     uint64_t m_response_offset{0};
 
     XrdClHttp::ChecksumInfo m_checksums;
