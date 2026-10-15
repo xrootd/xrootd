@@ -156,6 +156,23 @@ TEST_F(S3ListFixture, Mkdir)
     ASSERT_TRUE(si->GetFlags() & XrdCl::StatInfo::Flags::IsDir);
     delete si;
 
+    XrdCl::DirectoryList *list = nullptr;
+    st = fs.DirList(fname + "?authz=" + GetReadToken(), XrdCl::DirListFlags::None, list, 10);
+    ASSERT_TRUE(st.IsOK()) << "Empty directory should list: " << st.ToString();
+    ASSERT_NE(list, nullptr);
+    ASSERT_EQ(list->GetSize(), 1);
+    ASSERT_EQ(list->At(0)->GetName(), ".xrdcls3.dirsentinel");
+    delete list;
+
+    list = nullptr;
+    st = fs.DirList(std::string("test-bucket/mkdir") + "?authz=" + GetReadToken(), XrdCl::DirListFlags::None, list, 10);
+    ASSERT_TRUE(st.IsOK()) << "Failed to list parent of new directory: " << st.ToString();
+    ASSERT_NE(list, nullptr);
+    ASSERT_EQ(list->GetSize(), 1);
+    ASSERT_EQ(list->At(0)->GetName(), "foo");
+    ASSERT_TRUE(list->At(0)->GetStatInfo()->GetFlags() & XrdCl::StatInfo::IsDir);
+    delete list;
+
     st = fs.RmDir(fname + "?authz=" + GetWriteToken(), 10);
     ASSERT_TRUE(st.IsOK());
 
