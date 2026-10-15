@@ -97,7 +97,8 @@ void ResourceMonitor::cross_check_or_process_oob_lfn(const std::string &lfn, FsT
    std::string dir = (pos == std::string::npos) ? "" : lfn.substr(0, pos);
 
    XrdOssDF *dhp = m_oss.newDir(trc_pfx);
-   if (dhp->Opendir(dir.c_str(), fst.default_env()) == XrdOssOK)
+   bool opened = (dhp->Opendir(dir.c_str(), fst.default_env()) == XrdOssOK);
+   if (opened)
    {
       fst.slurp_dir_ll(*dhp, ds->m_depth, dir.c_str(), trc_pfx);
 
@@ -112,7 +113,9 @@ void ResourceMonitor::cross_check_or_process_oob_lfn(const std::string &lfn, FsT
       }
    }
    delete dhp;
-   ds->m_scanned = true;
+   // Only a directory that was read counts as scanned, else its files are skipped.
+   if (opened)
+      ds->m_scanned = true;
 }
 
 void ResourceMonitor::scan_dir_and_recurse(FsTraversal &fst)
@@ -286,12 +289,11 @@ int ResourceMonitor::process_queues()
       ds->m_here_stats.m_NFilesClosed += 1;
       ds->m_here_usage.m_LastCloseTime = i.record.m_close_time;
 
-      at.clear();
    }
-   { // Release the AccessToken slots under lock.
+   { // Under the lock: clear() writes fields register_file_update_stats() uses.
       XrdSysMutexHelper _lock(&m_queue_mutex);
       for (auto &i : m_file_close_q.read_queue())
-         m_access_tokens_free_slots.push_back(i.id);
+         m_access_tokens.release(i.id);
    }
 
    for (auto &i : m_file_purge_q1.read_queue())
@@ -345,7 +347,8 @@ void ResourceMonitor::heart_beat()
    const Configuration &conf = Cache::Conf();
 
    const int s_queue_proc_interval   = 10;
-   const int s_sshot_report_interval = conf.m_dirStatsInterval; // 1, 5, 10, 15, 30 or 60 minutes
+   const int s_sshot_report_interval = conf.m_dirStatsInterval; // one of 60, 120, 300,
+                                                                //  600, 900, 1200, 1800, 3600 s
    const int s_purge_check_interval  = 60;
    const int s_purge_report_interval = conf.m_purgeInterval;
    const int s_purge_cold_files_interval = conf.m_purgeInterval * conf.m_purgeAgeBasedPeriod;
@@ -358,6 +361,8 @@ void ResourceMonitor::heart_beat()
    time_t next_purge_check_time      = now + s_purge_check_interval;
    time_t next_purge_report_time     = now + s_purge_report_interval;
    time_t next_purge_cold_files_time = now + s_purge_cold_files_interval;
+
+   long long n_reported_token_failures = 0;
 
    while (true)
    {
@@ -389,6 +394,18 @@ void ResourceMonitor::heart_beat()
       int n_processed = process_queues();
       next_queue_proc_time = queue_swap_time + s_queue_proc_interval;
       TRACE(Dump, tpfx << "process_queues -- n_records=" << n_processed);
+
+      {  // Access-token space exhausted -- should be unreachable, so say so loudly.
+         long long taf;
+         { XrdSysMutexHelper _lock(&m_queue_mutex); taf = m_token_alloc_failures; }
+         if (taf > n_reported_token_failures) {
+            TRACE(Error, tpfx << "access-token space exhausted "
+                  << taf - n_reported_token_failures << " time(s) (total " << taf
+                  << "); those files are open but not accounted for. Raise MaxChunks "
+                     "on ResourceMonitor::m_access_tokens.");
+            n_reported_token_failures = taf;
+         }
+      }
 
       // Always update basic info on m_fs_state (space, usage, file_usage).
       update_vs_and_file_usage_info();
@@ -480,12 +497,25 @@ void ResourceMonitor::fill_sshot_vec_children(const DirState &parent_ds,
                                               std::vector<DirStateElement> &vec,
                                               int max_depth)
 {
-   int pos = vec.size();
-   int n_children = parent_ds.m_subdirs.size();
+   const int pos0       = (int) vec.size();
+   const int n_children = (int) parent_ds.m_subdirs.size();
 
-   DirStateElement &parent_dse = vec[parent_idx];
-   parent_dse.m_daughters_begin = pos;
-   parent_dse.m_daughters_end   = pos + n_children;
+   // maxdepth 0 is the root alone: a node at max_depth is emitted, its children are not.
+   if (parent_ds.m_depth >= max_depth)
+   {
+      // Truncated here: keep the daughter range at (-1, -1). No children: empty range.
+      if (n_children == 0) {
+         DirStateElement &dse = vec[parent_idx];
+         dse.m_daughters_begin = dse.m_daughters_end = pos0;
+      }
+      return;
+   }
+
+   {  // scoped: the emplace_back loop below can reallocate vec
+      DirStateElement &parent_dse = vec[parent_idx];
+      parent_dse.m_daughters_begin = pos0;
+      parent_dse.m_daughters_end   = pos0 + n_children;
+   }
 
    if (n_children == 0) return;
 
@@ -494,13 +524,11 @@ void ResourceMonitor::fill_sshot_vec_children(const DirState &parent_ds,
       vec.emplace_back( DirStateElement(child, parent_idx) );
    }
 
-   if (parent_ds.m_depth < max_depth)
+   int pos = pos0;
+   for (auto const & [name, child] : parent_ds.m_subdirs)
    {
-      for (auto const & [name, child] : parent_ds.m_subdirs)
-      {
-         fill_sshot_vec_children(child, pos, vec, max_depth);
-         ++pos;
-      }
+      fill_sshot_vec_children(child, pos, vec, max_depth);
+      ++pos;
    }
 }
 
@@ -509,12 +537,25 @@ void ResourceMonitor::fill_pshot_vec_children(const DirState &parent_ds,
                                               std::vector<DirPurgeElement> &vec,
                                               int max_depth)
 {
-   int pos = vec.size();
-   int n_children = parent_ds.m_subdirs.size();
+   const int pos0       = (int) vec.size();
+   const int n_children = (int) parent_ds.m_subdirs.size();
 
-   DirPurgeElement &parent_dpe = vec[parent_idx];
-   parent_dpe.m_daughters_begin = pos;
-   parent_dpe.m_daughters_end   = pos + n_children;
+   // maxdepth 0 is the root alone: a node at max_depth is emitted, its children are not.
+   if (parent_ds.m_depth >= max_depth)
+   {
+      // Truncated here: keep the daughter range at (-1, -1). No children: empty range.
+      if (n_children == 0) {
+         DirPurgeElement &dse = vec[parent_idx];
+         dse.m_daughters_begin = dse.m_daughters_end = pos0;
+      }
+      return;
+   }
+
+   {  // scoped: the emplace_back loop below can reallocate vec
+      DirPurgeElement &parent_dse = vec[parent_idx];
+      parent_dse.m_daughters_begin = pos0;
+      parent_dse.m_daughters_end   = pos0 + n_children;
+   }
 
    if (n_children == 0) return;
 
@@ -523,13 +564,11 @@ void ResourceMonitor::fill_pshot_vec_children(const DirState &parent_ds,
       vec.emplace_back( DirPurgeElement(child, child.m_here_usage, child.m_recursive_subdir_usage, parent_idx) );
    }
 
-   if (parent_ds.m_depth < max_depth)
+   int pos = pos0;
+   for (auto const & [name, child] : parent_ds.m_subdirs)
    {
-      for (auto const & [name, child] : parent_ds.m_subdirs)
-      {
-         fill_pshot_vec_children(child, pos, vec, max_depth);
-         ++pos;
-      }
+      fill_pshot_vec_children(child, pos, vec, max_depth);
+      ++pos;
    }
 }
 
