@@ -520,7 +520,6 @@ int main( int argc, char **argv )
   bool         preserveXAttr = false;
   bool         rmOnBadCksum  = false;
   bool         continue_     = false;
-  bool         recurse       = false;
   bool         zipappend     = false;
   bool         doserver      = false;
   std::string thirdParty     = "none"s;
@@ -548,11 +547,7 @@ int main( int argc, char **argv )
   else
     DlgEnv::Instance().Disable();
 
-  if( config.Want( XrdCpConfig::DoRecurse ) )
-  {
-    makedir = true;
-    recurse = true;
-  }
+  if( config.Want( XrdCpConfig::DoRecurse ) )     makedir       = true;
   if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
   if( config.Want( XrdCpConfig::DoXAttr ) )        preserveXAttr = true;
@@ -736,52 +731,29 @@ int main( int argc, char **argv )
   dest += config.dstFile->Path;
 
   //----------------------------------------------------------------------------
-  // We need to check whether our target is a file or a directory:
-  // 1) it's a file, so we can accept only one source
-  // 2) it's a directory, so:
-  //    * we can accept multiple sources
-  //    * we need to append the source name
+  // A trailing slash is a directory: several sources are allowed, and the
+  // source name is appended. A name with no slash is a file. scheme://host/
+  // parses as an empty path, so that slash is read from the original spec.
   //----------------------------------------------------------------------------
-  bool targetIsDir  = false;
-  bool targetExists = false;
-  if( config.dstFile->Protocol == XrdCpFile::isDir )
-    targetIsDir = true;
-  else if( config.dstFile->Protocol == XrdCpFile::isXroot ||
-           config.dstFile->Protocol == XrdCpFile::isXroots )
+  bool targetIsDir = config.dstFile->Protocol == XrdCpFile::isDir;
+  if( !targetIsDir &&
+      ( config.dstFile->Protocol == XrdCpFile::isXroot ||
+        config.dstFile->Protocol == XrdCpFile::isXroots ||
+        config.dstFile->Protocol == XrdCpFile::isHttp ||
+        config.dstFile->Protocol == XrdCpFile::isHttps ||
+        config.dstFile->Protocol == XrdCpFile::isS3 ) )
   {
     URL target( dest );
-    FileSystem fs( target );
-    StatInfo *statInfo = 0;
-    XRootDStatus st = fs.Stat( target.GetPathWithParams(), statInfo );
-    if( st.IsOK() )
+    const std::string path = target.GetPath();
+    if( !path.empty() )
+      targetIsDir = path.back() == '/';
+    else
     {
-      if( statInfo->TestFlags( StatInfo::IsDir ) )
-        targetIsDir = true;
-      targetExists = true;
+      const std::string spec = config.dstFile->Path;
+      const size_t query = spec.find( '?' );
+      const size_t end = query == std::string::npos ? spec.size() : query;
+      targetIsDir = end > 0 && spec[end - 1] == '/';
     }
-    else if( st.errNo == kXR_NotFound && makedir )
-    {
-      int n = strlen(config.dstFile->Path);
-      if( config.dstFile->Path[n-1] == '/' )
-        targetIsDir = true;
-    }
-    else if( st.errNo == kXR_NotAuthorized )
-    {
-      log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
-      std::cerr << st.ToStr() << std::endl;
-      return st.GetShellCode();
-    }
-
-    delete statInfo;
-  }
-
-  if( !targetIsDir && targetExists && !force && !recurse && !zipappend )
-  {
-    XRootDStatus st( stError, errInvalidOp, EEXIST );
-    // Unable to create /tmp/test.txt; file exists
-    log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
-    std::cerr << "Run: " << st.ToStr() << std::endl;
-    return st.GetShellCode();
   }
 
   //----------------------------------------------------------------------------
