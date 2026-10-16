@@ -2,13 +2,14 @@
 // Unit tests for the bounds of the monitoring records: the f-stream (fstat)
 // records, the dictionary map records and the redirect records.
 //
-// The monitor runs without the "xfr" option and with the smallest fstat
-// buffer that the configuration accepts. See XrdXrootdMonTestUtils.hh for how
+// The monitor runs without the "err" and "xfr" options, and with the smallest
+// fstat buffer that the configuration accepts. See XrdXrootdMonTestUtils.hh for how
 // the tests get the datagrams.
 //------------------------------------------------------------------------------
 
 #include "XrdXrootdMonTestUtils.hh"
 
+#include "XProtocol/XProtocol.hh"
 #include "XrdXrootd/XrdXrootdFileStats.hh"
 
 #include <string>
@@ -227,6 +228,26 @@ TEST_F(MonFile, RedirectPathEndsWithANullByte)
   const std::string expected = "rdrhost:" + longPath.substr(0, 1024);
   for (const auto &t : texts)
     EXPECT_EQ(t.substr(0, t.find('\0')), expected);
+}
+
+// Without the "err" option, the monitor must send no error information, so
+// that existing collectors see no change.
+TEST_F(MonFile, NoErrorRecordsWithoutErrOption)
+{
+  XrdXrootdFileStats stats;
+  stats.Init();
+  XrdXrootdMonFile::OpenErr(shortPath.c_str(), 0x12345678, 0, kXR_NotFound);
+  XrdXrootdMonFile::Open(&stats, shortPath.c_str(), 0x12345678, false);
+  stats.setErr(kXR_IOError, XrdXrootdMonStatERR::errRead);
+  XrdXrootdMonFile::Close(&stats, false);
+  Flush();
+  auto dgrams = env->rcv.Drain();
+
+  auto nErr = Records(dgrams, XrdXrootdMonFileHdr::isError).size();
+  for (const auto &r : Records(dgrams, XrdXrootdMonFileHdr::isClose))
+    if (r.flag & XrdXrootdMonFileHdr::hasERR)
+      nErr++;
+  EXPECT_EQ(nErr, 0u);
 }
 
 // CopyText() truncates the text so that it and its null byte fit the room
