@@ -435,7 +435,9 @@ DirListResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::A
         return;
 	}
 
-    auto url = m_url + "&continuation-token=" + urlquote(ct);
+    // The signer encodes this query value. Encoding the token first makes
+    // the signature disagree with the one the service computes.
+    auto url = m_url + "&continuation-token=" + ct;
 
     // Calculate the timeout based on the current time and the expiry time
     time_t now = time(NULL);
