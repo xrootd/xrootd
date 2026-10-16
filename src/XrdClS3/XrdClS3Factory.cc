@@ -427,13 +427,25 @@ Factory::GenerateHttpUrl(const std::string &s3_url, std::string &https_url, std:
     std::string region = m_region;
     if ((bucket == m_endpoint) || m_endpoint.empty()) {
         endpoint = bucket;
-        auto old_loc = loc + 1;
-        loc = s3_url.find('/', loc + 1);
         if (loc == std::string::npos) {
             err_msg = "Provided S3 URL does not contain a bucket in path";
             return false;
         }
-        bucket = s3_url.substr(old_loc, loc - old_loc);
+        auto old_loc = loc + 1;
+        loc = s3_url.find('/', old_loc);
+        if (loc == std::string::npos) {
+            bucket = s3_url.substr(old_loc);
+            auto query = bucket.find('?');
+            if (query != std::string::npos) {
+                bucket.erase(query);
+            }
+            if (bucket.empty()) {
+                err_msg = "Provided S3 URL does not contain a bucket in path";
+                return false;
+            }
+        } else {
+            bucket = s3_url.substr(old_loc, loc - old_loc);
+        }
     } else {
         auto authority = ExtractHostname(s3_url);
         std::string test_endpoint = "." + endpoint;
