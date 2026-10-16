@@ -31,6 +31,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <unistd.h>
 #include <sys/types.h>
@@ -467,6 +468,24 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 // Check if we need to duplicate this entry
 //
    if (altMon && this != altMon) altMon->Dup(&monBuff->info[nextEnt-1]);
+}
+
+/******************************************************************************/
+/*                              C o p y T e x t                               */
+/******************************************************************************/
+
+int XrdXrootdMonitor::CopyText(char *buff, int room, const char *text, int tLen)
+{
+// A record that binds text to a dictid must fit its buffer. So truncate the
+// text, rather than drop the record, and null pad the rest of the buffer. At
+// least one null byte always ends the text. The caller gives the length of
+// the text, because it needs the length to size the record.
+//
+   if (room <= 0) return 0;
+   if (tLen > room - 1) tLen = room - 1;
+   memcpy(buff, text, tLen);
+   memset(buff + tLen, 0, room - tLen);
+   return tLen;
 }
 
 /******************************************************************************/
