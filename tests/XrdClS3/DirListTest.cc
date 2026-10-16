@@ -135,6 +135,34 @@ TEST_F(S3ListFixture, SimpleList)
     delete response;
 }
 
+// A listing page holds 1000 keys. One more name forces a continuation token.
+TEST_F(S3ListFixture, Continuation)
+{
+    constexpr int count = 1111;
+    auto padded = [](int idx) {
+        auto name = std::to_string(idx);
+        return std::string(4 - name.size(), '0') + name;
+    };
+    for (int idx = 0; idx < count; idx++) {
+        auto url = GetCacheURL() + "/test-bucket/list_fixture/continuation/" + padded(idx);
+        ASSERT_NO_FATAL_FAILURE(WritePattern(url, 1, 'a', 1));
+    }
+
+    XrdCl::FileSystem fs(GetCacheURL());
+    XrdCl::DirectoryList *response = nullptr;
+    auto st = fs.DirList("/test-bucket/list_fixture/continuation?authz=" + GetReadToken(),
+                         XrdCl::DirListFlags::None, response, 60);
+    ASSERT_TRUE(st.IsOK()) << "Failed to list directory: " << st.ToString();
+    ASSERT_NE(response, nullptr);
+    ASSERT_EQ(response->GetSize(), static_cast<uint32_t>(count));
+    for (int idx = 0; idx < count; idx++) {
+        auto li = response->At(idx);
+        ASSERT_NE(li, nullptr);
+        ASSERT_EQ(li->GetName(), padded(idx));
+    }
+    delete response;
+}
+
 TEST_F(S3ListFixture, BucketRoot)
 {
     auto url = GetCacheURL() + "/test-bucket/root_file.txt";
