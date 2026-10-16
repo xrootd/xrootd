@@ -77,7 +77,8 @@ virtual bool               CopyL2F(XrdXrootdAioBuff *aioP) = 0;
         int                gdDone() override;
         void               gdFail() override;
         XrdXrootdAioBuff*  getBuff(bool wait);
-        void               SendError(int rc, const char *eText);
+        void               SendError(int rc, const char *eText,
+                                     bool byClient=false);
         void               SendFSError(int rc);
         bool               Validate(XrdXrootdAioBuff* aioP);
 
