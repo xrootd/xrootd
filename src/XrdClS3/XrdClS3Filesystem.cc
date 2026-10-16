@@ -23,6 +23,8 @@
 #include "XrdClS3Filesystem.hh"
 
 #include <tinyxml.h>
+#include <XrdCl/XrdClConstants.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClURL.hh>
 #include <XrdCl/XrdClLog.hh>
 #include <XrdOuc/XrdOucUtils.hh>
@@ -442,7 +444,7 @@ DirListResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::A
             new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOperationExpired, 0, "Request timed out"),
             nullptr
         );
-
+        return;
     }
 
     auto st = DownloadUrl(url, m_header_callout, this, m_expiry - now);
@@ -450,6 +452,9 @@ DirListResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::A
         m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
         return;
     }
+    // DownloadUrl calls this handler when the next page arrives. The
+    // unique_ptr must not delete it before then.
+    self.release();
 }
 
 void
@@ -470,6 +475,7 @@ MkdirHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *
             new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOperationExpired, 0, "Request timed out"),
             nullptr
         );
+        return;
     }
 
     self.release();
@@ -522,6 +528,14 @@ Filesystem::DirList(const std::string          &path,
         https_url += "&prefix=" + urlquote(obj);
     }
 
+    // File::Open turns a zero timeout into RequestTimeout for the first page.
+    // The next page is fetched only while this deadline is still ahead, and
+    // a zero timeout makes that deadline the current time.
+    if (!timeout) {
+        int val = XrdCl::DefaultRequestTimeout;
+        XrdCl::DefaultEnv::GetEnv()->GetInt("RequestTimeout", val);
+        timeout = val;
+    }
     auto expiry = time(NULL) + timeout;
 
     return DownloadUrl(
