@@ -202,10 +202,8 @@ CurlListdirOp::Success()
         if (skip) {
             skip = false;
         } else {
-            uint32_t flags = XrdCl::StatInfo::Flags::IsReadable;
-            if (entry.m_isdir) {
-                flags |= XrdCl::StatInfo::Flags::IsDir;
-            }
+            uint32_t flags = entry.m_isdir ? XrdCl::StatInfo::Flags::IsDir
+                                           : XrdCl::StatInfo::Flags::IsReadable;
             if (entry.m_isexec) {
                 flags |= XrdCl::StatInfo::Flags::XBitSet;
             }
