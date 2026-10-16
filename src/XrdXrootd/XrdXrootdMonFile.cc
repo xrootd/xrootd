@@ -68,6 +68,20 @@ const int minRecSz = sizeof(XrdXrootdMonFileOPN) - sizeof(XrdXrootdMonFileLFN);
 //
 const int mapUse = XrdXrootdMonFMap::mapNum - 1;
 const short noSlot = static_cast<short>(mapUse << XrdXrootdMonFMap::fmShft);
+
+// The wire format fixes the error block at 8 bytes. If this fails, the
+// compiler added padding to XrdXrootdMonStatERR: fix the structure so that it
+// has 8 bytes again, because collectors depend on this size.
+//
+static_assert(sizeof(XrdXrootdMonStatERR) == 8,
+              "XrdXrootdMonStatERR must have 8 bytes on the wire");
+
+// An isError record has the same fixed part as an open record, so maxText also
+// bounds its lfn. If this fails, calculate a separate text bound for isError
+// records in Init() and use it in OpenErr().
+//
+static_assert(sizeof(XrdXrootdMonFileERR) - sizeof(XrdXrootdMonFileLFN)
+              == minRecSz, "isError and isOpen fixed parts differ in size");
 }
 
 /******************************************************************************/
@@ -96,7 +110,9 @@ int                  XrdXrootdMonFile::fBsz    = 65472;
 int                  XrdXrootdMonFile::xfrRem   = 0;
 XrdXrootdMonFileXFR  XrdXrootdMonFile::xfrRec;
 short                XrdXrootdMonFile::crecNLen = 0;
+short                XrdXrootdMonFile::erecNLen = 0;
 short                XrdXrootdMonFile::trecNLen = 0;
+char                 XrdXrootdMonFile::fsERR    = 0;
 char                 XrdXrootdMonFile::fsLFN    = 0;
 char                 XrdXrootdMonFile::fsLVL    = 0;
 char                 XrdXrootdMonFile::fsOPS    = 0;
@@ -186,10 +202,27 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
        cRec.Ssq.write.dlong = htonll(xval.dlong);
       }
 
+// Report the first error of the file, if any, in a block at the end
+//
+   const XrdXrootdFileStats::ErrRec fErr = fsP->firstErr();
+   bool hasErr = fsERR && fErr.cat;
+   if (hasErr)
+      {cRec.Hdr.recFlag |= XrdXrootdMonFileHdr::hasERR;
+       cRec.Hdr.recSize  = erecNLen;
+      }
+
 // Get a pointer to the next slot (the buffer gets locked)
 //
-   cP = GetSlot(crecSize);
+   cP = GetSlot(hasErr ? crecSize + (int)sizeof(XrdXrootdMonStatERR)
+                       : crecSize);
    memcpy(cP, &cRec, crecSize);
+   if (hasErr)
+      {XrdXrootdMonStatERR eRec;
+       eRec.ecode = htonl(fErr.code);
+       eRec.ecat  = fErr.cat;
+       memset(eRec.rsvd, 0, sizeof(eRec.rsvd));
+       memcpy(cP + crecSize, &eRec, sizeof(eRec));
+      }
    bfMutex.UnLock();
 }
 
@@ -215,6 +248,7 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbsz)
 // Expand out the options
 //
    fsXFR  = (opts &  XROOTD_MON_FSXFR) != 0;
+   fsERR  = (opts &  XROOTD_MON_FSERR) != 0;
    fsLFN  = (opts &  XROOTD_MON_FSLFN) != 0;
    fsOPS  = (opts & (XROOTD_MON_FSOPS  | XROOTD_MON_FSSSQ)) != 0;
    fsSSQ  = (opts &  XROOTD_MON_FSSSQ) != 0;
@@ -407,6 +441,7 @@ bool XrdXrootdMonFile::Init()
        crecFlag |= XrdXrootdMonFileHdr::hasSSQ;
       }
    crecNLen = htons(static_cast<short>(crecSize));
+   erecNLen = htons(static_cast<short>(crecSize + sizeof(XrdXrootdMonStatERR)));
 
 // Preformat the i/o record
 //
@@ -561,5 +596,54 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
        oP->ufn.user = uDID;
        XrdXrootdMonitor::CopyText(oP->ufn.lfn, rLen - minRecSz - sizeof(kXR_unt32), Path, tLen);
       }
+   bfMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                               O p e n E r r                                */
+/******************************************************************************/
+
+void XrdXrootdMonFile::OpenErr(const char *Path, unsigned int uDID,
+                               unsigned int fileID, int ecode)
+{
+// Do nothing unless failed opens are reported. A deferred open fails in a
+// callback that has no protocol Monitor object, so the test must be here.
+//
+   if (!fsERR || !repBuff) return;
+
+// Assign the path a dictionary id if the caller did not map it
+//
+   if (fileID == 0) fileID = XrdXrootdMonitor::GetDictID();
+
+// Compute the size of this record. The user dictid and the lfn are always
+// present: no other record names the path when "files" monitoring is off.
+// The record is a multiple of 8 bytes long. uLen is the room after the user
+// dictid: the lfn and the padding.
+//
+   int tLen = strlen(Path), uLen;
+   if (tLen > maxText) tLen = maxText;  // truncate so the record fits
+   int rLen = minRecSz + sizeof(kXR_unt32) + tLen + 1;
+   rLen = (rLen + 7) & ~7;
+   uLen = rLen - minRecSz - sizeof(kXR_unt32);
+
+// Get a pointer to the next slot (the buffer gets locked)
+//
+   XrdXrootdMonFileERR *eP = (XrdXrootdMonFileERR *)GetSlot(rLen);
+
+// Fill out the record
+//
+   eP->Hdr.recType = XrdXrootdMonFileHdr::isError;
+   eP->Hdr.recFlag = XrdXrootdMonFileHdr::hasLFN;
+   eP->Hdr.recSize = htons(static_cast<short>(rLen));
+   eP->Hdr.fileID  = fileID;
+   eP->err.ecode   = htonl(ecode);
+   eP->err.ecat    = XrdXrootdMonStatERR::errOpen;
+   memset(eP->err.rsvd, 0, sizeof(eP->err.rsvd));
+   eP->ufn.user    = uDID;
+
+// Append the path (sizes have been verified). The lfn is null padded up to
+// the end of the record.
+//
+   XrdXrootdMonitor::CopyText(eP->ufn.lfn, uLen, Path, tLen);
    bfMutex.UnLock();
 }

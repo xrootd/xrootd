@@ -177,14 +177,16 @@ enum  recTval {isClose = 0,   // Record for close
                isOpen,        // Record for open
                isTime,        // Record for time
                isXfr,         // Record for transfers
-               isDisc         // Record for disconnection
+               isDisc,        // Record for disconnection
+               isError        // Record for a failed open
               };
 
 enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
                hasSSQ  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
                hasCSE  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
-               hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
+               hasERR  =0x08, // If recFlag == isClose MonStatERR ends the rec
+               hasLFN  =0x01, // If recFlag == isOpen|isError the lfn is present
                hasRW   =0x02, // If recFlag == isOpen  file opened r/w
                hasSID  =0x01  // if recFlag == isTime sID is present (new rec)
               };
@@ -291,14 +293,49 @@ long long           write;    // Bytes written to file so far
 // The record always contains XrdXrootdMonStatXFR after   XrdXrootdMonFileHdr.
 // If (recFlag & hasOPS) TRUE XrdXrootdMonStatOPS follows XrdXrootdMonStatXFR
 // If (recFlag & hasSSQ) TRUE XrdXrootdMonStatSQV follows XrdXrootdMonStatOPS
+// If (recFlag & hasERR) TRUE XrdXrootdMonStatERR ends the record, after the
+// blocks above. It is present only if "err" was specified.
 // The XrdXrootdMonStatSSQ information is present only if "ssq" was specified.
 //
-struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes
+struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes (+ 8 if hasERR)
 {
 XrdXrootdMonFileHdr Hdr;      // Always present (recSize has full length)
 XrdXrootdMonStatXFR Xfr;      // Always present
 XrdXrootdMonStatOPS Ops;      // Only   present when (recFlag & hasOPS) is True
 XrdXrootdMonStatSSQ Ssq;      // Only   present when (recFlag & hasSSQ) is True
+};
+
+// The following gives the first error of a file operation. Its size is fixed.
+// The error code is an XProtocol kXR error code in network byte order.
+//
+struct XrdXrootdMonStatERR    //  8 Bytes
+{
+enum  catVal {errOpen  = 1,   // The open  failed
+              errRead  = 2,   // A  read   failed
+              errWrite = 3,   // A  write  failed
+              errClose = 4    // The close failed
+             };
+
+kXR_int32           ecode;    // kXR error code (network byte order)
+char                ecat;     // catVal: the operation that failed
+char                rsvd[3];  // Reserved (zero)
+};
+
+// The following is reported when an open fails, so that no file exists and no
+// isOpen or isClose record is reported. It is reported only if "err" was
+// specified. Hdr.fileID is a new dictid for the path. When "files" monitoring
+// is on, the "d" mapping record on the main stream binds it to the path.
+// The user dictid is always present, and it is zero if user monitoring is
+// off. The lfn is always present and recFlag & hasLFN is always TRUE, also
+// without "lfn", because no other record names the path when "files"
+// monitoring is off. It is variable in size: use recSize to find the next
+// record. The lfn is guaranteed to end with at least one null byte.
+//
+struct XrdXrootdMonFileERR
+{
+XrdXrootdMonFileHdr Hdr;      //  8 recType == isError
+XrdXrootdMonStatERR err;      //  8
+XrdXrootdMonFileLFN ufn;      //  The user dictid and the lfn
 };
 
 // The following is reported when a user ends a session.

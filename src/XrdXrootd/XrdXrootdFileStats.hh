@@ -30,6 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <atomic>
+#include <cstring>
+
 #include "XrdXrootd/XrdXrootdMonData.hh"
 
 class XrdXrootdFileStats
@@ -50,6 +53,17 @@ struct {double      read;     // sum(read_size[i] **2) i = 1 to Ops.read
         double      write;    // sum(write_size[i]**2) i = 1 to Ops.write
        }            ssq;
 
+// The first error of the file. Only an error writes this field, and only the
+// close record reads it, so it comes last to keep the fields above dense.
+// Two streams of a file can fail at the same time, and a reader must get the
+// code with its category. Thus, one atomic value holds both: code << 8 | cat.
+//
+std::atomic<int>    errInfo;  // The first error, 0 if none
+
+struct ErrRec {int code;      // kXR error code of the first error
+               char cat;      // catVal of the first error, 0 if none
+              };
+
 enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSsq = 3};
 
        void Init()
@@ -60,7 +74,25 @@ enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSsq = 3};
                  ops.rsMin = 0x7fff;
                  ops.rdMin = ops.rvMin = ops.wrMin = 0x7fffffff;
                  ssq.read  = ssq.readv = ssq.write = ssq.rsegs = 0.0;
+                 errInfo = 0;
                 };
+
+// Record the first error of a file for the f-stream close record. A later
+// error is often only a result of the first one, so it does not replace it.
+//
+inline void setErr(int code, char cat)
+                  {int none = 0;
+                   if (MonEnt != -1)
+                      errInfo.compare_exchange_strong(none, (code << 8)
+                                                          | (cat & 0xff));
+                  }
+
+// Get the first error of a file: the code and the category, or two zeros
+//
+inline ErrRec firstErr() const
+                  {int info = errInfo.load();
+                   return {info >> 8, static_cast<char>(info & 0xff)};
+                  }
 
 inline void pgrOps(int rsz, bool isRetry=false)
                   {if (monLvl)
