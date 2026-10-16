@@ -131,6 +131,13 @@ private:
 
     int GetRemoteFileInfoTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t & contentLength, std::map<std::string,std::string> & reprDigest, bool & success, TPCLogRecord &rec);
 
+    // Send a HEAD request to the destination of a push: its final status tells
+    // whether the file exists (negative if no response came back), the URL it
+    // ended on which server holds it.
+    void ProbePushDestination(CURL *curl, XrdHttpExtReq &req,
+                              const std::string &resource, TPCLogRecord &rec,
+                              int &status, std::string &effectiveURL);
+
     // Send a 'performance marker' back to the TPC client, informing it of our
     // progress.  The TPC client will use this information to determine whether
     // the transfer is making sufficient progress and/or other monitoring info
@@ -195,6 +202,7 @@ private:
                          // Unless explicitly specified, this is 2x the timeout interval.
     std::string m_cadir;  // The directory to use for CAs.
     std::string m_cafile; // The file to use for CAs in libcurl
+    std::string m_dfs_domain; // tpc.dfs: domain of the servers sharing our filesystem, empty if none
     static XrdSysMutex m_monid_mutex;
     static uint64_t m_monid;
     XrdSysError m_log;
