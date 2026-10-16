@@ -51,6 +51,17 @@ extern int32_t       startTime;
 }
 
 /******************************************************************************/
+/*                             C o n s t a n t s                              */
+/******************************************************************************/
+
+namespace
+{
+// The fixed part of an open record: everything except the user dictid and the lfn.
+//
+const int minRecSz = sizeof(XrdXrootdMonFileOPN) - sizeof(XrdXrootdMonFileLFN);
+}
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
                           
@@ -68,6 +79,7 @@ int                  XrdXrootdMonFile::totRecs  = 0;
 int                  XrdXrootdMonFile::xfrRecs  = 0;
 int                  XrdXrootdMonFile::repSize  = 0;
 int                  XrdXrootdMonFile::repTime  = 0;
+int                  XrdXrootdMonFile::maxText  = 0;
 int                  XrdXrootdMonFile::fmHWM    =-1;
 int                  XrdXrootdMonFile::crecSize = 0;
 int                  XrdXrootdMonFile::xfrCnt   = 0;
@@ -183,7 +195,7 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbsz)
    repTime = intv;
    xfrCnt  = xfrcnt;
    xfrRem  = xfrcnt;
-   fBsz   =  (fbsz <= 0 ? 65472 : fbsz);
+   fBsz   =  (fbsz <= 0 ? 65472 : (fbsz < 1024 ? 1024 : fbsz));
 
 // Expand out the options
 //
@@ -358,6 +370,16 @@ bool XrdXrootdMonFile::Init()
    repLast = repBuff+fBsz-1;
    repNext = 0;
 
+// Compute the longest lfn that an open record can carry, not counting its
+// null byte. The record must fit an empty buffer, and its size must fit the
+// 16-bit recSize field. Records are a multiple of 8 bytes long, so use the
+// largest multiple of 8 that fits. The fixed part is minRecSz plus the user
+// dictid. Defaults() keeps fBsz at 1024 or more, so this is always positive.
+//
+   int maxSlot = repLast - repFirst;
+   if (maxSlot > 32767) maxSlot = 32767;
+   maxText = (maxSlot & ~7) - (minRecSz + (int)sizeof(kXR_unt32)) - 1;
+
 // Calculate the close record size and the initial flags
 //
    crecSize = sizeof(XrdXrootdMonFileHdr) + sizeof(XrdXrootdMonStatXFR);
@@ -464,10 +486,8 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
 void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
                             unsigned int uDID, bool isRW)
 {
-   static const int minRecSz = sizeof(XrdXrootdMonFileOPN)
-                             - sizeof(XrdXrootdMonFileLFN);
    XrdXrootdMonFileOPN *oP;
-   int i = 0, sNum = -1, rLen, pLen = 0;
+   int i = 0, sNum = -1, rLen, tLen = 0;
 
 // Assign the path a dictionary id if not assigned via file monitoring
 //
@@ -499,11 +519,9 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
 //
    rLen = minRecSz;
    if (fsLFN)
-      {pLen  = strlen(Path);
-       rLen += sizeof(kXR_unt32) + pLen;
-       i     = (rLen + 8) & ~0x00000003;
-       pLen  = pLen + (i - rLen);
-       rLen  = i;
+      {tLen  = strlen(Path);
+       if (tLen > maxText) tLen = maxText;
+       rLen  = (rLen + sizeof(kXR_unt32) + tLen + 1 + 7) & ~7;
       }
 
 // Get a pointer to the next slot (the buffer gets locked)
@@ -518,12 +536,13 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
    oP->Hdr.fileID  = fsP->FileID;
    oP->fsz         = htonll(fsP->fSize);
 
-// Append user and path if so wanted (sizes have been verified)
+// Append user and path if so wanted (sizes have been verified).
+// The lfn is null padded up to the end of the record.
 //
    if (fsLFN)
       {oP->Hdr.recFlag |= XrdXrootdMonFileHdr::hasLFN;
        oP->ufn.user = uDID;
-       strncpy(oP->ufn.lfn, Path, pLen);
+       XrdXrootdMonitor::CopyText(oP->ufn.lfn, rLen - minRecSz - sizeof(kXR_unt32), Path, tLen);
       }
    bfMutex.UnLock();
 }

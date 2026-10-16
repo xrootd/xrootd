@@ -80,6 +80,7 @@ static int                  totRecs;
 static int                  xfrRecs;
 static int                  repSize;
 static int                  repTime;
+static int                  maxText;   // Longest lfn an open record can carry
 static int                  fmHWM;
 static int                  crecSize;
 static int                  xfrCnt;
