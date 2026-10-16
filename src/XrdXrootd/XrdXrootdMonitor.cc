@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -858,17 +859,22 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
                                 const char *path)
 {
    XrdXrootdMonMap     map;
+   const int           room = sizeof(map.info);
    int                 size, montype;
 
-// Copy in the username and path
+// Copy in the username and path. The record is a fixed-size object, so the
+// size must come from what was copied, not from the source. Otherwise Send()
+// puts whatever follows the record on the wire. Send() sends only size bytes,
+// so the room for each text ends after its null byte, and no padding occurs.
 //
    map.dictid = GetDictID();
-   strcpy(map.info, uInfo.Name);
-   size = uInfo.Len;
-   if (path)
-      {*(map.info+size) = '\n';
-       strlcpy(map.info+size+1, path, sizeof(map.info)-size-1);
-       size = size + strlen(path) + 1;
+   size = CopyText(map.info, std::min(uInfo.Len + 1, room),
+                   uInfo.Name, uInfo.Len);
+   if (path && size < room - 2)
+      {int pLen = strlen(path);
+       map.info[size++] = '\n';
+       size += CopyText(map.info + size, std::min(pLen + 1, room - size),
+                        path, pLen);
       }
 
 // Fill in the header
