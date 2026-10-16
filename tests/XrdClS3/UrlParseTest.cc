@@ -170,6 +170,22 @@ TEST(Factory, GenerateHttpUrl) {
     ASSERT_TRUE(Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg));
     ASSERT_TRUE(err_msg.empty());
     ASSERT_EQ(https_url, "https://s3.amazonaws.com/bucket-name/path");
+
+    std::string obj;
+    s3_url = "s3://localhost:9000/mybucket";
+    ASSERT_TRUE(Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg));
+    ASSERT_TRUE(err_msg.empty());
+    ASSERT_EQ(https_url, "https://localhost:9000/mybucket");
+    ASSERT_TRUE(obj.empty());
+
+    s3_url = "s3://localhost:9000/mybucket/";
+    ASSERT_TRUE(Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg));
+    ASSERT_TRUE(err_msg.empty());
+    ASSERT_EQ(https_url, "https://localhost:9000/mybucket");
+    ASSERT_TRUE(obj.empty());
+
+    s3_url = "s3://localhost:9000/";
+    ASSERT_FALSE(Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg));
 }
 
 TEST(Factory, GetBucketFromHttpsUrl) {
