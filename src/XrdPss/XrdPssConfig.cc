@@ -116,7 +116,9 @@ bool         XrdPssSys::reProxy   = false;
 
 namespace XrdProxy
 {
-static XrdPosixXrootd  *Xroot;
+// Never deleted, since its destructor shuts down XrdPosix. Only written, to
+// keep the instance reachable for leak checkers.
+[[maybe_unused]] static XrdPosixXrootd *Xroot;
 
 extern XrdSysError      eDest;
 
