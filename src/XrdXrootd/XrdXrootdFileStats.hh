@@ -30,6 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstring>
+
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 
 class XrdXrootdFileStats
@@ -50,6 +53,19 @@ struct {double      read;     // sum(read_size[i] **2) i = 1 to Ops.read
         double      write;    // sum(write_size[i]**2) i = 1 to Ops.write
        }            ssq;
 
+// The first error of the file. Only an error writes this field, and only the
+// close record reads it, so it comes last to keep the fields above dense.
+// Two threads can fail at the same time on one file, for example an async
+// I/O completion and a request on a bound stream. Thus, one atomic value
+// holds the code with its operation: code << 8 | op. No other data depends
+// on it, so the relaxed memory order of RAtomic is sufficient.
+//
+XrdSys::RAtomic<int> errInfo; // The first error, 0 if none
+
+struct ErrRec {int code;      // kXR error code of the first error
+               char op;       // opVal of the first error, 0 if none
+              };
+
 enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSsq = 3};
 
        void Init()
@@ -60,7 +76,25 @@ enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSsq = 3};
                  ops.rsMin = 0x7fff;
                  ops.rdMin = ops.rvMin = ops.wrMin = 0x7fffffff;
                  ssq.read  = ssq.readv = ssq.write = ssq.rsegs = 0.0;
+                 errInfo = 0;
                 };
+
+// Record the first error of a file for the f-stream close record. A later
+// error is often only a result of the first one, so it does not replace it.
+//
+inline void setErr(int code, char op)
+                  {int none = 0;
+                   if (MonEnt != -1)
+                      errInfo.compare_exchange_strong(none, (code << 8)
+                                                          | (op & 0xff));
+                  }
+
+// Get the first error of a file: the code and the operation, or two zeros
+//
+inline ErrRec firstErr()
+                  {int info = errInfo.load();
+                   return {info >> 8, static_cast<char>(info & 0xff)};
+                  }
 
 inline void pgrOps(int rsz, bool isRetry=false)
                   {if (monLvl)

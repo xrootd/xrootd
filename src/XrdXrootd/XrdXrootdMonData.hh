@@ -177,24 +177,29 @@ enum  recTval {isClose = 0,   // Record for close
                isOpen,        // Record for open
                isTime,        // Record for time
                isXfr,         // Record for transfers
-               isDisc         // Record for disconnection
+               isDisc,        // Record for disconnection
+               isError        // Record for a failed open (only "err")
               };
 
 enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
                hasSSQ  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
                hasCSE  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
-               hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
+               hasERR  =0x08, // If recFlag == isClose MonStatERR ends the rec
+                              // (only "err")
+               hasLFN  =0x01, // If recFlag == isOpen|isError the lfn is present
                hasRW   =0x02, // If recFlag == isOpen  file opened r/w
                hasSID  =0x01  // if recFlag == isTime sID is present (new rec)
               };
 
-char      recType;  // RecTval: isClose | isOpen | isTime | isXfr
+char      recType;  // RecTval: isClose | isOpen | isTime | isXfr | isDisc
+                    //          | isError
 char      recFlag;  // RecFval: Record type-specific flags
 short     recSize;  // Size of this record in bytes
 union
 {
 kXR_unt32 fileID;   // dictid  of file for all rectypes except "disc" & "time"
+                    // (zero for "isError")
 kXR_unt32 userID;   // dictid  of user for     rectypes equal  "disc"
 short     nRecs[2]; // isTime: nRecs[0] == isXfr recs nRecs[1] == total recs
 };
@@ -292,13 +297,67 @@ long long           write;    // Bytes written to file so far
 // If (recFlag & hasOPS) TRUE XrdXrootdMonStatOPS follows XrdXrootdMonStatXFR
 // If (recFlag & hasSSQ) TRUE XrdXrootdMonStatSQV follows XrdXrootdMonStatOPS
 // The XrdXrootdMonStatSSQ information is present only if "ssq" was specified.
+// If (recFlag & hasERR) TRUE XrdXrootdMonStatERR follows the last block above.
+// It is present only if "err" was specified and an operation on the file
+// failed. It gives the first error of the file. It is always the last 8 bytes
+// of the record, thus it starts at offset recSize - 8:
 //
-struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes
+//    recFlag            XrdXrootdMonStatERR at   recSize
+//    hasERR                      32                40
+//    hasERR|hasOPS               80                88
+//    hasERR|hasOPS|hasSSQ       112               120
+//
+struct XrdXrootdMonFileCLS    // 32 | 80 | 112 Bytes (+ 8 if hasERR)
 {
 XrdXrootdMonFileHdr Hdr;      // Always present (recSize has full length)
 XrdXrootdMonStatXFR Xfr;      // Always present
 XrdXrootdMonStatOPS Ops;      // Only   present when (recFlag & hasOPS) is True
 XrdXrootdMonStatSSQ Ssq;      // Only   present when (recFlag & hasSSQ) is True
+};
+
+// The following gives the error of a failed operation. Its size is fixed. It
+// is the error block of an isError record, and of a close record when
+// (recFlag & hasERR) is TRUE. It is present only if "err" was specified.
+//
+struct XrdXrootdMonStatERR    //  8 Bytes
+{
+enum  opVal  {errOpen  = 1,   // The open failed (isError record)
+              errRead  = 2,   // A read, readv or pgread failed
+              errWrite = 3,   // A write, writev, pgwrite, sync or truncate
+                              // failed
+              errClose = 4,   // The close failed
+              errClone = 5    // The open failed, because the copy of the
+                              // contents of another open file (the clone
+                              // option of open) failed (isError record)
+             };
+
+kXR_int32           ecode;    // XProtocol kXR error code (network byte order)
+char                eoper;    // opVal: the operation that failed
+char                rsvd[3];  // Reserved (zero)
+};
+
+// The following is reported when an open fails. Then no file exists, thus
+// no isOpen and no isClose record is reported. It is reported only if "err"
+// was specified, also for a path that does not exist (kXR_NotFound), unless
+// the server redirects the client for that path. The record has no dictid
+// for the path, thus Hdr.fileID is zero and no "d" mapping record is sent.
+// The lfn names the path, so it is always present, also without "lfn", and
+// recFlag & hasLFN is always TRUE. The user dictid is zero if user monitoring
+// is off. The record is variable in size: use recSize to find the next
+// record. Its size is a multiple of 8 bytes, and the lfn ends with at least
+// one null byte. The layout is:
+//
+//    Offset  Size  Field
+//         0     8  Hdr      recType isError, recFlag hasLFN, fileID 0
+//         8     8  err      ecode, eoper (errOpen or errClone), rsvd
+//        16     4  ufn.user user dictid
+//        20   var  ufn.lfn  the path, null padded to the end of the record
+//
+struct XrdXrootdMonFileERR
+{
+XrdXrootdMonFileHdr Hdr;      //  8 recType == isError
+XrdXrootdMonStatERR err;      //  8
+XrdXrootdMonFileLFN ufn;      //  The user dictid and the lfn
 };
 
 // The following is reported when a user ends a session.
