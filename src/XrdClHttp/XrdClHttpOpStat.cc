@@ -238,15 +238,17 @@ CurlStatOp::SuccessImpl(bool returnObj)
         if (mtime < 0) {
             mtime = time(NULL);
         }
+        // A directory has no read bit. HTTP has no mode for a file, so a
+        // successful file stat is readable.
+        uint32_t flags = isdir ? XrdCl::StatInfo::Flags::IsDir
+                               : XrdCl::StatInfo::Flags::IsReadable;
         XrdCl::StatInfo *stat_info;
         if (m_response_info){
-            auto info = new XrdClHttp::StatResponse("nobody", size,
-            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), mtime);
+            auto info = new XrdClHttp::StatResponse("nobody", size, flags, mtime);
             info->SetResponseInfo(MoveResponseInfo());
             stat_info = info;
         } else {
-            stat_info = new XrdCl::StatInfo("nobody", size,
-            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), mtime);
+            stat_info = new XrdCl::StatInfo("nobody", size, flags, mtime);
         }
         obj = new XrdCl::AnyObject();
         obj->Set(stat_info);
