@@ -68,6 +68,7 @@
 #define XROOTD_MON_FSOPS    2
 #define XROOTD_MON_FSSSQ    4
 #define XROOTD_MON_FSXFR    8
+#define XROOTD_MON_FSERR   16
 
 class XrdScheduler;
 class XrdNetMsg;
