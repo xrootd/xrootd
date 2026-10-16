@@ -137,6 +137,17 @@ struct XrdXrootdSessID
 namespace
 {
 
+// Report a failed open on the f-stream. The isError record names the path
+// with its lfn. It gets no dictid and no "d" mapping record, because a path
+// that does not exist is a frequent error, and a failed open has no file.
+//
+void monOpenErr(XrdXrootdMonitor::User &mon, const char *path, int ecode,
+                char op = XrdXrootdMonStatERR::errOpen)
+{
+   if (!mon.Fstat() || !XrdXrootdMonFile::Errors()) return;
+   XrdXrootdMonFile::OpenErr(path, mon.Did, ecode, op);
+}
+
 const char *getTime()
 {
 static char buff[16];
@@ -1641,6 +1652,7 @@ int XrdXrootdProtocol::do_Open()
                     "%s file %s is already opened by %d %s; open denied.",
                     ('r' == usage ? "Input" : "Output"), fn, rc, who);
            eDest.Emsg("Xeq", ebuff);
+           monOpenErr(Monitor, fn, kXR_FileLocked);
            return Response.Send(kXR_FileLocked, ebuff);
           } else oHelp.mode = usage;
       }
@@ -1655,6 +1667,7 @@ int XrdXrootdProtocol::do_Open()
    if (!fp)
       {snprintf(ebuff, sizeof(ebuff)-1,"Insufficient memory to open %s",fn);
        eDest.Emsg("Xeq", ebuff);
+       monOpenErr(Monitor, fn, kXR_NoMemory);
        return Response.Send(kXR_NoMemory, ebuff);
       }
    oHelp.fp = fp;
@@ -1699,6 +1712,7 @@ int XrdXrootdProtocol::do_Open()
    if (!xp)
       {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
+       monOpenErr(Monitor, fn, kXR_NoMemory);
        return Response.Send(kXR_NoMemory, ebuff);
       }
    oHelp.xp = xp;
@@ -1717,6 +1731,7 @@ int XrdXrootdProtocol::do_Open()
    if (!FTab || (fhandle = FTab->Add(xp)) < 0)
       {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
+       monOpenErr(Monitor, fn, kXR_NoMemory);
        return Response.Send(kXR_NoMemory, ebuff);
       }
 
@@ -3910,7 +3925,12 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
               else  rs = Response.Send(kXR_redirect,
                                        Route[popt].Port[rdType],
                                        Route[popt].Host[rdType]);
-          } else rs = Response.Send((XErrorCode)rc, eMsg);
+          } else {
+           if (Path && (opC == XROOTD_MON_OPENR || opC == XROOTD_MON_OPENW
+                                                || opC == XROOTD_MON_OPENC))
+              monOpenErr(Monitor, Path, rc);
+           rs = Response.Send((XErrorCode)rc, eMsg);
+          }
        if (myError.extData()) myError.Reset();
        return rs;
       }
