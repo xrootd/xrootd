@@ -45,6 +45,9 @@ jobs:
     - name: Install dependencies with Homebrew
       run: brew install googletest libzip nlohmann-json python-setuptools
 
+    - name: Install Python dependencies with pip
+      run: python3 -m pip install --user --break-system-packages pytest
+
     - name: Clone repository
       uses: actions/checkout@v6
       with:
