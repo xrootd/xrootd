@@ -295,7 +295,10 @@ void XrdXrootdAioTask::Init(XrdXrootdProtocol *protP,
 /* Protected:                  S e n d E r r o r                              */
 /******************************************************************************/
   
-void XrdXrootdAioTask::SendError(int rc, const char *eText)
+// An error caused by the client request (byClient) is not kept as the first
+// error of the file, because it is not a failure of the storage.
+//
+void XrdXrootdAioTask::SendError(int rc, const char *eText, bool byClient)
 {
    char eBuff[1024];
 
@@ -313,6 +316,10 @@ void XrdXrootdAioTask::SendError(int rc, const char *eText)
 //
    if (!isDone)
       {XErrorCode eCode = (XErrorCode)XProtocol::mapError(rc);
+       if (!byClient)
+          dataFile->Stats.setErr(eCode, (aioState & aioRead
+                                         ? XrdXrootdMonStatERR::errRead
+                                         : XrdXrootdMonStatERR::errWrite));
        if (Response.Send(eCode, eText))
           {aioState |= aioDead;
            dataLen = 0;
@@ -347,6 +354,9 @@ void XrdXrootdAioTask::SendFSError(int rc)
       {const char *eMsg = myError.getErrText(eCode);
        eLog.Emsg("AioTask", dataLink->ID, eMsg, dataFile->FileKey);
        int rc = XProtocol::mapError(eCode);
+       dataFile->Stats.setErr(rc, (aioState & aioRead
+                                   ? XrdXrootdMonStatERR::errRead
+                                   : XrdXrootdMonStatERR::errWrite));
        if (Response.Send((XErrorCode)rc, eMsg))
           {aioState |= aioDead;
            dataLen = 0;

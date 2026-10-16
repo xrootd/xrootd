@@ -130,7 +130,7 @@ bool XrdXrootdPgrwAio::CopyF2L_Add2Q(XrdXrootdAioPgrw *aioP)
            return false;
           }
        if (!(dlen = aioP->Setup2Send(dataOffset, dataLen, eMsg)))
-          {SendError(EINVAL, eMsg);
+          {SendError(EINVAL, eMsg, true);
            aioP->Recycle();
            return false;
           }
@@ -280,7 +280,7 @@ do{bool doWait = dataLen <= 0 || inFlight >= XrdXrootdProtocol::as_maxperreq;
 //
    dLen = aioP->Setup2Recv(dataOffset, dataLen, eMsg);
    if (!dLen)
-      {SendError(EINVAL, eMsg);
+      {SendError(EINVAL, eMsg, true);
        aioP->Recycle();
        return 0;
       }
