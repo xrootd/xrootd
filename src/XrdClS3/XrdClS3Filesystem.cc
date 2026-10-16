@@ -115,7 +115,7 @@ private:
     time_t m_expiry; // Expiration time for the directory listing request
     XrdClHttp::HeaderCallout *m_header_callout{nullptr}; // Header callout for S3 signing
     std::string m_url; // The URL of the S3 directory listing
-    std::string m_prefix; // ListObjects prefix, including the trailing slash
+    std::string m_prefix; // ListObjects prefix. Empty for the bucket root.
     std::string m_host; // The host address of the S3 endpoint
 
     std::unique_ptr<XrdCl::DirectoryList> dirlist{new XrdCl::DirectoryList()}; // Directory listing object to hold the results
@@ -168,10 +168,16 @@ StatHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *r
         else return;
     }
     obj = obj.substr(0, obj.find('?'));
+    if (!obj.empty() && obj.back() != '/') {
+        obj += "/";
+    }
     auto query_loc = https_url.find('?');
     https_url += (query_loc == std::string::npos) ? "?" : "&";
     https_url += "list-type=2&delimiter=/&encoding-type=url";
-    https_url += "&prefix=" + urlquote(obj) + "/";
+    // An empty prefix= is dropped from the signature and the request is rejected.
+    if (!obj.empty()) {
+        https_url += "&prefix=" + urlquote(obj);
+    }
 
     auto expiry = time(NULL) + m_timeout;
 
@@ -179,7 +185,7 @@ StatHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *r
         https_url,
         m_header_callout,
         new DirListResponseHandler(
-            true, https_url, obj + "/", m_header_callout, new StatHandlerDirectory(m_handler), expiry, m_logger
+            true, https_url, obj, m_header_callout, new StatHandlerDirectory(m_handler), expiry, m_logger
         ),
         m_timeout
     );
@@ -406,11 +412,12 @@ DirListResponseHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::A
     // - !isTruncated indicates all object listings have been consumed.
     // - If m_existence_check mode is set, then the caller only cares to know that this is a
     //   directory; as soon as the directory has any "contents", then it officially exists and
-    //   we can return.
-	if (!isTruncated || (m_existence_check && directory_exists)) {
+    //   we can return. The bucket root exists when its list succeeds.
+	if (!isTruncated || (m_existence_check && (directory_exists || m_prefix.empty()))) {
         // An empty listing is not a directory unless a prefix placeholder
         // object was present. That object is not itself a child entry.
-        if (!directory_exists) {
+        // The bucket root is a directory even when the list is empty.
+        if (!directory_exists && !m_prefix.empty()) {
             m_handler->HandleResponse(
                 new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errErrorResponse, kXR_NotFound),
                 nullptr
@@ -504,10 +511,16 @@ Filesystem::DirList(const std::string          &path,
         return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
     }
     obj = obj.substr(0, obj.find('?'));
+    if (!obj.empty() && obj.back() != '/') {
+        obj += "/";
+    }
     auto query_loc = https_url.find('?');
     https_url += (query_loc == std::string::npos) ? "?" : "&";
     https_url += "list-type=2&delimiter=/&encoding-type=url";
-    https_url += "&prefix=" + urlquote(obj) + "/";
+    // An empty prefix= is dropped from the signature and the request is rejected.
+    if (!obj.empty()) {
+        https_url += "&prefix=" + urlquote(obj);
+    }
 
     auto expiry = time(NULL) + timeout;
 
@@ -515,7 +528,7 @@ Filesystem::DirList(const std::string          &path,
         https_url,
         &m_header_callout,
         new DirListResponseHandler(
-            false, https_url, obj + "/", &m_header_callout, handler, expiry, *m_logger
+            false, https_url, obj, &m_header_callout, handler, expiry, *m_logger
         ), 
         timeout
     );
@@ -701,6 +714,30 @@ Filesystem::Stat(const std::string      &path,
                  time_t                  timeout)
 {
     auto cleaned_path = Factory::CleanObjectName(path);
+    std::string https_url, err_msg, obj;
+    const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), cleaned_path);
+    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+    }
+    auto query = obj.find('?');
+    if (query != std::string::npos) {
+        obj.erase(query);
+    }
+    // HEAD of the bucket returns a zero-byte success. List it instead.
+    if (obj.empty()) {
+        auto query_loc = https_url.find('?');
+        https_url += (query_loc == std::string::npos) ? "?" : "&";
+        https_url += "list-type=2&delimiter=/&encoding-type=url";
+        auto expiry = time(NULL) + timeout;
+        return DownloadUrl(
+            https_url,
+            &m_header_callout,
+            new DirListResponseHandler(
+                true, https_url, "", &m_header_callout, new StatHandlerDirectory(handler), expiry, *m_logger
+            ),
+            timeout
+        );
+    }
     auto [st, fs] = GetFSHandle(cleaned_path);
     if (!st.IsOK()) {
         return st;
