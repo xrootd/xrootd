@@ -59,6 +59,14 @@ namespace
 // The fixed part of an open record: everything except the user dictid and the lfn.
 //
 const int minRecSz = sizeof(XrdXrootdMonFileOPN) - sizeof(XrdXrootdMonFileLFN);
+
+// MonEnt is a short, so -1 and the cookie of the last slot (0xffff) are the
+// same value. Open() therefore never uses the last map. A file that has an
+// f-stream open record but no slot gets the cookie noSlot from that map.
+// Its value is not equal to -1, so the file still gets its close record.
+//
+const int mapUse = XrdXrootdMonFMap::mapNum - 1;
+const short noSlot = static_cast<short>(mapUse << XrdXrootdMonFMap::fmShft);
 }
 
 /******************************************************************************/
@@ -105,18 +113,19 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
    char *cP;
    int iEnt, iMap, iSlot;
 
-// If this object was registered for I/O reporting, deregister it.
+// If this object was registered for I/O reporting, deregister it. Then mark
+// it as closed on the f-stream.
 //
-   if (fsP->MonEnt != -1)
-      {iEnt = fsP->MonEnt & 0xffff;
+   if (fsP->MonEnt != -1 && fsP->MonEnt != noSlot)
+      {iEnt  = fsP->MonEnt & 0xffff;
        iMap  = iEnt >> XrdXrootdMonFMap::fmShft;
        iSlot = iEnt &  XrdXrootdMonFMap::fmMask;
-       fsP->MonEnt = -1;
        fmMutex.Lock();
        if (fmMap[iMap].Free(iSlot)) fmUse[iMap]--;
        if (iMap == fmHWM) while(fmHWM >= 0 && !fmUse[fmHWM]) fmHWM--;
        fmMutex.UnLock();
       }
+   fsP->MonEnt = -1;
 
 // Insert a close record header (mostly precomputed)
 //
@@ -497,7 +506,7 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
 //
    if (fsXFR)
       {fmMutex.Lock();
-       for (i = 0; i < XrdXrootdMonFMap::mapNum; i++)
+       for (i = 0; i < mapUse; i++)
            if (fmUse[i] < XrdXrootdMonFMap::fmSize)
               {if ((sNum = fmMap[i].Insert(fsP)) >= 0)
                   {fmUse[i]++;
@@ -509,9 +518,11 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
       }
 
 // Generate the cookie (real or virtual) to find the entry in the map table.
-// Supply the monitoring options for effeciency.
+// If the file has no entry (no xfr option, or the map is full), use noSlot.
+// Supply the monitoring options for efficiency.
 //
-   fsP->MonEnt = (sNum | (i << XrdXrootdMonFMap::fmShft)) & 0xffff;
+   fsP->MonEnt = (sNum < 0 ? noSlot
+                           : (sNum | (i << XrdXrootdMonFMap::fmShft)) & 0xffff);
    fsP->monLvl = fsLVL;
    fsP->xfrXeq = 0;
 
