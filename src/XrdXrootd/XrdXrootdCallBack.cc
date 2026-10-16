@@ -41,6 +41,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -311,6 +312,11 @@ void XrdXrootdCallBack::sendError(int            rc,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+       // A deferred open fails here and not in XrdXrootdProtocol::fsError().
+       // There is no Monitor object here, so no "d" mapping record binds the
+       // path: the isError record gets a new dictid.
+       if (Path && Opcode == XROOTD_MON_OPENR)
+          XrdXrootdMonFile::OpenErr(Path, eInfo->getErrMid(), 0, rc);
        sendResp(eInfo, kXR_error, &rc, eMsg, eInfo->getErrTextLen()+1);
        return;
       }
