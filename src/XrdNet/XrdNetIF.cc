@@ -107,7 +107,7 @@ const char *sName[hasNum] = {"pub4 ",  "prv4 ",   "pub6 ",  "prv6"};
 
 XrdSysError      *XrdNetIF::eDest     = 0;
 
-const char       *XrdNetIF::myDomain  = XrdNetIF::GetDomain();
+const char       *XrdNetIF::myDomain  = 0; // Unused, kept for ABI
 
 char             *XrdNetIF::ifCfg[2]  = {0,0}; // public, private
 
@@ -606,20 +606,21 @@ const char *XrdNetIF::GetDomain()
   
 bool XrdNetIF::InDomain(XrdNetAddrInfo *epaddr)
 {
+   static const char *dnP = GetDomain();
    const char *hnP;
 
 // Do not attempt to resolve private addresses as they are always in the domain.
 //
    if (epaddr->isPrivate()) return true;
 
-// Checkout the domain
+// Check the domain
 //
-   if (!myDomain || !(hnP = epaddr->Name(0)) || !(hnP = index(hnP, '.')))
+   if (!dnP || !(hnP = epaddr->Name(0)) || !(hnP = index(hnP, '.')))
       return false;
 
-// Match the domain and returnthe result
+// Match the domain and return the result
 //
-   return strcmp(myDomain, hnP+1) == 0;
+   return strcmp(dnP, hnP+1) == 0;
 }
 
 /******************************************************************************/

@@ -41,9 +41,8 @@
 /*        O n e   T i m e   S t a t i c   I n i t i a l i z a t i o n         */
 /******************************************************************************/
 
-// Note that we are gauranteed that this will be fully initialzed prior
-// to any method called that uses these values irrespective of static
-// initialization order, even though statically initialized.
+// These values are set on first use by initIdentity(), so that callers in the
+// static initializers of other files do not depend on initialization order.
 
 static char DNS_FQN[256];       // Fully qualified hostname
 static const char *DNS_Domain;  // Starts with leading dot, points into DNS_FQN!
@@ -175,8 +174,14 @@ done:
    return true;
 }
 
-// True if the FQN is configured for this host
-static bool FQN_DNS = getMyFQN();
+// Run getMyFQN() once, on first use. This requires getifaddrs(): without it,
+// XrdNetIF::GetIF() makes an XrdNetAddr for this host, which calls FQN().
+// The inline keyword lets GCC put the guard check in the callers.
+static inline void initIdentity()
+{
+   static const bool done = getMyFQN();
+   (void)done;
+}
 
 /******************************************************************************/
 /*                                D o m a i n                                 */
@@ -184,6 +189,7 @@ static bool FQN_DNS = getMyFQN();
   
 const char *XrdNetIdentity::Domain(const char **eText)
 {
+   initIdentity();
    if (eText) *eText = DNS_Error;
    return DNS_Domain;
 }
@@ -194,6 +200,7 @@ const char *XrdNetIdentity::Domain(const char **eText)
   
 const char *XrdNetIdentity::FQN(const char **eText)
 {
+   initIdentity();
    if (eText) *eText = DNS_Error;
    return DNS_FQN;
 }
@@ -204,8 +211,8 @@ const char *XrdNetIdentity::FQN(const char **eText)
   
 void XrdNetIdentity::SetFQN(const char *fqn)
 {
+   initIdentity();
    strlcpy(DNS_FQN, fqn, sizeof(DNS_FQN));
    XrdOucUtils::toLower(DNS_FQN);
    if (!(DNS_Domain = index(DNS_FQN, '.'))) DNS_Domain = "";
-   FQN_DNS = false;
 }
