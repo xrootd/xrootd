@@ -250,6 +250,11 @@ static XrdXrootdMonitor *altMon;
 
 static const int         rdrMax = 8;
 
+//! The largest UDP payload over IPv4: 65535 bytes less the 20-byte IP header
+//! and the 8-byte UDP header. A larger datagram cannot be sent.
+//
+static constexpr int     maxDgram = 65507;
+
 private:
                         ~XrdXrootdMonitor(); 
 

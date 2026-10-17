@@ -567,11 +567,14 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
    XrdXrootdMonFile::Defaults(fsint, fsopt, fsion, fbsz);
    monFSTAT = fsint != 0;
 
-// Set default monitor buffer size
+// Set default monitor buffer size. The configuration accepts up to 65535
+// bytes, but the buffer goes out as one datagram, so limit it to maxDgram.
 //
    if (msz <= 0) msz = 16384;
       else if (msz < 1024) msz = 1024;
-              else msz = msz/sizeof(XrdXrootdMonTrace)*sizeof(XrdXrootdMonTrace);
+              else {if (msz > maxDgram) msz = maxDgram;
+                    msz = msz/sizeof(XrdXrootdMonTrace)*sizeof(XrdXrootdMonTrace);
+                   }
    lastEnt = (msz-sizeof(XrdXrootdMonHeader))/sizeof(XrdXrootdMonTrace);
    monBlen = (lastEnt*sizeof(XrdXrootdMonTrace))+sizeof(XrdXrootdMonHeader);
    lastEnt--;
