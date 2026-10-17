@@ -478,8 +478,8 @@ namespace XrdCl
 
       if( target.GetProtocol() != "stdio" && target.GetPath().empty() )
       {
-        // scheme://host/ keeps no path: the parser consumes the only slash.
-        // That URL is the server root, not a missing target.
+        // root://host/ has no path left after parsing. It is the top of the
+        // server, so put the path back as /.
         log->Debug( UtilityMsg, "CopyProcess (job #%d): empty target path is the root.",
                     i );
         target.SetPath( "/" );
