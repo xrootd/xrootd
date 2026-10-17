@@ -135,6 +135,67 @@ TEST_F(S3ListFixture, SimpleList)
     delete response;
 }
 
+// A listing page holds 1000 keys. One more name forces a continuation token.
+TEST_F(S3ListFixture, Continuation)
+{
+    constexpr int count = 1111;
+    auto padded = [](int idx) {
+        auto name = std::to_string(idx);
+        return std::string(4 - name.size(), '0') + name;
+    };
+    for (int idx = 0; idx < count; idx++) {
+        auto url = GetCacheURL() + "/test-bucket/list_fixture/continuation/" + padded(idx);
+        ASSERT_NO_FATAL_FAILURE(WritePattern(url, 1, 'a', 1));
+    }
+
+    XrdCl::FileSystem fs(GetCacheURL());
+    XrdCl::DirectoryList *response = nullptr;
+    auto st = fs.DirList("/test-bucket/list_fixture/continuation?authz=" + GetReadToken(),
+                         XrdCl::DirListFlags::None, response, 60);
+    ASSERT_TRUE(st.IsOK()) << "Failed to list directory: " << st.ToString();
+    ASSERT_NE(response, nullptr);
+    ASSERT_EQ(response->GetSize(), static_cast<uint32_t>(count));
+    for (int idx = 0; idx < count; idx++) {
+        auto li = response->At(idx);
+        ASSERT_NE(li, nullptr);
+        ASSERT_EQ(li->GetName(), padded(idx));
+    }
+    delete response;
+}
+
+TEST_F(S3ListFixture, BucketRoot)
+{
+    auto url = GetCacheURL() + "/test-bucket/root_file.txt";
+    ASSERT_NO_FATAL_FAILURE(WritePattern(url, 64, 'a', 1));
+
+    XrdCl::FileSystem fs(GetCacheURL());
+    std::string root = "/test-bucket/?authz=" + GetReadToken();
+
+    XrdCl::StatInfo *si = nullptr;
+    auto st = fs.Stat(root, si, 10);
+    ASSERT_TRUE(st.IsOK()) << "Failed to stat bucket root: " << st.ToString();
+    ASSERT_NE(si, nullptr);
+    ASSERT_TRUE(si->GetFlags() & XrdCl::StatInfo::IsDir);
+    delete si;
+
+    XrdCl::DirectoryList *list = nullptr;
+    st = fs.DirList(root, XrdCl::DirListFlags::None, list, 10);
+    ASSERT_TRUE(st.IsOK()) << "Failed to list bucket root: " << st.ToString();
+    ASSERT_NE(list, nullptr);
+    bool found = false;
+    for (uint32_t idx = 0; idx < list->GetSize(); idx++) {
+        auto entry = list->At(idx);
+        ASSERT_NE(entry, nullptr);
+        if (entry->GetName() == "root_file.txt") {
+            found = true;
+            ASSERT_FALSE(entry->GetStatInfo()->GetFlags() & XrdCl::StatInfo::IsDir);
+            ASSERT_EQ(entry->GetStatInfo()->GetSize(), 64);
+        }
+    }
+    ASSERT_TRUE(found);
+    delete list;
+}
+
 TEST_F(S3ListFixture, Mkdir)
 {
     XrdCl::FileSystem fs(GetCacheURL());
@@ -155,6 +216,23 @@ TEST_F(S3ListFixture, Mkdir)
     ASSERT_NE(si, nullptr);
     ASSERT_TRUE(si->GetFlags() & XrdCl::StatInfo::Flags::IsDir);
     delete si;
+
+    XrdCl::DirectoryList *list = nullptr;
+    st = fs.DirList(fname + "?authz=" + GetReadToken(), XrdCl::DirListFlags::None, list, 10);
+    ASSERT_TRUE(st.IsOK()) << "Empty directory should list: " << st.ToString();
+    ASSERT_NE(list, nullptr);
+    ASSERT_EQ(list->GetSize(), 1);
+    ASSERT_EQ(list->At(0)->GetName(), ".xrdcls3.dirsentinel");
+    delete list;
+
+    list = nullptr;
+    st = fs.DirList(std::string("test-bucket/mkdir") + "?authz=" + GetReadToken(), XrdCl::DirListFlags::None, list, 10);
+    ASSERT_TRUE(st.IsOK()) << "Failed to list parent of new directory: " << st.ToString();
+    ASSERT_NE(list, nullptr);
+    ASSERT_EQ(list->GetSize(), 1);
+    ASSERT_EQ(list->At(0)->GetName(), "foo");
+    ASSERT_TRUE(list->At(0)->GetStatInfo()->GetFlags() & XrdCl::StatInfo::IsDir);
+    delete list;
 
     st = fs.RmDir(fname + "?authz=" + GetWriteToken(), 10);
     ASSERT_TRUE(st.IsOK());

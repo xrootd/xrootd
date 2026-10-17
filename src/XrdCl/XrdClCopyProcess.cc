@@ -427,7 +427,9 @@ namespace XrdCl
 
         if( targetIsDir )
         {
-          std::string path = target.GetPath() + '/';
+          std::string path = target.GetPath();
+          if( path.empty() || path.back() != '/' )
+            path += '/';
           std::string fn;
 
           bool isZip = false;
@@ -476,12 +478,12 @@ namespace XrdCl
 
       if( target.GetProtocol() != "stdio" && target.GetPath().empty() )
       {
-        log->Debug( UtilityMsg, "CopyProcess (job #%d): no target specified.",
+        // root://host/ has no path left after parsing. It is the top of the
+        // server, so put the path back as /.
+        log->Debug( UtilityMsg, "CopyProcess (job #%d): empty target path is the root.",
                     i );
-        CleanUpJobs();
-        XRootDStatus st = XRootDStatus( stError, errInvalidArgs );
-        res->Set( "status", st );
-        return st;
+        target.SetPath( "/" );
+        props.Set( "target", target.GetURL() );
       }
 
       //------------------------------------------------------------------------

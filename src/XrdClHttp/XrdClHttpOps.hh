@@ -508,6 +508,8 @@ private:
     bool m_is_propfind{false};
     // Whether the stat response indicated that the object is a directory.
     bool m_is_dir{false};
+    // Modification time from PROPFIND, or -1 when it was not provided.
+    time_t m_modtime{-1};
     std::string m_response; // Body of the response (if using PROPFIND)
     int64_t m_length{-1}; // Length of the object from the response
 };

@@ -26,6 +26,8 @@
 
 #include <gtest/gtest.h>
 
+#include <ctime>
+
 namespace
 {
 void ExpectSequentialChecksum(const XrdClHttp::ChecksumInfo &checksums,
@@ -129,4 +131,15 @@ TEST(HeaderParser, BuildsChecksumNegotiationValues)
   EXPECT_EQ(XrdClHttp::HeaderParser::ChecksumTypeToDigestName(
               XrdClHttp::ChecksumType::kAll),
             "adler32,crc32,CRC32c,MD5,SHA,SHA-256");
+}
+
+TEST(HeaderParser, ParsesLastModifiedAsUtc)
+{
+  XrdClHttp::HeaderParser parser;
+  ASSERT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  ASSERT_TRUE(parser.Parse("Last-Modified: Wed, 21 Aug 2024 11:02:53 GMT\r\n"));
+
+  struct tm expected{};
+  ASSERT_NE(strptime("Wed, 21 Aug 2024 11:02:53", "%a, %d %b %Y %H:%M:%S", &expected), nullptr);
+  EXPECT_EQ(parser.GetModTime(), timegm(&expected));
 }
