@@ -28,9 +28,11 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <unistd.h>
 #include <sys/types.h>
@@ -470,6 +472,24 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 }
 
 /******************************************************************************/
+/*                              C o p y T e x t                               */
+/******************************************************************************/
+
+int XrdXrootdMonitor::CopyText(char *buff, int room, const char *text, int tLen)
+{
+// A record that binds text to a dictid must fit its buffer. So truncate the
+// text, rather than drop the record, and null pad the rest of the buffer. At
+// least one null byte always ends the text. The caller gives the length of
+// the text, because it needs the length to size the record.
+//
+   if (room <= 0) return 0;
+   if (tLen > room - 1) tLen = room - 1;
+   memcpy(buff, text, tLen);
+   memset(buff + tLen, 0, room - tLen);
+   return tLen;
+}
+
+/******************************************************************************/
 /*                              D e f a u l t s                               */
 /******************************************************************************/
 
@@ -547,11 +567,14 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
    XrdXrootdMonFile::Defaults(fsint, fsopt, fsion, fbsz);
    monFSTAT = fsint != 0;
 
-// Set default monitor buffer size
+// Set default monitor buffer size. The configuration accepts up to 65535
+// bytes, but the buffer goes out as one datagram, so limit it to maxDgram.
 //
    if (msz <= 0) msz = 16384;
       else if (msz < 1024) msz = 1024;
-              else msz = msz/sizeof(XrdXrootdMonTrace)*sizeof(XrdXrootdMonTrace);
+              else {if (msz > maxDgram) msz = maxDgram;
+                    msz = msz/sizeof(XrdXrootdMonTrace)*sizeof(XrdXrootdMonTrace);
+                   }
    lastEnt = (msz-sizeof(XrdXrootdMonHeader))/sizeof(XrdXrootdMonTrace);
    monBlen = (lastEnt*sizeof(XrdXrootdMonTrace))+sizeof(XrdXrootdMonHeader);
    lastEnt--;
@@ -839,17 +862,22 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
                                 const char *path)
 {
    XrdXrootdMonMap     map;
+   const int           room = sizeof(map.info);
    int                 size, montype;
 
-// Copy in the username and path
+// Copy in the username and path. The record is a fixed-size object, so the
+// size must come from what was copied, not from the source. Otherwise Send()
+// puts whatever follows the record on the wire. Send() sends only size bytes,
+// so the room for each text ends after its null byte, and no padding occurs.
 //
    map.dictid = GetDictID();
-   strcpy(map.info, uInfo.Name);
-   size = uInfo.Len;
-   if (path)
-      {*(map.info+size) = '\n';
-       strlcpy(map.info+size+1, path, sizeof(map.info)-size-1);
-       size = size + strlen(path) + 1;
+   size = CopyText(map.info, std::min(uInfo.Len + 1, room),
+                   uInfo.Name, uInfo.Len);
+   if (path && size < room - 2)
+      {int pLen = strlen(path);
+       map.info[size++] = '\n';
+       size += CopyText(map.info + size, std::min(pLen + 1, room - size),
+                        path, pLen);
       }
 
 // Fill in the header
@@ -900,7 +928,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
 {
    XrdXrootdMonRedir *mtP;
    MonRdrBuff        *mP = Fetch();
-   int n, slots, hLen, pLen;
+   int n, slots, hLen, pLen, room;
    char *dest;
 
 // Take care of the server's name which might actually be a path
@@ -911,7 +939,9 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
             if (hLen >  256) hLen =  256;
            }
 
-// Take care of the path
+// Take care of the path. Only the truncated length may be copied, as the
+// path can be longer than the slots that hold it. CopyText() then ends the
+// path with a null byte and null pads the rest of the slots.
 //
    pLen = strlen(Path);
    if (pLen > 1024) pLen = 1024;
@@ -921,7 +951,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
    n = (hLen + 1 + pLen + 1);    // "<host>:<path>\0"
    slots = n / sizeof(XrdXrootdMonRedir);
    if (n % sizeof(XrdXrootdMonRedir)) slots++;
-   pLen = slots * sizeof(XrdXrootdMonRedir) - (hLen+1);
+   room = slots * sizeof(XrdXrootdMonRedir) - (hLen+1);
 
 // Obtain a lock on this buffer
 //
@@ -950,7 +980,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
    mtP->arg1.dictid   = mID;
    dest = (char *)(mtP+1);
    strncpy(dest, hName,hLen); dest += hLen; *dest++ = ':';
-   strncpy(dest, Path, pLen);
+   CopyText(dest, room, Path, pLen);
 
 // Adjust pointer and return
 //
