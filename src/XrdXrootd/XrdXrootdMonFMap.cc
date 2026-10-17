@@ -119,9 +119,9 @@ int XrdXrootdMonFMap::Insert(XrdXrootdFileStats *fsP)
 XrdXrootdFileStats *XrdXrootdMonFMap::Next(int &slotNum)
 {
 
-// Return next valid pointer
+// Return next valid pointer. The last slot holds a file too, so include it.
 //
-   for (; slotNum < fmSize-1; slotNum++)
+   for (; slotNum < fmSize; slotNum++)
         {if (!(fMap[slotNum].cVal & invVal)) return fMap[slotNum++].vPtr;}
 
 // At the end of the map

@@ -16,6 +16,7 @@
 #include "XrdXrootd/XrdXrootdMonFMap.hh"
 
 #include <algorithm>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -106,6 +107,26 @@ TEST_F(MonXfrTest, FileWithoutASlotGetsItsCloseRecord)
   EXPECT_EQ(std::count_if(closes.begin(), closes.end(),
                           [=](const auto &r) { return FileID(r) == fileID; }),
             1);
+}
+
+// Each file of a full map with I/O gets an xfr record. Next() used to stop
+// before the last slot of the map, so that file got none.
+TEST_F(MonXfrTest, EveryFileOfAMapGetsAnXfrRecord)
+{
+  OpenFiles open(XrdXrootdMonFMap::fmSize);
+  std::set<kXR_unt32> fileIDs;
+  for (auto &f : open.files) {
+    f.xfrXeq = 1;
+    fileIDs.insert(f.FileID);
+  }
+  env->rcv.Drain(); // the open records
+
+  Flush(); // with "xfr 1", each flush also reports the I/O
+  std::set<kXR_unt32> seen;
+  for (const auto &r : Records(env->rcv.Drain(), XrdXrootdMonFileHdr::isXfr))
+    if (fileIDs.count(FileID(r)))
+      seen.insert(FileID(r));
+  EXPECT_EQ(seen.size(), fileIDs.size());
 }
 
 // The configuration accepts an fstat buffer of 65535 bytes, but a datagram
