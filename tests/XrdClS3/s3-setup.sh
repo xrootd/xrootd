@@ -128,7 +128,7 @@ if [ "$?" -ne 0 ]; then
   exit 1
 fi
 
-HOST="${HOSTNAME:-localhost}"
+HOST=localhost
 
 # Create the host certificate request
 openssl genrsa -out "$MINIO_CERTSDIR/private.key" 4096 >> "$BINARY_DIR/tests/$TEST_NAME/server.log"
