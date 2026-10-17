@@ -40,6 +40,25 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+namespace
+{
+// Some systems, such as macOS, send a UDP datagram only when it fits the send
+// buffer of its socket. XrdNet sets the buffer to XRDNET_UDPBUFFSZ (32 KiB),
+// so make it large enough for the largest UDP payload. Never make it smaller.
+//
+void FitDatagram(int fd)
+{
+   const int minSize = 65536;
+   int curSize = 0;
+   SOCKLEN_t szLen = sizeof(curSize);
+
+   if (fd < 0) return;
+   if (!getsockopt(fd, SOL_SOCKET, SO_SNDBUF, (Sokdata_t)&curSize, &szLen)
+   &&  curSize >= minSize) return;
+   setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (Sokdata_t)&minSize, sizeof(minSize));
+}
+}
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -57,7 +76,7 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest, bool *aOK, bool refr)
       {if ((FD = myNet.Relay(dest)) < 0)
          {eDest->Emsg("NetMsg", "Unable to create UDP msg socket.");
           aok = false;
-         }
+         } else FitDatagram(FD);
        if (aOK) *aOK = aok;
        return;
       }
@@ -89,6 +108,7 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest, bool *aOK, bool refr)
    dfltDest = strdup(myPeer.InetName ? myPeer.InetName : "Unknown!");
    FD       = myPeer.fd;
    destOK   = true;
+   FitDatagram(FD);
 
 // If address refresh wanted, register this socket for refresh. This should
 // never fail and if it does we return non-success.
