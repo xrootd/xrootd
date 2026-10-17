@@ -1,9 +1,10 @@
 //------------------------------------------------------------------------------
-// Unit tests for the transfer map of the f-stream (fstat) monitoring.
+// Unit tests for the transfer map of the f-stream (fstat) monitoring, and for
+// the size of the monitoring datagrams.
 //
 // The monitor runs with the "xfr" option, so each open file gets a slot in the
-// transfer map. See XrdXrootdMonTestUtils.hh for how the tests get the
-// datagrams.
+// transfer map, and with the largest buffer sizes that the configuration
+// accepts. See XrdXrootdMonTestUtils.hh for how the tests get the datagrams.
 //
 // The transfer map is global to the process, so each test closes all files
 // that it opens.
@@ -21,6 +22,9 @@
 using namespace XrdXrootdMonTest;
 
 namespace {
+
+// The largest buffer size that the configuration accepts
+const int maxBsz = 65535;
 
 // The number of files that the transfer map holds: Open() does not use the
 // last of the maps.
@@ -104,6 +108,35 @@ TEST_F(MonXfrTest, FileWithoutASlotGetsItsCloseRecord)
             1);
 }
 
+// The configuration accepts an fstat buffer of 65535 bytes, but a datagram
+// larger than maxDgram cannot be sent. Such a buffer was lost each time that
+// it was full, so its records never arrived. Disconnect records are 8 bytes
+// long, so they fill the buffer up to 65528 bytes.
+TEST_F(MonXfrTest, FullFStreamBufferArrives)
+{
+  const int nDisc = 10000; // 80000 bytes, more than one buffer
+  for (int i = 0; i < nDisc; i++)
+    XrdXrootdMonFile::Disc(i + 1);
+  Flush();
+  auto discs = Records(env->rcv.Drain(), XrdXrootdMonFileHdr::isDisc);
+  EXPECT_EQ(discs.size(), static_cast<size_t>(nDisc));
+}
+
+// The same applies to the buffer of the file stream (mbuff), which goes out
+// when it is full
+TEST_F(MonXfrTest, FullTraceBufferArrives)
+{
+  ASSERT_NE(XrdXrootdMonitor::altMon, nullptr);
+  const int nOpen = maxBsz / static_cast<int>(sizeof(XrdXrootdMonTrace));
+  for (int i = 0; i < nOpen; i++)
+    XrdXrootdMonitor::altMon->Open(i + 1, 0);
+
+  auto traces = Stream(env->rcv.Drain(), XROOTD_MON_MAPTRCE);
+  ASSERT_FALSE(traces.empty()) << "the full buffer did not arrive";
+  for (const auto &d : traces)
+    EXPECT_LE(d.size(), static_cast<size_t>(XrdXrootdMonitor::maxDgram));
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -111,6 +144,8 @@ int main(int argc, char **argv)
   ::testing::InitGoogleTest(&argc, argv);
   MonConfig cfg;
   cfg.fsOpts = XROOTD_MON_FSXFR;
+  cfg.fstatBsz = maxBsz;
+  cfg.monBsz = maxBsz;
   env = new MonEnv(cfg);
   ::testing::AddGlobalTestEnvironment(env);
   return RUN_ALL_TESTS();
