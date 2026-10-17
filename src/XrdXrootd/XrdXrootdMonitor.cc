@@ -925,7 +925,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
 {
    XrdXrootdMonRedir *mtP;
    MonRdrBuff        *mP = Fetch();
-   int n, slots, hLen, pLen;
+   int n, slots, hLen, pLen, room;
    char *dest;
 
 // Take care of the server's name which might actually be a path
@@ -936,7 +936,9 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
             if (hLen >  256) hLen =  256;
            }
 
-// Take care of the path
+// Take care of the path. Only the truncated length may be copied, as the
+// path can be longer than the slots that hold it. CopyText() then ends the
+// path with a null byte and null pads the rest of the slots.
 //
    pLen = strlen(Path);
    if (pLen > 1024) pLen = 1024;
@@ -946,7 +948,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
    n = (hLen + 1 + pLen + 1);    // "<host>:<path>\0"
    slots = n / sizeof(XrdXrootdMonRedir);
    if (n % sizeof(XrdXrootdMonRedir)) slots++;
-   pLen = slots * sizeof(XrdXrootdMonRedir) - (hLen+1);
+   room = slots * sizeof(XrdXrootdMonRedir) - (hLen+1);
 
 // Obtain a lock on this buffer
 //
@@ -975,7 +977,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
    mtP->arg1.dictid   = mID;
    dest = (char *)(mtP+1);
    strncpy(dest, hName,hLen); dest += hLen; *dest++ = ':';
-   strncpy(dest, Path, pLen);
+   CopyText(dest, room, Path, pLen);
 
 // Adjust pointer and return
 //

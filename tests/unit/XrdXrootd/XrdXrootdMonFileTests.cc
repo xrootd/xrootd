@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// Unit tests for the bounds of the f-stream (fstat) monitoring records and of
-// the dictionary map records.
+// Unit tests for the bounds of the monitoring records: the f-stream (fstat)
+// records, the dictionary map records and the redirect records.
 //
 // The monitor runs without the "xfr" option and with the smallest fstat
 // buffer that the configuration accepts. See XrdXrootdMonTestUtils.hh for how
@@ -62,6 +62,28 @@ std::vector<std::string> DriveMonitor(const std::string &path, int rounds)
     XrdXrootdMonFile::Disc(0x87654321);
   }
   return env->rcv.Drain();
+}
+
+// Get the text of each redirect entry: "<host>:<path>", with the null bytes
+// that follow it in its slots
+std::vector<std::string> RedirectTexts(const std::vector<std::string> &dgrams)
+{
+  const size_t slotSz = sizeof(XrdXrootdMonRedir);
+  std::vector<std::string> texts;
+  for (const auto &d : Stream(dgrams, XROOTD_MON_MAPREDR)) {
+    size_t off = sizeof(XrdXrootdMonHeader) + sizeof(kXR_int64); // header, sID
+    while (off + slotSz <= d.size()) {
+      XrdXrootdMonRedir ent;
+      memcpy(&ent, d.data() + off, sizeof(ent));
+      off += slotSz;
+      if (!(ent.arg0.rdr.Type & XROOTD_MON_REDIRECT))
+        continue; // a timing mark
+      const size_t tLen = ent.arg0.rdr.Dent * slotSz;
+      texts.push_back(d.substr(off, tLen));
+      off += tLen;
+    }
+  }
+  return texts;
 }
 
 using MonFileTest = MonTest;
@@ -189,6 +211,24 @@ TEST_F(MonFileTest, MapRecordCarriesUserAndPath)
   EXPECT_EQ(maps[0].substr(infoOff), "user.1:1@testhost\n" + shortPath);
 }
 
+// A redirect entry holds "<host>:<path>" in the slots after it. A path longer
+// than 1024 bytes used to fill the slots with no null byte, so a collector
+// read the next entries as part of the path.
+TEST_F(MonFileTest, RedirectPathEndsWithANullByte)
+{
+  // Each entry takes 66 slots of the 32 KiB buffer, so the buffer is sent
+  // after about 30 entries
+  for (int i = 0; i < 40; i++)
+    XrdXrootdMonitor::Redirect(1, "rdrhost", 1094, XROOTD_MON_OPENR,
+                               longPath.c_str());
+  auto texts = RedirectTexts(env->rcv.Drain());
+  ASSERT_FALSE(texts.empty()) << "no redirect datagrams arrived";
+
+  const std::string expected = "rdrhost:" + longPath.substr(0, 1024);
+  for (const auto &t : texts)
+    EXPECT_EQ(t.substr(0, t.find('\0')), expected);
+}
+
 // CopyText() truncates the text so that it and its null byte fit the room
 TEST(MonCopyText, TruncatesToTheRoom)
 {
@@ -223,6 +263,7 @@ int main(int argc, char **argv)
   MonConfig cfg;
   cfg.fsOpts = XROOTD_MON_FSLFN | XROOTD_MON_FSOPS | XROOTD_MON_FSSSQ;
   cfg.fstatBsz = fstatBsz;
+  cfg.destMode = XROOTD_MON_FSTA | XROOTD_MON_FILE | XROOTD_MON_REDR;
   env = new MonEnv(cfg);
   ::testing::AddGlobalTestEnvironment(env);
   return RUN_ALL_TESTS();
