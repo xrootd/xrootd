@@ -318,6 +318,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                 return (n ? gai_strerror(n) : "host not found");
                }
             memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
+            addrSize = rP->ai_addrlen;
             protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
             if (rP->ai_canonname) hostName = LowCase(strdup(rP->ai_canonname));
             freeaddrinfo(rP);
