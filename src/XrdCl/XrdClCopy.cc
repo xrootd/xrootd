@@ -721,9 +721,9 @@ int main( int argc, char **argv )
   dest += config.dstFile->Path;
 
   //----------------------------------------------------------------------------
-  // A trailing slash is a directory: several sources are allowed, and the
-  // source name is appended. A name with no slash is a file. scheme://host/
-  // parses as an empty path, so that slash is read from the original spec.
+  // A destination that ends in / is a directory. Several sources are allowed,
+  // and the source file name is added. root://host/ loses that slash when the
+  // address is parsed, so the slash is read from the text the user typed.
   //----------------------------------------------------------------------------
   bool targetIsDir = config.dstFile->Protocol == XrdCpFile::isDir;
   if( !targetIsDir &&
@@ -744,6 +744,44 @@ int main( int argc, char **argv )
       const size_t end = query == std::string::npos ? spec.size() : query;
       targetIsDir = end > 0 && spec[end - 1] == '/';
     }
+  }
+
+  // A local directory has already been replaced by the files inside it.
+  // The destination of that copy is a directory.
+  if( !targetIsDir && config.Want( XrdCpConfig::DoRecurse ) )
+  {
+    for( XrdCpFile *file = config.srcFile; file; file = file->Next )
+    {
+      if( strncmp( file->ProtName, "file", 4 ) == 0 &&
+          std::string( file->Path ).size() == size_t( file->Doff + file->Dlen ) )
+      {
+        targetIsDir = true;
+        break;
+      }
+    }
+  }
+
+  // root:// and roots:// may already be a directory even when the path does
+  // not end in /. Ask the server, and add the source file name if it is.
+  // http://, https://, and s3:// are directories only when the path ends in /.
+  if( !targetIsDir &&
+      ( config.dstFile->Protocol == XrdCpFile::isXroot ||
+        config.dstFile->Protocol == XrdCpFile::isXroots ) )
+  {
+    URL target( dest );
+    FileSystem fs( target );
+    StatInfo *statInfo = 0;
+    XRootDStatus st = fs.Stat( target.GetPathWithParams(), statInfo );
+    if( st.IsOK() && statInfo && statInfo->TestFlags( StatInfo::IsDir ) )
+      targetIsDir = true;
+    else if( st.errNo == kXR_NotAuthorized )
+    {
+      log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
+      std::cerr << st.ToStr() << std::endl;
+      delete statInfo;
+      return st.GetShellCode();
+    }
+    delete statInfo;
   }
 
   //----------------------------------------------------------------------------
@@ -775,6 +813,8 @@ int main( int argc, char **argv )
     if( st.IsOK() && statInfo->TestFlags( StatInfo::IsDir ) )
     {
       remoteSrcIsDir = true;
+      // Each listed file name is added to this destination.
+      targetIsDir = true;
       //------------------------------------------------------------------------
       // Recursively index the remote directory
       //------------------------------------------------------------------------
@@ -856,12 +896,18 @@ int main( int argc, char **argv )
       // get the source directory
       std::string srcDir( sourceFile->Path, sourceFile->Doff );
       // remove the trailing slash
-      if( srcDir[srcDir.size() - 1] == '/' )
-        srcDir = srcDir.substr( 0, srcDir.size() - 1 );
+      if( !srcDir.empty() && srcDir.back() == '/' )
+        srcDir.pop_back();
       size_t diroff = srcDir.rfind( '/' );
-      // if there is no '/' it means a directory name has been given as relative path
-      if( diroff == std::string::npos ) diroff = 0;
-      target += '/';
+      // A relative name has no slash, so the whole name is kept. Otherwise move
+      // past the slash in front of the directory name. Keeping it would write
+      // two slashes into the destination.
+      if( diroff == std::string::npos )
+        diroff = 0;
+      else
+        ++diroff;
+      if( target.empty() || target.back() != '/' )
+        target += '/';
       target += sourceFile->Path + diroff;
       // remove the filename from destination path as it will be appended later anyway
       target = target.substr( 0 , target.rfind('/') );
