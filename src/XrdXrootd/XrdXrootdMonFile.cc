@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <algorithm>
 #include <cstring>
 
 #include "Xrd/XrdScheduler.hh"
@@ -204,7 +205,12 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbsz)
    repTime = intv;
    xfrCnt  = xfrcnt;
    xfrRem  = xfrcnt;
-   fBsz   =  (fbsz <= 0 ? 65472 : (fbsz < 1024 ? 1024 : fbsz));
+
+// Set the buffer size. The configuration accepts 1024 to 65535 bytes, but the
+// buffer goes out as one datagram, so limit it to the largest UDP payload.
+//
+   fBsz = (fbsz <= 0 ? 65472
+                     : std::clamp(fbsz, 1024, XrdXrootdMonitor::maxDgram));
 
 // Expand out the options
 //
