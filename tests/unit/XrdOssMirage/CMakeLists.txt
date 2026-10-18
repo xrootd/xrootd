@@ -9,5 +9,5 @@ add_executable(xrdossmirage-unit-tests XrdOssMirageTests.cc
 
 target_link_libraries(xrdossmirage-unit-tests GTest::gtest GTest::gtest_main XrdServer XrdUtils)
 
-gtest_discover_tests(xrdossmirage-unit-tests
+gtest_discover_tests(xrdossmirage-unit-tests TEST_PREFIX unit::XrdOssMirage::
   PROPERTIES DISCOVERY_TIMEOUT 10)
