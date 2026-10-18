@@ -21,11 +21,6 @@ if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
 endif()
 
-if(ENABLE_HTTP_TESTS)
-  list(APPEND XROOTD_CONFIGS tpcredir)
-  # Test-only XrdXrootdRedirPI plugin loaded by tpcredir.cfg.
-  add_subdirectory(redir_test)
-endif()
 
 # Note: HAVE_SCITOKEN_CONFIG_SET_STR is required to override the CA file
 # for the scitokens library; otherwise, the test will fail with TLS errors.

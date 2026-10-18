@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Test-only XrdXrootdRedirPI plugin loaded by tests/XRootD/tpcredir.cfg.
+// Test-only XrdXrootdRedirPI plugin, which redirect/plugin.cfg loads.
 //
 // Two sentinels, one per redirect form:
 //

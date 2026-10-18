@@ -1,6 +1,9 @@
-# Test-only plugins used by tests/XRootD/tpcredir.{cfg,sh}.  Built only when
-# HTTP TPC tests are enabled (the redirect plugin is meaningless without HTTP
-# TPC, which is the path the first sub-test exercises).
+if(NOT BUILD_HTTP)
+  return()
+endif()
+
+# Test-only plugins of plugin.bats. The test needs XrdHttp and its TPC
+# handler, which the first tests use.
 
 # XrdXrootdRedirPI plugin: rewrites the redirect target host/port (host:port
 # form via Redirect()) and the full URL (URL form via RedirectURL()) to two
@@ -27,3 +30,5 @@ set_target_properties(XrdOssUrlRedirTestPlugin
         PREFIX ""
         OUTPUT_NAME "libXrdOssUrlRedirTestPlugin"
         SUFFIX ".so")
+
+add_bats_test(plugin.bats)
