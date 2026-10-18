@@ -3,24 +3,23 @@
 # $XRD_HTTPHEADERS is a second entry path that never passes through the xrdcp
 # command line, so the plug-in has to apply the same rules by itself
 
-load ../../helper/common.bash
+load ../../setup/server.bash
 
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
 
-HOST=http://localhost:9876
-ROOT=root://localhost:9876
-
-setup() {
-	# workdir as test tmp dir (all files are removed after execution)
-	cd $BATS_TEST_TMPDIR
-
-	PORT=9876 launch_xrootd header.cfg header
-
-	echo 'example file!' | xrdcp - $ROOT//examplefile
+setup_file() {
+	require_plugin libXrdHttp
+	start_server server server http
+	echo 'example file!' > "$SERVER_DATA/examplefile"
 }
 
-teardown() {
-    kill_pid_files
+teardown_file() {
+	stop_servers
+}
+
+setup() {
+	cd "$BATS_TEST_TMPDIR"
+	HOST=$SERVER_HTTP
 }
 
 @test "XRD_HTTPHEADERS should succeed" {
@@ -34,7 +33,7 @@ teardown() {
 
 @test "XRD_HTTPHEADERS should be honoured" {
 	XRD_HTTPHEADERS='X-Test-Header: env-value' run xrdcp $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: X-Test-Header: env-value' header.log
+	run -0 grep -F -- 'got hdr line: X-Test-Header: env-value' <(server_log server)
 }
 
 @test "XRD_HTTPHEADERS naming a reserved header fails" {
@@ -43,7 +42,7 @@ teardown() {
 
 @test "XRD_HTTPHEADERS naming a reserved header should not send it" {
 	XRD_HTTPHEADERS='Host: evil.example.com' run xrdcp $HOST//examplefile -
-	run ! grep -F -- 'got hdr line: Host: evil.example.com' header.log
+	run ! grep -F -- 'got hdr line: Host: evil.example.com' <(server_log server)
 }
 
 @test "XRD_HTTPHEADERS that cannot be parsed fails" {

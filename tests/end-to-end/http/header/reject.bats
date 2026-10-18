@@ -2,11 +2,22 @@
 
 # a header the client refuses fails the transfer and never reaches the server
 
-load ../../helper/common.bash
+load ../../setup/server.bash
 
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
 
-HOST=http://localhost:9880
+# No server runs on the port of the server "gone", thus a request which the
+# client sends fails to connect.
+setup_file() {
+	start_server gone server
+	stop_server gone
+}
+
+teardown_file() {
+	stop_servers
+}
+
+HOST=http://localhost:$GONE_PORT
 
 setup() {
 	# workdir as test tmp dir (all files are removed after execution)

@@ -2,24 +2,23 @@
 
 # a header given on the command line reaches the server
 
-load ../../helper/common.bash
+load ../../setup/server.bash
 
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
 
-HOST=http://localhost:9877
-ROOT=root://localhost:9877
-
-setup() {
-	# workdir as test tmp dir (all files are removed after execution)
-	cd $BATS_TEST_TMPDIR
-
-	PORT=9877 launch_xrootd header.cfg header
-
-	echo 'example file!' | xrdcp - $ROOT//examplefile
+setup_file() {
+	require_plugin libXrdHttp
+	start_server server server http
+	echo 'example file!' > "$SERVER_DATA/examplefile"
 }
 
-teardown() {
-    kill_pid_files
+teardown_file() {
+	stop_servers
+}
+
+setup() {
+	cd "$BATS_TEST_TMPDIR"
+	HOST=$SERVER_HTTP
 }
 
 #
@@ -37,7 +36,7 @@ teardown() {
 
 @test "download with an injected header should send the header" {
 	run xrdcp -H 'X-Test-Header: e2e-value' $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: X-Test-Header: e2e-value' header.log
+	run -0 grep -F -- 'got hdr line: X-Test-Header: e2e-value' <(server_log server)
 }
 
 @test "long form --header should succeed" {
@@ -46,22 +45,22 @@ teardown() {
 
 @test "long form --header should send the header" {
 	run xrdcp --header 'X-Test-Header: e2e-value' $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: X-Test-Header: e2e-value' header.log
+	run -0 grep -F -- 'got hdr line: X-Test-Header: e2e-value' <(server_log server)
 }
 
 @test "repeating --header should send the first header" {
 	run xrdcp --header 'X-First: one' --header 'X-Second: two' $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: X-First: one' header.log
+	run -0 grep -F -- 'got hdr line: X-First: one' <(server_log server)
 }
 
 @test "repeating --header should send the second header" {
 	run xrdcp --header 'X-First: one' --header 'X-Second: two' $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: X-Second: two' header.log
+	run -0 grep -F -- 'got hdr line: X-Second: two' <(server_log server)
 }
 
 @test "a header value containing spaces and colons should be sent verbatim" {
 	run xrdcp -H 'X-Test-Header: a:b c:d' $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: X-Test-Header: a:b c:d' header.log
+	run -0 grep -F -- 'got hdr line: X-Test-Header: a:b c:d' <(server_log server)
 }
 
 # A user who holds a token has to be able to present it, so Authorization is the
@@ -74,7 +73,7 @@ teardown() {
 
 @test "download with an injected Authorization header should send the header" {
 	run xrdcp -H 'Authorization: Bearer e2e-token' $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: Authorization:' header.log
+	run -0 grep -F -- 'got hdr line: Authorization:' <(server_log server)
 }
 
 @test "download with an injected TransferHeaderAuthorization header should succeed" {
@@ -83,7 +82,7 @@ teardown() {
 
 @test "download with an injected TransferHeaderAuthorization header should send the header" {
 	run xrdcp -H 'TransferHeaderAuthorization: Bearer e2e-token' $HOST//examplefile -
-	run -0 grep -F -- 'got hdr line: TransferHeaderAuthorization:' header.log
+	run -0 grep -F -- 'got hdr line: TransferHeaderAuthorization:' <(server_log server)
 }
 
 #
@@ -92,19 +91,19 @@ teardown() {
 
 @test "upload with an injected header should succeed" {
 	echo 'uploaded!' > localfile
-	run -0 xrdcp -H 'X-Test-Header: e2e-value' localfile $HOST//uploadedfile
+	run -0 xrdcp -H 'X-Test-Header: e2e-value' localfile $HOST//uploadedfile$BATS_TEST_NUMBER
 }
 
 @test "upload with an injected header should send the header" {
 	echo 'uploaded!' > localfile
-	run xrdcp -H 'X-Test-Header: e2e-value' localfile $HOST//uploadedfile
-	run -0 grep -F -- 'got hdr line: X-Test-Header: e2e-value' header.log
+	run xrdcp -H 'X-Test-Header: e2e-value' localfile $HOST//uploadedfile$BATS_TEST_NUMBER
+	run -0 grep -F -- 'got hdr line: X-Test-Header: e2e-value' <(server_log server)
 }
 
 @test "upload with an injected header should store the file contents" {
 	echo 'uploaded!' > localfile
-	run xrdcp -H 'X-Test-Header: e2e-value' localfile $HOST//uploadedfile
-	assert_equal "$(cat header/uploadedfile)" 'uploaded!'
+	run xrdcp -H 'X-Test-Header: e2e-value' localfile $HOST//uploadedfile$BATS_TEST_NUMBER
+	assert_equal "$(cat "$SERVER_DATA/uploadedfile$BATS_TEST_NUMBER")" 'uploaded!'
 }
 
 #
@@ -120,5 +119,5 @@ teardown() {
 	# the download has to succeed, otherwise the header is missing from the log
 	# only because no request was ever made
 	run -0 xrdcp $HOST//examplefile -
-	run ! grep -F -- 'got hdr line: X-Test-Header' header.log
+	run ! grep -F -- 'got hdr line: X-Test-Header' <(server_log server)
 }
