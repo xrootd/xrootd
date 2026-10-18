@@ -19,7 +19,6 @@ endif()
 
 add_subdirectory(end-to-end)
 
-add_subdirectory(krb5)
 add_subdirectory(scitokens)
 add_subdirectory(tls)
 
