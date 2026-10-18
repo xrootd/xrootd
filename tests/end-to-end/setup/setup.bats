@@ -18,9 +18,12 @@ teardown_file() {
 }
 
 # A test which fails before it stops its stand-in process must not leave it,
-# else BATS waits for its output.
+# else BATS waits for its output. The reaper of a test then runs grep and
+# pgrep with the run directory in their arguments, which stop_servers counts
+# as survivors, thus wait for the end of the reaper.
 teardown() {
     [[ -z "${STANDIN:-}" ]] || kill "$STANDIN" 2>/dev/null || true
+    [[ -z "${REAPER:-}" ]] || wait "$REAPER" || true
     stop_servers
 }
 
@@ -283,4 +286,75 @@ teardown() {
 
 @test "the client logs at the Debug level or above" {
     assert_regex "$XRD_LOGLEVEL" '^(Debug|Dump)$'
+}
+
+# Run the reaper for the run directory of the test; the processes <pids>
+# stand for BATS
+reap() {
+    "$SETUP_DIR/reaper.sh" "$1" "$BATS_TEST_TMPDIR" "${2:-}" < /dev/null > /dev/null 2>&1
+}
+
+_stopped() {
+    ! is_running "$(<"$BATS_TEST_TMPDIR/$1/xrootd.pid")"
+}
+
+@test "the reaper stops a server when BATS exits without the teardown" {
+    start_server reaped
+    sleep 600 &
+    local bats=$!
+    reap "$bats" &
+    REAPER=$!
+    kill "$bats"
+    run -0 wait_for 10 _stopped reaped
+}
+
+# After a normal exit, BATS removes the run directory with the pid files
+@test "the reaper stops a server without its pid file" {
+    start_server reaped
+    local pid
+    pid=$(<"$BATS_TEST_TMPDIR/reaped/xrootd.pid")
+    rm "$BATS_TEST_TMPDIR/reaped/xrootd.pid"
+    reap "$(sh -c 'echo $$')"
+    run ! is_running "$pid"
+}
+
+@test "the reaper waits while BATS runs" {
+    start_server reaped
+    sleep 600 &
+    STANDIN=$!
+    reap "$STANDIN" &
+    REAPER=$!
+    sleep 2
+    run -0 is_running "$(<"$BATS_TEST_TMPDIR/reaped/xrootd.pid")"
+}
+
+@test "the reaper waits while one of the processes of BATS runs" {
+    start_server reaped
+    sleep 600 &
+    STANDIN=$!
+    reap "$(sh -c 'echo $$') $STANDIN" &
+    REAPER=$!
+    sleep 2
+    run -0 is_running "$(<"$BATS_TEST_TMPDIR/reaped/xrootd.pid")"
+}
+
+@test "the reaper does not stop a process of another run with a pid file in the run" {
+    sleep 600 &
+    STANDIN=$!
+    mkdir "$BATS_TEST_TMPDIR/other"
+    echo "$STANDIN" > "$BATS_TEST_TMPDIR/other/other.pid"
+    reap "$(sh -c 'echo $$')"
+    run -0 is_running "$STANDIN"
+}
+
+@test "the reaper removes the run directory when BATS cleans up" {
+    mkdir "$BATS_TEST_TMPDIR/run"
+    "$SETUP_DIR/reaper.sh" "$(sh -c 'echo $$')" "$BATS_TEST_TMPDIR/run" 1
+    run ! test -e "$BATS_TEST_TMPDIR/run"
+}
+
+@test "the reaper keeps the run directory with --no-tempdir-cleanup" {
+    mkdir "$BATS_TEST_TMPDIR/run"
+    "$SETUP_DIR/reaper.sh" "$(sh -c 'echo $$')" "$BATS_TEST_TMPDIR/run" ''
+    run -0 test -d "$BATS_TEST_TMPDIR/run"
 }
