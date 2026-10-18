@@ -26,7 +26,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
   target_link_libraries(xrdclhttp-tests-unit stdc++fs)
 endif()
 
-gtest_discover_tests(xrdclhttp-tests-unit
+gtest_discover_tests(xrdclhttp-tests-unit TEST_PREFIX unit::XrdClHttp::
         PROPERTIES DISCOVERY_TIMEOUT 10)
 find_package(CURL REQUIRED)
 
@@ -65,7 +65,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
   target_link_libraries(xrdclhttp-tpc-tests-unit stdc++fs)
 endif()
 
-gtest_discover_tests(xrdclhttp-tpc-tests-unit
+gtest_discover_tests(xrdclhttp-tpc-tests-unit TEST_PREFIX unit::XrdClHttp::
   PROPERTIES DISCOVERY_TIMEOUT 10)
 
 # Exercise the actual worker with test-only aliases for the curl driver calls.
@@ -85,10 +85,24 @@ target_link_libraries(xrdcl-http-worker-lifecycle-tests PRIVATE
   XrdClHttpLifecycle XrdCl CURL::libcurl GTest::gtest_main)
 target_include_directories(xrdcl-http-worker-lifecycle-tests PRIVATE
   "${PROJECT_SOURCE_DIR}/src")
-gtest_discover_tests(xrdcl-http-worker-lifecycle-tests TEST_PREFIX XrdClHttp::
+gtest_discover_tests(xrdcl-http-worker-lifecycle-tests TEST_PREFIX unit::XrdClHttp::
   DISCOVERY_TIMEOUT 10 PROPERTIES TIMEOUT 10)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
   AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
   target_link_libraries(xrdcl-http-worker-lifecycle-tests PRIVATE stdc++fs)
 endif()
+
+add_executable(xrdcl-http-unit-tests
+  HeaderParserTest.cc
+  ParseTimeoutTest.cc
+  TapeTest.cc
+)
+
+target_link_libraries(xrdcl-http-unit-tests
+  XrdClHttpObj XrdCl CURL::libcurl GTest::gtest_main)
+target_include_directories(xrdcl-http-unit-tests
+  PRIVATE "${PROJECT_SOURCE_DIR}/src")
+
+gtest_discover_tests(xrdcl-http-unit-tests TEST_PREFIX unit::XrdClHttp::
+  PROPERTIES DISCOVERY_TIMEOUT 10)

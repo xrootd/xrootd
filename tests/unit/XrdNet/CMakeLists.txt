@@ -10,5 +10,5 @@ target_link_libraries(xrdnet-unit-tests
   GTest::gtest_main
 )
 
-gtest_discover_tests(xrdnet-unit-tests
+gtest_discover_tests(xrdnet-unit-tests TEST_PREFIX unit::XrdNet::
   PROPERTIES DISCOVERY_TIMEOUT 10)

@@ -10,8 +10,7 @@ target_link_libraries(xrd-http-tape-api-unit-tests
 target_include_directories(xrd-http-tape-api-unit-tests
   BEFORE PRIVATE
     "${PROJECT_SOURCE_DIR}/vendor/googletest/googletest/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/XrdHttpTapeApi")
+    "${PROJECT_SOURCE_DIR}/src/XrdHttpTapeApi")
 
-gtest_discover_tests(xrd-http-tape-api-unit-tests
-  TEST_PREFIX XrdHttpTapeApi::
+gtest_discover_tests(xrd-http-tape-api-unit-tests TEST_PREFIX unit::XrdHttpTapeApi::
   PROPERTIES DISCOVERY_TIMEOUT 10)

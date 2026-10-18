@@ -9,5 +9,5 @@ add_executable(xrdpfc-unit-tests
 
 target_link_libraries(xrdpfc-unit-tests XrdServer XrdUtils GTest::gtest GTest::gtest_main)
 
-gtest_discover_tests(xrdpfc-unit-tests
+gtest_discover_tests(xrdpfc-unit-tests TEST_PREFIX unit::XrdPfc::
   PROPERTIES DISCOVERY_TIMEOUT 10)

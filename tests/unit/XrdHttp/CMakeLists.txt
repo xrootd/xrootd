@@ -7,5 +7,5 @@ add_executable(xrdhttp-unit-tests XrdHttpTests.cc
 
 target_link_libraries(xrdhttp-unit-tests XrdHttpUtils GTest::gtest GTest::gtest_main XrdUtils)
 
-gtest_discover_tests(xrdhttp-unit-tests
+gtest_discover_tests(xrdhttp-unit-tests TEST_PREFIX unit::XrdHttp::
   PROPERTIES DISCOVERY_TIMEOUT 10)
