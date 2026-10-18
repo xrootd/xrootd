@@ -28,6 +28,7 @@
 /******************************************************************************/
 
 #include <unistd.h>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
   
@@ -36,6 +37,7 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdLinkXeq.hh"
 #include "Xrd/XrdProtocol.hh"
 
 #define  TRACE_IDENT pInfo.Link.ID
@@ -89,6 +91,60 @@ extern XrdScheduler Sched;
 }
 
 using namespace XrdGlobal;
+
+// Defer fatal finish outside poll locks and pin it to this registration.
+class XrdPollFinishJob : public XrdJob
+{
+public:
+   XrdPollFinishJob(XrdPollInfo *info, const char *text)
+      : XrdJob("poll error finish"), info(info), instance(info->Generation)
+      {snprintf(reason, sizeof(reason), "%s", text ? text : "poll error");}
+
+   void DoIt() override
+       {XrdLink &link = info->Link;
+       link.Hold(true);
+       const bool finish = link.Inst() == instance && !info->closePending
+                        && XrdPoll::Finish(*info, reason);
+       link.Hold(false);
+       if (finish) ((XrdLinkXeq *)&link)->Terminate(instance);
+       delete this;
+      }
+
+private:
+   XrdPollInfo *info;
+   unsigned int instance;
+   char reason[64];
+};
+
+// Reuse the readiness job unless an earlier generation is still queued.
+class XrdPollDispatchJob : public XrdJob
+{
+public:
+   static XrdJob *Alloc(XrdPollInfo *info)
+      {XrdPollDispatchJob *job = (XrdPollDispatchJob *)info->DispatchJob;
+       if (!job->busy.exchange(true, std::memory_order_acquire))
+          {job->instance = info->Generation;
+           return job;
+          }
+       return new XrdPollDispatchJob(info, true);
+      }
+
+   XrdPollDispatchJob(XrdPollInfo *info, bool active=false)
+      : XrdJob("poll dispatch"), info(info), instance(info->Generation),
+        busy(active) {}
+
+   void DoIt() override
+      {((XrdLinkXeq *)&info->Link)->DoItPinned(instance);
+       if (this == info->DispatchJob)
+          busy.store(false, std::memory_order_release);
+          else delete this;
+      }
+
+private:
+   XrdPollInfo *info;
+   unsigned int instance;
+   std::atomic<bool> busy;
+};
 
 /******************************************************************************/
 /*              T h r e a d   S t a r t u p   I n t e r f a c e               */
@@ -162,6 +218,7 @@ int XrdPoll::Attach(XrdPollInfo &pInfo)
 
 // Complete the link setup
 //
+   if (!pInfo.DispatchJob) pInfo.DispatchJob = new XrdPollDispatchJob(&pInfo);
    pInfo.Poller = pp;
    pp->numAttached++;
    doingAttach.UnLock();
@@ -207,7 +264,8 @@ int XrdPoll::Finish(XrdPollInfo &pInfo, const char *etxt)
 
 // If this link is already scheduled for termination, ignore this call.
 //
-   if (pInfo.Link.getProtocol() == &LinkEnd)
+   if (pInfo.terminalState != XrdPollInfo::terminalNone
+   ||  pInfo.Link.getProtocol() == &LinkEnd)
       {TRACEI(POLL, "Link " <<pInfo.FD <<" already terminating; "
                     <<(etxt ? etxt : "") <<" request ignored.");
        return 0;
@@ -215,6 +273,8 @@ int XrdPoll::Finish(XrdPollInfo &pInfo, const char *etxt)
 
 // Set the protocol pointer to be link termination
 //
+   // Prevent an older Process from re-arming before terminal dispatch.
+   pInfo.terminalState = XrdPollInfo::terminalSelected;
    pInfo.Link.setProtocol(&LinkEnd, false, true);
    if (!etxt) etxt = "reason unknown";
    pInfo.Link.setEtext(etxt);
