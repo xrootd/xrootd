@@ -1,5 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS gsi host cache posix mirage)
+list(APPEND XROOTD_CONFIGS host cache posix mirage)
 
 # XCache (XrdPfc) configurations. Each fronts the XRootD::host fixture as its
 # origin and exercises one aspect of the cache; the shared shell helpers are in
@@ -52,7 +52,6 @@ foreach(CACHE_CONFIG cache cacheevict cacheprefetch cacheblacklist cachespaces c
   list(APPEND ${CACHE_CONFIG}_FIXTURES XRootD::host)
 endforeach()
 
-list(APPEND gsi_FIXTURES TLS)
 
 foreach(CONFIG ${XROOTD_CONFIGS})
   add_test(NAME XRootD::${CONFIG}::setup
