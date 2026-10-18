@@ -20,7 +20,6 @@ endif()
 add_subdirectory(end-to-end)
 
 add_subdirectory(scitokens)
-add_subdirectory(tls)
 
 add_subdirectory(XrdCl)
 add_subdirectory(XrdClHttpCommon)
