@@ -3,11 +3,6 @@
 # A PUT with 'Overwrite: F' must not replace an existing file. The HTTP TPC
 # push mode forwards this header to the destination when --force is not set.
 
-bats_require_minimum_version 1.5.0
-
-bats_load_library 'bats-support'
-bats_load_library 'bats-assert'
-
 load ../../helper/common.bash
 
 HOST=http://localhost:9881

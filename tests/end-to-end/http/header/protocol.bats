@@ -3,11 +3,6 @@
 # the endpoints --header applies to: one side of the transfer must speak http
 # or https, in either direction
 
-bats_require_minimum_version 1.5.0
-
-bats_load_library 'bats-support'
-bats_load_library 'bats-assert'
-
 load ../../helper/common.bash
 
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
