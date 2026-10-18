@@ -15,17 +15,16 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
-#include "TestEnv.hh"
 #include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+#include <cerrno>
 #include <climits>
+#include <filesystem>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
-using namespace XrdClTests;
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -56,15 +55,16 @@ class LocalFileHandlerTest: public ::testing::Test
 
 void LocalFileHandlerTest::SetUp()
 {
-  char cpath[MAXPATHLEN];
-  ASSERT_TRUE(getcwd(cpath, sizeof(cpath))) <<
-    "Could not get current working directory";
-  m_tmpdir = std::string(cpath) + "/tmp";
+  std::string path = ( std::filesystem::temp_directory_path() /
+                       "xrdcl-local-file-handler.XXXXXX" ).string();
+  ASSERT_TRUE( mkdtemp( path.data() ) ) << "Could not create " << path;
+  m_tmpdir = path;
 }
 
 void LocalFileHandlerTest::TearDown()
 {
-  /* empty */
+  std::error_code ec;
+  std::filesystem::remove_all( m_tmpdir, ec );
 }
 
 //----------------------------------------------------------------------------
@@ -464,25 +464,15 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
 
   //----------------------------------------------------------------------------
   // Initialize
-  // (we do the test in /data as /tmp might be on tpmfs,
-  //  which does not support xattrs)
-  // In this case, /data is /data inside of the build directory
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
-  std::string localDataPath;
-  EXPECT_TRUE( testEnv->GetString( "LocalDataPath", localDataPath ) );
-
-  char resolved_path[MAXPATHLEN];
-  localDataPath = realpath(localDataPath.c_str(), resolved_path);
-
-  std::string targetURL = localDataPath + "/metaman/lfilehandlertestfilexattr";
+  std::string targetURL = m_tmpdir + "/lfilehandlertestfilexattr";
   CreateTestFileFunc( targetURL );
 
   File f;
   EXPECT_XRDST_OK( f.Open( targetURL, OpenFlags::Update ) );
 
   //----------------------------------------------------------------------------
-  // Test XAttr Set
+  // Test XAttr Set (tmpfs, for example, may have no user attributes)
   //----------------------------------------------------------------------------
   std::vector<xattr_t> attrs;
   attrs.push_back( xattr_t( "version", "v3.3.3" ) );
@@ -492,6 +482,13 @@ TEST_F(LocalFileHandlerTest, XAttrTest)
   std::vector<XAttrStatus> st_resp;
 
   EXPECT_XRDST_OK( f.SetXAttr( attrs, st_resp ) );
+
+  if( !st_resp.empty() && !st_resp[0].status.IsOK() &&
+      ( st_resp[0].status.errNo == ENOTSUP || st_resp[0].status.errNo == EOPNOTSUPP ) )
+  {
+    EXPECT_XRDST_OK( f.Close() );
+    GTEST_SKIP() << "no user extended attributes in " << m_tmpdir;
+  }
 
   std::vector<XAttrStatus>::iterator itr1;
   for( itr1 = st_resp.begin(); itr1 != st_resp.end(); ++itr1 )
