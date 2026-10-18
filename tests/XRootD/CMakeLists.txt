@@ -28,11 +28,6 @@ if(ENABLE_HTTP_TESTS)
   add_subdirectory(redir_test)
 endif()
 
-if(BUILD_KRB5 AND NOT APPLE)
-  list(APPEND XROOTD_CONFIGS krb5)
-  list(APPEND krb5_FIXTURES Kerberos)
-endif()
-
 if(BUILD_MACAROONS)
   list(APPEND XROOTD_CONFIGS macaroons)
   list(APPEND macaroons_FIXTURES TLS)
