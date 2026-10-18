@@ -8,6 +8,7 @@
 #include "XrdVersion.hh"
 
 #include <array>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <unistd.h>
@@ -28,6 +29,14 @@ constexpr const std::array<trig_s, 2> URLRedirTriggers = {{
     { "cluster_redirfile2",
       "root://localhost:10944//cluster_redirfile3" } // redirect to srv2 in cluster test
     }};
+
+// The target of cluster_redirfile2 is a server of the test, thus a test with
+// servers on free ports sets it in XRDOSSTESTS_REDIRECT_URL.
+std::string RedirectURL(const trig_s &trigger) {
+    const char *url = getenv("XRDOSSTESTS_REDIRECT_URL");
+    if (url && std::string(trigger.fn) == "cluster_redirfile2") return url;
+    return trigger.url;
+}
 
 class File final : public XrdOssWrapDF {
   public:
@@ -59,7 +68,7 @@ class File final : public XrdOssWrapDF {
             if ((Oflag & O_ACCMODE) == O_RDONLY) {
               for(const auto &s: URLRedirTriggers) {
                 if (leaf == s.fn) {
-                  env.Put("FileURL", s.url);
+                  env.Put("FileURL", RedirectURL(s).c_str());
                   return -EDESTADDRREQ;
               }
             }
