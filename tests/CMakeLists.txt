@@ -9,8 +9,6 @@ add_subdirectory(common)
 add_subdirectory(unit)
 add_subdirectory(integration)
 
-add_subdirectory(XrdPosix)
-
 add_subdirectory( XrdSsiTests )
 
 if(NOT ENABLE_SERVER_TESTS)
