@@ -1,29 +1,31 @@
 #!/usr/bin/env bash
 
-load ../../helper/common.bash
+# The connections which the destination of a pull copy holds while the data
+# flows (issue #2995). The servers of each test count the connections of a
+# single copy only, thus each test starts its own servers.
 
-export XRD_LOGLEVEL=Debug
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
-export no_proxy=127.0.0.1
-export NO_PROXY=127.0.0.1
+load ../../setup/server.bash
 
-readonly XROOTD_SRC="127.0.0.1:8568"
-readonly XROOTD_DST="127.0.0.1:8569"
-readonly XROOTD_RDR="127.0.0.1:8570"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
+export no_proxy=localhost NO_PROXY=localhost
 
 setup() {
-	cd $BATS_TEST_TMPDIR
+	require_plugin libXrdHttpTPC
+	cd "$BATS_TEST_TMPDIR"
 
-	PORT=${XROOTD_SRC##*:} launch_xrootd connections-src.cfg xrootd_src
-	PORT=${XROOTD_DST##*:} launch_xrootd bigfiles.cfg xrootd_dst
-	PORT=${XROOTD_RDR##*:} launch_xrootd connections-rdr.cfg xrootd_rdr
+	start_server src http.cfg http-tpc.cfg connections-src.cfg mirage-xattr.cfg trace-http.cfg
+	start_server dst http.cfg http-tpc.cfg trace-http.cfg
+	start_server rdr http.cfg connections-rdr.cfg trace-http.cfg
 
-	head -c 1 /dev/zero | xrdcp - http://${XROOTD_SRC}//file_src
-	xrdfs root://${XROOTD_SRC}/ truncate /file_src 1073741824
+	head -c 1 /dev/zero | xrdcp - "$SRC_HTTP//file_src"
+	xrdfs "$SRC_URL" truncate /file_src 1073741824
 }
 
 teardown() {
-	kill_pid_files
+	if [[ -s "$BATS_TEST_TMPDIR/copy.pid" ]]; then
+		stop_pid "$(<"$BATS_TEST_TMPDIR/copy.pid")"
+	fi
+	stop_servers
 }
 
 # Print the client sockets to the port which are established, or closed by the server only
@@ -62,11 +64,11 @@ start_pull() {
 	local source=$1
 
 	# without fd 3, bats does not wait for the copy to end
-	curl -s -X COPY -H "Source: $source" "http://${XROOTD_DST}/file_dst" >/dev/null 2>&1 3>&- &
+	curl -s -X COPY -H "Source: $source" "$DST_HTTP/file_dst" >/dev/null 2>&1 3>&- &
 	echo $! > "$BATS_TEST_TMPDIR/copy.pid"
 
 	for _ in {1..200}; do
-		grep -qsF 'got hdr line: GET /file_src' xrootd_src.log && return 0
+		grep -qsF 'got hdr line: GET /file_src' "$SRC_LOG" && return 0
 		sleep 0.05
 	done
 
@@ -75,12 +77,12 @@ start_pull() {
 }
 
 @test "pull via a redirector holds no idle connection" {
-	start_pull http://${XROOTD_RDR}/file_src
-	assert_connections ${XROOTD_RDR##*:} 0
-	assert_connections ${XROOTD_SRC##*:} 1
+	start_pull "$RDR_HTTP/file_src"
+	assert_connections "$RDR_PORT" 0
+	assert_connections "$SRC_PORT" 1
 }
 
 @test "pull from the source holds a single connection" {
-	start_pull http://${XROOTD_SRC}/file_src
-	assert_connections ${XROOTD_SRC##*:} 1
+	start_pull "$SRC_HTTP/file_src"
+	assert_connections "$SRC_PORT" 1
 }
