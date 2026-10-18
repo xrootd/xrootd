@@ -9,7 +9,7 @@ load ../setup/server.bash
 GONE_URL="root://localhost:$NO_SERVER_PORT"
 
 setup_file() {
-    start_server server server "$SETUP_DIR/tpc.cfg"
+    start_server server server tpc
 
     export REF="$BATS_FILE_TMPDIR/ref.dat"
     make_random_file "$REF" 1000003

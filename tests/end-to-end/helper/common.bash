@@ -131,6 +131,21 @@ require_commands() {
     done
 }
 
+# Skip the test (or all tests of the file, in setup_file) when the build has
+# not the plugin, for example libXrdHttp. Without a build directory, the test
+# assumes that the installation has it.
+require_plugin() {
+    local name=$1 lib
+
+    [[ -n "${BINARY_DIR:-}" ]] || return 0
+
+    for lib in "$BINARY_DIR"/lib*/"$name"{,-*}.{so,dylib}; do
+        [[ -e "$lib" ]] && return 0
+    done
+
+    skip "the build has no plugin $name"
+}
+
 # Skip the test (or all tests of the file, in setup_file) when the file system
 # of the directory has no user extended attributes.
 require_xattr() {

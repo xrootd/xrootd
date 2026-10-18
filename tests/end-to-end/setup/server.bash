@@ -130,7 +130,9 @@ _setup_run_xrootd() {
         cd "$rundir" &&
         SETUP_NAME=$name SETUP_RUNDIR=$rundir SETUP_ADMIN=$admin SETUP_PORT=$port \
         SETUP_BINDIR=$(dirname "$(command -v xrootd)") \
-            xrootd -b -c "$rundir/$name.cfg" -l "$log" -s "$pidfile" \
+        SETUP_CREDENTIALS=${CREDENTIALS:-} SETUP_TESTDIR=${BATS_TEST_DIRNAME:-} \
+        SETUP_SETUPDIR=$SETUP_DIR \
+            XDG_CACHE_HOME="$rundir/cache" xrootd -b -c "$rundir/$name.cfg" -l "$log" -s "$pidfile" \
                 < /dev/null > "$rundir/xrootd.out" 2>&1 3>&- 4>&-
     ); then
         # xrootd logs this line at the end of its configuration; the
@@ -165,13 +167,17 @@ _setup_run_xrootd() {
 
 # start_server <name> <role> [snippet...]
 #
-# Start a server with the configuration base.cfg + <role>.cfg + snippets.
-# A snippet path is relative to the directory of the test file. Export, with
-# <NAME> the server name in upper case:
+# Start a server with the configuration base.cfg + <role>.cfg + snippets. A
+# snippet is either a word, for the snippet <word>.cfg of this directory (for
+# example http, tls, http-tpc), or a file, which ends in .cfg or has a slash,
+# with a path relative to the directory of the test file. Export, with <NAME>
+# the server name in upper case:
 #
 #   <NAME>_URL   root://localhost:<port>
 #   <NAME>_URL4  root://127.0.0.1:<port>, for tests of the IPv4 stack
 #   <NAME>_URL6  root://[::1]:<port>, for tests of the IPv6 stack
+#   <NAME>_HTTP  http://localhost:<port>, with the snippet http
+#   <NAME>_HTTPS https://localhost:<port>, with the snippets http and tls
 #   <NAME>_PORT  the port, which the server chose
 #   <NAME>_DATA  the data directory of the server (oss.localroot)
 #   <NAME>_LOG   the server log
@@ -194,7 +200,11 @@ start_server() {
     cat "$SETUP_DIR/base.cfg" "$SETUP_DIR/$role.cfg" > "$rundir/$name.cfg" || return 1
 
     for snippet in "$@"; do
-        [[ "$snippet" == /* ]] || snippet="$BATS_TEST_DIRNAME/$snippet"
+        if [[ "$snippet" != *.cfg && "$snippet" != */* ]]; then
+            snippet="$SETUP_DIR/$snippet.cfg"
+        elif [[ "$snippet" != /* ]]; then
+            snippet="$BATS_TEST_DIRNAME/$snippet"
+        fi
         { echo; cat "$snippet"; } >> "$rundir/$name.cfg" || return 1
     done
 
@@ -206,6 +216,8 @@ start_server() {
     export "${var}_URL=root://localhost:$port"
     export "${var}_URL4=root://127.0.0.1:$port"
     export "${var}_URL6=root://[::1]:$port"
+    export "${var}_HTTP=http://localhost:$port"
+    export "${var}_HTTPS=https://localhost:$port"
     export "${var}_DATA=$rundir/data"
     export "${var}_LOG=$rundir/xrootd.log"
 }
@@ -232,6 +244,63 @@ restart_server() {
     stop_pid "$(<"$rundir/xrootd.pid")" || return 1
     rm -f "$rundir/xrootd.pid"
     _setup_run_xrootd "$name" "$(<"$rundir/port")"
+}
+
+# start_issuer
+#
+# Start the token issuer "issuer", an HTTPS server which publishes the key of
+# the shared credentials (issuer.jwks), and write the configuration of the
+# snippet scitokens, which accepts the tokens of the issuer. Export ISSUER,
+# the URL of the issuer, which make_token puts into the tokens.
+start_issuer() {
+    start_server issuer server http tls || return 1
+
+    mkdir -p "$ISSUER_DATA/.well-known"
+    cp "$CREDENTIALS/issuer.jwks" "$ISSUER_DATA/issuer.jwks"
+    printf '{ "issuer": "%s", "jwks_uri": "%s/issuer.jwks" }\n' "$ISSUER_HTTPS" "$ISSUER_HTTPS" \
+        > "$ISSUER_DATA/.well-known/openid-configuration"
+
+    export ISSUER=$ISSUER_HTTPS
+
+    cat > "$(_setup_tmpdir)/scitokens.conf" <<EOF
+[Global]
+onmissing = passthrough
+audience = https://xrootd.test
+
+[Issuer test]
+issuer = $ISSUER
+base_path = /
+default_user = nobody
+authorization_strategy = capability
+EOF
+}
+
+# make_token <scope> [lifetime]
+#
+# Print a token of the issuer (see start_issuer) with the scope, for example
+# "storage.read:/ storage.create:/", valid for the lifetime in seconds.
+make_token() {
+    xrdscitokens-create-token "$CREDENTIALS/issuer.pub" "$CREDENTIALS/issuer.key" \
+        test "$ISSUER" "$1" ${2:+"$2"}
+}
+
+# server_log <name>
+#
+# Print the lines which the server logged during the current test. A server
+# of the file logs the requests of the earlier tests too, which a test must
+# not see.
+server_log() {
+    local log
+
+    for log in "${BATS_TEST_TMPDIR:-/nonexistent}/$1/xrootd.log" "$BATS_FILE_TMPDIR/$1/xrootd.log"; do
+        if [[ -f "$log" ]]; then
+            tail -c +$(( $(_setup_log_offset "$log") + 1 )) "$log"
+            return
+        fi
+    done
+
+    echo "server_log: no server '$1'" >&2
+    return 1
 }
 
 # server_is_up <url>

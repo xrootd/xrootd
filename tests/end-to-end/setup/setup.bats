@@ -88,8 +88,46 @@ teardown() {
 }
 
 @test "the tpc snippet runs the xrdcp of the build" {
-    start_server mine server "$SETUP_DIR/tpc.cfg"
+    start_server mine server tpc
     run -0 grep -F "ofs.tpc pgm $(dirname "$(command -v xrootd)")/xrdcp --server" "$MINE_LOG"
+}
+
+@test "a snippet name selects a snippet of the setup" {
+    require_plugin libXrdHttp
+    start_server mine server http
+    run -0 grep -F 'xrd.protocol XrdHttp libXrdHttp.so' "$MINE_LOG"
+}
+
+@test "the http snippet serves http URLs on the port of the server" {
+    require_plugin libXrdHttp
+    start_server mine server http
+    echo 'seed' > "$MINE_DATA/file"
+    run -0 curl -sf "$MINE_HTTP/file"
+    assert_output 'seed'
+}
+
+@test "the tls snippet serves https URLs with the shared host certificate" {
+    require_plugin libXrdHttp
+    start_server mine server http tls
+    echo 'seed' > "$MINE_DATA/file"
+    run -0 curl -sf --cacert "$CREDENTIALS/ca.pem" "$MINE_HTTPS/file"
+    assert_output 'seed'
+}
+
+@test "server_log of a server of the file has the requests of the test" {
+    xrdfs "$SHARED_URL" stat "/t${BATS_TEST_NUMBER}" || true
+    run -0 grep -F "/t${BATS_TEST_NUMBER}" <(server_log shared)
+}
+
+# The test just before this one asked for /t<its number>.
+@test "server_log of a server of the file has no request of an earlier test" {
+    xrdfs "$SHARED_URL" stat /a-path-of-this-test || true
+    run ! grep -F "/t$(( BATS_TEST_NUMBER - 1 ))" <(server_log shared)
+}
+
+@test "server_log of a server of the test has its whole log" {
+    start_server mine server
+    run -0 grep -F 'initialization completed' <(server_log mine)
 }
 
 @test "restart_server keeps the port" {
