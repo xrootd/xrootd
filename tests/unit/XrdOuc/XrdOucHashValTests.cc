@@ -16,10 +16,8 @@ const std::string key = "MaxBuffSize/with/a/longer/key";
 
 TEST(XrdOucHashVal, MatchesKnownValue)
 {
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-  GTEST_SKIP() << "The known values are for little-endian hosts";
-#endif
-  // Values of the original implementation, which must not change.
+  // Values of the original implementation on little-endian hosts, which
+  // must not change. Big-endian hosts must give the same values.
 #if ULONG_MAX > 0xffffffffUL
   const unsigned long expected = 0x3240474176261431UL;
 #else
@@ -41,9 +39,7 @@ TEST(XrdOucHashVal, MisalignedKeyHashesLikeAlignedKey)
   }
 }
 
-TEST(XrdOucHashVal, ShortKeyIsItsOwnBytes)
+TEST(XrdOucHashVal, ShortKeyIsItsOwnLittleEndianBytes)
 {
-  unsigned long expected = 0;
-  std::memcpy(&expected, "abc", 3);
-  EXPECT_EQ(XrdOucHashVal("abc"), expected);
+  EXPECT_EQ(XrdOucHashVal("abc"), 0x636261UL);
 }
