@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 
-load ../helper/common.bash
+load ../setup/server.bash
 
-PORT=11967
-
-setup() {
-    launch_xrootd cks-ondemand.cfg cks-ondemand
+setup_file() {
+    start_server server server ondemand.cfg
 }
 
-teardown() {
-    kill_pid_files 2>/dev/null || true
+teardown_file() {
+    stop_servers
 }
 
 # The helper writes the local file to the server out of order, then asks
@@ -19,7 +17,7 @@ check() {
     local digest=$1 expected=$2
     run -0 xrdckstest on-demand "${digest}" "${expected}" \
         "${BATS_TEST_DIRNAME}/XrdCksTestFile" \
-        "root://localhost:${PORT}//TestFile.${digest}"
+        "$SERVER_URL//TestFile.${digest}"
 }
 
 @test "on-demand adler32 digest" {

@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 
-load ../helper/common.bash
+load ../setup/server.bash
 
-PORT=11968
-
-setup() {
-    launch_xrootd cks-realtime.cfg cks-realtime
+setup_file() {
+    start_server server server realtime.cfg
 }
 
-teardown() {
-    kill_pid_files 2>/dev/null || true
+teardown_file() {
+    stop_servers
 }
 
 # The helper writes the local file to the server out of order: the first
@@ -21,7 +19,7 @@ check() {
     local digest=$1 expected=$2
     run -0 xrdckstest real-time "${digest}" "${expected}" \
         "${BATS_TEST_DIRNAME}/XrdCksTestFile" \
-        "root://localhost:${PORT}//TestFile.${digest}"
+        "$SERVER_URL//TestFile.${digest}"
 }
 
 @test "real-time adler32 digest" {
@@ -54,5 +52,5 @@ check() {
 
 @test "cksrt auto default resolves to adler32" {
     run -0 grep -E 'ofs\.cksrt +auto adler32 chkcgi' \
-        "${BATS_TEST_TMPDIR}/cks-realtime.log"
+        "$SERVER_LOG"
 }
