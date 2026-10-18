@@ -13,7 +13,10 @@ teardown_file() {
     stop_servers
 }
 
+# A test which fails before it stops its stand-in process must not leave it,
+# else BATS waits for its output
 teardown() {
+    [[ -z "${STANDIN:-}" ]] || kill "$STANDIN" 2>/dev/null || true
     stop_servers
 }
 
@@ -205,4 +208,62 @@ teardown() {
 
 @test "the client logs at the Debug level" {
     assert_equal "$XRD_LOGLEVEL" Debug
+}
+
+# Run the reaper for the run directory of the test; the processes <pids>
+# stand for BATS
+reap() {
+    "$SETUP_DIR/reaper.sh" "$1" "$BATS_TEST_TMPDIR" "${2:-}" < /dev/null > /dev/null 2>&1
+}
+
+_stopped() {
+    ! is_running "$(<"$BATS_TEST_TMPDIR/$1/xrootd.pid")"
+}
+
+@test "the reaper stops a server when BATS exits without the teardown" {
+    start_server reaped server
+    sleep 600 &
+    local bats=$!
+    reap "$bats" &
+    kill "$bats"
+    run -0 wait_for 10 _stopped reaped
+}
+
+@test "the reaper waits while BATS runs" {
+    start_server reaped server
+    sleep 600 &
+    STANDIN=$!
+    reap "$STANDIN" &
+    sleep 2
+    run -0 is_running "$(<"$BATS_TEST_TMPDIR/reaped/xrootd.pid")"
+}
+
+@test "the reaper waits while one of the processes of BATS runs" {
+    start_server reaped server
+    sleep 600 &
+    STANDIN=$!
+    reap "$(sh -c 'echo $$') $STANDIN" &
+    sleep 2
+    run -0 is_running "$(<"$BATS_TEST_TMPDIR/reaped/xrootd.pid")"
+}
+
+@test "the reaper does not stop a process of another run with a pid file in the run" {
+    sleep 600 &
+    STANDIN=$!
+    mkdir "$BATS_TEST_TMPDIR/other"
+    echo "$STANDIN" > "$BATS_TEST_TMPDIR/other/other.pid"
+    reap "$(sh -c 'echo $$')"
+    run -0 is_running "$STANDIN"
+}
+
+@test "the reaper removes the run directory when BATS cleans up" {
+    mkdir "$BATS_TEST_TMPDIR/run"
+    "$SETUP_DIR/reaper.sh" "$(sh -c 'echo $$')" "$BATS_TEST_TMPDIR/run" 1
+    run ! test -e "$BATS_TEST_TMPDIR/run"
+}
+
+@test "the reaper keeps the run directory with --no-tempdir-cleanup" {
+    mkdir "$BATS_TEST_TMPDIR/run"
+    "$SETUP_DIR/reaper.sh" "$(sh -c 'echo $$')" "$BATS_TEST_TMPDIR/run" ''
+    run -0 test -d "$BATS_TEST_TMPDIR/run"
 }

@@ -28,7 +28,20 @@ check_credentials() {
         "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/setup/credentials.sh" create "$CREDENTIALS"
 }
 
+# Start setup/reaper.sh, which stops the daemons of the tests when BATS exits
+# without its teardown, for example when CTest kills it at a timeout. The
+# double fork puts the reaper outside of the process tree of BATS, and the
+# redirections free the descriptors which BATS waits for: 0 to 2, and 3 and 4,
+# which BATS opens on the output of the suite. The reaper waits for this
+# process, bats-exec-suite, and for its parent, the main process of BATS,
+# which removes the run directory when it exits.
+start_reaper() {
+    ( "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/setup/reaper.sh" \
+        "$PPID $$" "$BATS_RUN_TMPDIR" "${BATS_TEMPDIR_CLEANUP:-}" < /dev/null > /dev/null 2>&1 3>&- 4>&- & )
+}
+
 setup_suite() {
+    start_reaper
     check_build_programs
     check_credentials
 }
