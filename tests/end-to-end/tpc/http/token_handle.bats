@@ -5,7 +5,7 @@ load ../../helper/common.bash
 export XRD_LOGLEVEL=Debug
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
 
-export XRD_HTTPCERTFILE="$BATS_SUITE_TMPDIR/ca.pem"
+export XRD_HTTPCERTFILE="$CREDENTIALS/ca.pem"
 
 readonly XROOTD_AUTH="localhost:8558"
 readonly XROOTD_NOAUTH="localhost:8559"

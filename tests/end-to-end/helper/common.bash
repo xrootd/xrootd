@@ -192,8 +192,8 @@ request_macaroon() {
     local url=$1
 
     curl --fail --silent --show-error \
-        --cacert "$BATS_SUITE_TMPDIR/ca.pem" \
-        --cert "$BATS_SUITE_TMPDIR/client.crt" --key "$BATS_SUITE_TMPDIR/client.key" \
+        --cacert "$CREDENTIALS/ca.pem" \
+        --cert "$CREDENTIALS/client.crt" --key "$CREDENTIALS/client.key" \
         -X POST -H 'Content-Type: application/macaroon-request' \
         -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' \
         "$url" | jq -er .macaroon

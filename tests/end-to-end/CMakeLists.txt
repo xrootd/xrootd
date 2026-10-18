@@ -1,6 +1,9 @@
 # add_bats_test(<script>) names the test end-to-end::<subdir>::<name> for the
 # file tests/end-to-end/<subdir>/<name>.bats, with :: for each / in <subdir>.
 # add_bats_test(<name> <script>) gives the name explicitly.
+# The credentials which all tests share, see setup/credentials.sh
+set(CREDENTIALS_DIR ${CMAKE_BINARY_DIR}/tests/credentials)
+
 function(add_bats_test)
   if(ARGC EQUAL 1)
     set(script ${ARGV0})
@@ -16,14 +19,16 @@ function(add_bats_test)
   set(environment
     "BATS_LIB_PATH=${PROJECT_SOURCE_DIR}/vendor/bats/lib/bats"
     "BINARY_DIR=${CMAKE_BINARY_DIR}"
+    "CREDENTIALS=${CREDENTIALS_DIR}"
   )
 
   add_test(NAME ${name}
     COMMAND ${PROJECT_SOURCE_DIR}/vendor/bats/bin/bats --setup-suite-file ${PROJECT_SOURCE_DIR}/tests/end-to-end/setup_suite.bash
             ${CMAKE_CURRENT_SOURCE_DIR}/${script})
 
-  set_tests_properties(${name} PROPERTIES ENVIRONMENT
-    "${environment}")
+  set_tests_properties(${name} PROPERTIES
+    ENVIRONMENT "${environment}"
+    FIXTURES_REQUIRED credentials)
 endfunction()
 
 add_subdirectory(setup)

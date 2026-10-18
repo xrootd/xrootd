@@ -5,8 +5,8 @@ load ../../helper/common.bash
 export XRD_LOGLEVEL=Debug
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
 
-export XRD_HTTPCERTFILE="$BATS_SUITE_TMPDIR/ca.pem"
-export X509_CERT_FILE="$BATS_SUITE_TMPDIR/ca.pem"
+export XRD_HTTPCERTFILE="$CREDENTIALS/ca.pem"
+export X509_CERT_FILE="$CREDENTIALS/ca.pem"
 
 readonly XROOTD_SRC="localhost:8518"
 readonly XROOTD_DST="localhost:8519"
