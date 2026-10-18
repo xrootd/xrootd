@@ -23,7 +23,7 @@
 //------------------------------------------------------------------------------
 
 #include "TestEnv.hh"
-#include "../XrdCl/GTestXrdHelpers.hh"
+#include "GTestXrdHelpers.hh"
 #include <gtest/gtest.h>
 
 #include "XrdEc/XrdEcStrmWriter.hh"
