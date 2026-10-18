@@ -1,58 +1,58 @@
 #!/usr/bin/env bash
 
-load ../../helper/common.bash
+load ../../setup/server.bash
 
-export XRD_LOGLEVEL=Debug
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
+export XRD_HTTPCERTFILE="$CREDENTIALS/ca.pem"
 
-readonly XROOTD_SRC="localhost:8548"
-readonly XROOTD_DST="localhost:8549"
-
-setup() {
-	cd $BATS_TEST_TMPDIR
-
-	PORT=${XROOTD_SRC##*:} launch_xrootd bigfiles.cfg xrootd_src
-	PORT=${XROOTD_DST##*:} launch_xrootd bigfiles.cfg xrootd_dst
-
-	head -c 1 /dev/zero | xrdcp - http://${XROOTD_SRC}//file_normal
-	xrdfs root://${XROOTD_SRC}/ truncate /file_normal 1048576
-
-	head -c 1 /dev/zero | xrdcp - http://${XROOTD_SRC}//file_slow
-	xrdfs root://${XROOTD_SRC}/ truncate /file_slow 26843545600
+setup_file() {
+	require_plugin libXrdHttpTPC
+	start_server src server http http-tpc mirage-xattr.cfg
+	start_server dst server http http-tpc mirage-xattr.cfg
+	head -c 1 /dev/zero | xrdcp - "$SRC_HTTP//file_normal"
+	xrdfs "$SRC_URL" truncate /file_normal 1048576
+	head -c 1 /dev/zero | xrdcp - "$SRC_HTTP//file_slow"
+	xrdfs "$SRC_URL" truncate /file_slow 26843545600
 }
 
-teardown() {
-	kill_pid_files
+teardown_file() {
+	stop_servers
+}
+
+# Each test has its own destination files
+setup() {
+	cd "$BATS_TEST_TMPDIR"
+	N=$BATS_TEST_NUMBER
 }
 
 @test "pull copy succeeds when the transfer ends before the tpc timeout" {
 	export XRD_CPTPCTIMEOUT=60
-	run -0 xrdcp -T only http://${XROOTD_SRC}//file_normal http://${XROOTD_DST}//file_dst
+	run -0 xrdcp -T only $SRC_HTTP//file_normal $DST_HTTP//file_dst$N
 }
 
 @test "pull copy fails when the transfer reaches the tpc timeout" {
 	export XRD_CPTPCTIMEOUT=2
-	run ! xrdcp -T only http://${XROOTD_SRC}//file_slow http://${XROOTD_DST}//file_dst
+	run ! xrdcp -T only $SRC_HTTP//file_slow $DST_HTTP//file_dst$N
 }
 
 @test "pull copy reports an expired operation when the tpc timeout is reached" {
 	export XRD_CPTPCTIMEOUT=2
-	run ! xrdcp -T only http://${XROOTD_SRC}//file_slow http://${XROOTD_DST}//file_dst
+	run ! xrdcp -T only $SRC_HTTP//file_slow $DST_HTTP//file_dst$N
 	assert_output --partial 'Operation expired: Operation timed out'
 }
 
 @test "push copy succeeds when the transfer ends before the tpc timeout" {
 	export XRD_CPTPCTIMEOUT=60
-	run -0 xrdcp -T push only http://${XROOTD_SRC}//file_normal http://${XROOTD_DST}//file_dst
+	run -0 xrdcp -T push only $SRC_HTTP//file_normal $DST_HTTP//file_dst$N
 }
 
 @test "push copy fails when the transfer reaches the tpc timeout" {
 	export XRD_CPTPCTIMEOUT=2
-	run ! xrdcp -T push only http://${XROOTD_SRC}//file_slow http://${XROOTD_DST}//file_dst
+	run ! xrdcp -T push only $SRC_HTTP//file_slow $DST_HTTP//file_dst$N
 }
 
 @test "push copy reports an expired operation when the tpc timeout is reached" {
 	export XRD_CPTPCTIMEOUT=2
-	run ! xrdcp -T push only http://${XROOTD_SRC}//file_slow http://${XROOTD_DST}//file_dst
+	run ! xrdcp -T push only $SRC_HTTP//file_slow $DST_HTTP//file_dst$N
 	assert_output --partial 'Operation expired: Operation timed out'
 }

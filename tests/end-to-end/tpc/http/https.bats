@@ -1,75 +1,75 @@
 #!/usr/bin/env bash
 
-load ../../helper/common.bash
+load ../../setup/server.bash
 
-export XRD_LOGLEVEL=Debug
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
 export XRD_HTTPCERTFILE="$CREDENTIALS/ca.pem"
 
-readonly XROOTD_SRC="localhost:8468"
-readonly XROOTD_DST="localhost:8469"
-
-setup() {
-	cd $BATS_TEST_TMPDIR
-
-	PORT=${XROOTD_SRC##*:} launch_xrootd https.cfg xrootd_src
-	PORT=${XROOTD_DST##*:} launch_xrootd https.cfg xrootd_dst
-
-	echo 'source content' > xrootd_src/file_src
-	echo 'overwrite me!'  > xrootd_dst/file_dst_overwrite
+setup_file() {
+	require_plugin libXrdHttpTPC
+	start_server src server http tls https-tpc roots.cfg
+	start_server dst server http tls https-tpc roots.cfg
+	echo 'source content' > "$SRC_DATA/file_src"
 }
 
-teardown() {
-	kill_pid_files
+teardown_file() {
+	stop_servers
+}
+
+# Each test has its own destination files
+setup() {
+	cd "$BATS_TEST_TMPDIR"
+	N=$BATS_TEST_NUMBER
+	echo 'overwrite me!' > "$DST_DATA/file_dst_overwrite$N"
 }
 
 @test "pull copy writes the source content to the destination" {
-	run -0 xrdcp -T only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst
-	assert_equal "$(cat xrootd_dst/file_dst)" 'source content'
+	run -0 xrdcp -T only $SRC_HTTPS//file_src $DST_HTTPS//file_dst$N
+	assert_equal "$(cat $DST_DATA/file_dst$N)" 'source content'
 }
 
 @test "pull copy sends the Source header to the destination server" {
-	run -0 xrdcp -T only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst
-	run -0 grep "Source: https://${XROOTD_SRC}//file_src" xrootd_dst.log
+	run -0 xrdcp -T only $SRC_HTTPS//file_src $DST_HTTPS//file_dst$N
+	run -0 grep "Source: $SRC_HTTPS//file_src" <(server_log dst)
 }
 
 @test "pull copy without --force fails when the destination exists" {
-	run ! xrdcp -T only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
+	run ! xrdcp -T only $SRC_HTTPS//file_src $DST_HTTPS//file_dst_overwrite$N
 }
 
 @test "pull copy with --force succeeds when the destination exists" {
-	run -0 xrdcp --force -T only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
+	run -0 xrdcp --force -T only $SRC_HTTPS//file_src $DST_HTTPS//file_dst_overwrite$N
 }
 
 @test "pull copy with --force replaces the destination content" {
-	run -0 xrdcp --force -T only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
-	assert_equal "$(cat xrootd_dst/file_dst_overwrite)" 'source content'
+	run -0 xrdcp --force -T only $SRC_HTTPS//file_src $DST_HTTPS//file_dst_overwrite$N
+	assert_equal "$(cat $DST_DATA/file_dst_overwrite$N)" 'source content'
 }
 
 @test "push copy writes the source content to the destination" {
-	run -0 xrdcp -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst
-	assert_equal "$(cat xrootd_dst/file_dst)" 'source content'
+	run -0 xrdcp -T push only $SRC_HTTPS//file_src $DST_HTTPS//file_dst$N
+	assert_equal "$(cat $DST_DATA/file_dst$N)" 'source content'
 }
 
 @test "push copy sends the Destination header to the source server" {
-	run -0 xrdcp -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst
-	run -0 grep "Destination: https://${XROOTD_DST}//file_dst" xrootd_src.log
+	run -0 xrdcp -T push only $SRC_HTTPS//file_src $DST_HTTPS//file_dst$N
+	run -0 grep "Destination: $DST_HTTPS//file_dst$N" <(server_log src)
 }
 
 @test "push copy without --force fails when the destination exists" {
-	run ! xrdcp -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
+	run ! xrdcp -T push only $SRC_HTTPS//file_src $DST_HTTPS//file_dst_overwrite$N
 }
 
 @test "push copy without --force keeps the destination content" {
-	run ! xrdcp -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
-	assert_equal "$(cat xrootd_dst/file_dst_overwrite)" 'overwrite me!'
+	run ! xrdcp -T push only $SRC_HTTPS//file_src $DST_HTTPS//file_dst_overwrite$N
+	assert_equal "$(cat $DST_DATA/file_dst_overwrite$N)" 'overwrite me!'
 }
 
 @test "push copy with --force succeeds when the destination exists" {
-	run -0 xrdcp --force -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
+	run -0 xrdcp --force -T push only $SRC_HTTPS//file_src $DST_HTTPS//file_dst_overwrite$N
 }
 
 @test "push copy with --force replaces the destination content" {
-	run -0 xrdcp --force -T push only https://${XROOTD_SRC}//file_src https://${XROOTD_DST}//file_dst_overwrite
-	assert_equal "$(cat xrootd_dst/file_dst_overwrite)" 'source content'
+	run -0 xrdcp --force -T push only $SRC_HTTPS//file_src $DST_HTTPS//file_dst_overwrite$N
+	assert_equal "$(cat $DST_DATA/file_dst_overwrite$N)" 'source content'
 }
