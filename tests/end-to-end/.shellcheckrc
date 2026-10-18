@@ -1,0 +1,11 @@
+# ShellCheck settings of the end-to-end tests. The tests are BATS files, and
+# the helpers which they load are bash.
+shell=bats
+
+# BATS runs setup(), the tests and teardown() with errexit, thus a failed cd
+# fails the test.
+disable=SC2164
+
+# BATS runs each test in its own process, thus a change of a variable in a
+# test does not need to reach the other tests.
+disable=SC2030,SC2031

@@ -1,0 +1,346 @@
+#!/usr/bin/env bash
+
+# Common server setups for the end-to-end tests.
+#
+# A test file loads this file, then calls start_server in setup_file() to
+# share the servers among all tests of the file, or in setup() to start new
+# servers for each test. The matching teardown_file() or teardown() calls
+# stop_servers. The servers run below BATS_FILE_TMPDIR or BATS_TEST_TMPDIR,
+# thus BATS removes all their files after the run.
+
+# shellcheck disable=SC2155 # the directory of this file exists
+readonly SETUP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+load "$SETUP_DIR/../helper/common.bash"
+
+# The client must log at the Debug level at least, as tests check the client
+# log for some messages, thus a level of the user applies only when it is
+# Dump. Each test has its own client log, which is printed when the test
+# fails. Short timeouts make an error fail the test quickly, rather than hang
+# it. The client uses only unix authentication, and helper/common.bash hides
+# the credentials of the user from the client. A test of another security
+# protocol sets XrdSecPROTOCOL itself.
+
+[[ "${XRD_LOGLEVEL:-}" == Dump ]] || XRD_LOGLEVEL=Debug
+: "${XRD_REQUESTTIMEOUT:=15}"
+: "${XRD_STREAMTIMEOUT:=10}"
+: "${XRD_TIMEOUTRESOLUTION:=1}"
+
+export XRD_LOGLEVEL XRD_REQUESTTIMEOUT XRD_STREAMTIMEOUT XRD_TIMEOUTRESOLUTION
+export XrdSecPROTOCOL=unix
+
+if [[ -n "${BATS_TEST_TMPDIR:-}" ]]; then
+    export XRD_LOGFILE="$BATS_TEST_TMPDIR/client.log"
+fi
+
+# A port on which no test server runs: a server gets a random port from 21000
+# to 31999, and the port of a stopped server can go to a server of another
+# test file at any time.
+# shellcheck disable=SC2034 # the test files use it
+readonly NO_SERVER_PORT=1
+
+# The tests of a file share its servers, and each test empties their logs
+# (see below), thus "bats --jobs" must not run them in parallel.
+# shellcheck disable=SC2034 # BATS reads it
+BATS_NO_PARALLELIZE_WITHIN_FILE=true
+
+# A server shared by all tests of a file logs the requests of each test.
+# Each test starts with an empty log of each such server, thus the test sees
+# only its own lines. The server writes its log with O_APPEND, thus its next
+# line goes to the start of the empty file.
+
+if [[ -n "${BATS_TEST_TMPDIR:-}" ]]; then
+    for log in "$BATS_FILE_TMPDIR"/*/xrootd.log; do
+        if [[ -f "$log" ]]; then
+            : > "$log"
+        fi
+    done
+    unset log
+fi
+
+# The directory of the servers started in the current context: the test
+# in setup() and @test, the file in setup_file() and teardown_file().
+_setup_tmpdir() {
+    echo "${BATS_TEST_TMPDIR:-$BATS_FILE_TMPDIR}"
+}
+
+# The name of the variables which start_server exports for a server.
+_setup_var() {
+    local var
+    var=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
+    echo "${var//[^A-Z0-9]/_}"
+}
+
+# A Unix socket path must fit in 108 bytes, and xrootd adds the instance
+# name, a subdirectory and the socket name to the admin path. When the run
+# directory is too long for that, the admin path goes to a new directory in
+# TMPDIR, or in /tmp if TMPDIR is long as well. The link "admin" in the run
+# directory points to it, thus stop_servers can remove it.
+_setup_admin_dir() {
+    local rundir=$1 name=${1##*/} tmp=${TMPDIR:-/tmp} dir
+
+    if (( ${#rundir} + ${#name} <= 64 )); then
+        mkdir -p "$rundir/admin" && echo "$rundir/admin"
+        return
+    fi
+
+    (( ${#tmp} <= 40 )) || tmp=/tmp
+
+    dir=$(mktemp -d "$tmp/xrd.XXXXXX") || return 1
+    ln -s "$dir" "$rundir/admin" || { rm -rf "$dir"; return 1; }
+    echo "$dir"
+}
+
+# Start xrootd with the configuration in the run directory, on the given
+# port, or on a random port for "any". The options are those of the systemd
+# units: the instance name is the server name, thus xrootd has its home in
+# the run directory, and logs to xrootd.log there. Write the port to the run
+# directory.
+_setup_run_xrootd() {
+    local name=$1 port=$2
+    local rundir admin log offset bind=$port
+    rundir="$(_setup_tmpdir)/$name"
+    admin="$rundir/admin"
+    # a link to a directory outside of a long run directory
+    if [[ -L "$admin" ]]; then
+        admin=$(readlink "$admin")
+    fi
+    log="$rundir/xrootd.log"
+
+    # For "any", a random port above the fixed ports of the old test suites
+    # (up to 20972), and below the ephemeral ports of Linux (32768) and macOS
+    # (49152), on which the system puts the clients. When another process has
+    # the port, the daemon fails to start, and the next try uses another port.
+    for _ in 1 2 3 4 5; do
+        if [[ "$port" == any ]]; then
+            bind=$(( 21000 + RANDOM % 11000 ))
+        fi
+
+        # an earlier try or start of the daemon logged to the same file
+        offset=0
+        if [[ -f "$log" ]]; then
+            offset=$(wc -c < "$log" | tr -d ' ')
+        fi
+
+        # The program with -b exits when the daemon reports the result of its
+        # configuration, with a nonzero status on failure. The daemon must not
+        # keep the descriptors 3 and 4, on which BATS reads the output of the
+        # test until all holders close them.
+        if (
+            SETUP_NAME=$name SETUP_RUNDIR=$rundir SETUP_PORT=$bind \
+            SETUP_BINDIR=$(dirname "$(command -v xrootd)") \
+                xrootd -b -k fifo -n "$name" -a "$admin" -w "${rundir%/*}" \
+                    -c "$rundir/$name.cfg" -l "${rundir%/*}/xrootd.log" \
+                    -s "$rundir/xrootd.pid" \
+                    < /dev/null > "$rundir/xrootd.out" 2>&1 3>&- 4>&-
+        ); then
+            # The daemon logs the result just after it reports it.
+            # Without the line, the start failed.
+            for _ in {1..100}; do
+                if tail -c +$(( offset + 1 )) "$log" 2>/dev/null |
+                    grep -aqE '^------ [a-z]+ .*:[0-9]+ initialization completed'; then
+                    echo "$bind" > "$rundir/port"
+                    return 0
+                fi
+                sleep 0.05
+            done
+            break
+        fi
+
+        # The daemon reports the failure before it logs it, and then exits.
+        # Wait for the exit, at most 5 s, so that the log is complete.
+        for _ in {1..100}; do
+            pgrep -f -- "$rundir/$name.cfg" >/dev/null || break
+            sleep 0.05
+        done
+
+        # only a port in use is worth another try; the text of the error
+        # differs between C libraries ("address in use" on musl). With
+        # SO_REUSEADDR, two daemons can bind one port, and the second one
+        # then fails to listen.
+        if [[ "$port" != any ]] || ! tail -c +$(( offset + 1 )) "$log" 2>/dev/null | tail -n 2 |
+            grep -qE 'Unable to (bind socket to port|listen on stream)'; then
+            break
+        fi
+    done
+
+    echo "xrootd '$name' failed to start" >&2
+    [[ -s "$rundir/xrootd.out" ]] && sed "s|^|[$name] |" "$rundir/xrootd.out" >&2
+    [[ -f "$log" ]] && sed "s|^|[$name] |" "$log" >&2
+    stop_pid_file "$rundir/xrootd.pid"
+    return 1
+}
+
+# _setup_snippet <snippet.cfg>
+#
+# Print the path of a snippet: an absolute path, a path with a slash relative
+# to the directory of the test file, or a name of a file in the directory of
+# the test file or in the setup directory, but not in both.
+_setup_snippet() {
+    local test=$BATS_TEST_DIRNAME/$1 setup=$SETUP_DIR/$1
+
+    if [[ "$1" == /* ]]; then
+        echo "$1"
+    elif [[ "$1" == */* ]]; then
+        echo "$test"
+    elif [[ -f "$test" && -f "$setup" && "$BATS_TEST_DIRNAME" != "$SETUP_DIR" ]]; then
+        echo "start_server: snippet '$1' is in the test and in the setup directory" >&2
+        return 1
+    elif [[ -f "$test" ]]; then
+        echo "$test"
+    else
+        echo "$setup"
+    fi
+}
+
+# start_server [name] [role] [snippet.cfg...]
+#
+# Start a server with the configuration base.cfg + <role>.cfg + snippets. The
+# name and the role are "server" by default. An argument which ends in .cfg
+# is a snippet (see _setup_snippet), for example checksum.cfg or a file of
+# the test. Export, with <NAME> the server name in upper case:
+#
+#   <NAME>_URL   root://localhost:<port>
+#   <NAME>_URL4  root://127.0.0.1:<port>, for tests of the IPv4 stack
+#   <NAME>_URL6  root://[::1]:<port>, for tests of the IPv6 stack
+#   <NAME>_PORT  the port of the server
+#   <NAME>_DATA  the data directory of the server (oss.localroot)
+#   <NAME>_LOG   the server log
+start_server() {
+    local name=server role=server arg n=0
+    local snippets=()
+    for arg in "$@"; do
+        if [[ "$arg" == *.cfg ]]; then
+            snippets+=("$arg")
+        elif (( n == 0 )); then
+            name=$arg n=1
+        elif (( n == 1 )); then
+            role=$arg n=2
+        else
+            echo "start_server: unexpected argument '$arg'" >&2
+            return 1
+        fi
+    done
+
+    local rundir var snippet port
+    rundir="$(_setup_tmpdir)/$name"
+    var=$(_setup_var "$name")
+
+    # xrootd takes these instance names for no name, and then does not put
+    # the name into the path of its log
+    if [[ "$name" == anon || "$name" == default ]]; then
+        echo "start_server: xrootd does not take '$name' as a server name" >&2
+        return 1
+    fi
+
+    if [[ -e "$rundir" ]]; then
+        echo "start_server: server '$name' exists already" >&2
+        return 1
+    fi
+
+    mkdir -p "$rundir/data"
+    _setup_admin_dir "$rundir" >/dev/null || return 1
+
+    cat "$SETUP_DIR/base.cfg" "$SETUP_DIR/$role.cfg" > "$rundir/$name.cfg" || return 1
+
+    for snippet in ${snippets[@]+"${snippets[@]}"}; do
+        snippet=$(_setup_snippet "$snippet") || return 1
+        { echo; cat "$snippet"; } >> "$rundir/$name.cfg" || return 1
+    done
+
+    _setup_run_xrootd "$name" any || return 1
+
+    port=$(<"$rundir/port")
+
+    export "${var}_PORT=$port"
+    export "${var}_URL=root://localhost:$port"
+    export "${var}_URL4=root://127.0.0.1:$port"
+    export "${var}_URL6=root://[::1]:$port"
+    export "${var}_DATA=$rundir/data"
+    export "${var}_LOG=$rundir/xrootd.log"
+}
+
+# stop_server <name>
+#
+# Stop one server. A server of another test file can take its port later,
+# thus a test of a port without a server uses NO_SERVER_PORT.
+stop_server() {
+    local name=$1 pidfile
+    pidfile="$(_setup_tmpdir)/$name/xrootd.pid"
+
+    stop_pid_file "$pidfile"
+}
+
+# restart_server <name>
+#
+# Stop the server, then start it again on the same port, with the same
+# configuration and data.
+restart_server() {
+    local name=$1 rundir
+    rundir="$(_setup_tmpdir)/$name"
+
+    stop_pid_file "$rundir/xrootd.pid" || return 1
+    _setup_run_xrootd "$name" "$(<"$rundir/port")"
+}
+
+# server_is_up <url>
+#
+# Succeed if the server at the URL answers a query.
+server_is_up() {
+    XRD_CONNECTIONRETRY=0 xrdfs "$1" query config version >/dev/null 2>&1
+}
+
+# stop_servers
+#
+# Stop all servers and daemons of the current context, remove the admin
+# directories outside of it, and fail if a process of a server survives.
+stop_servers() {
+    local tmp pidfile link survivors pid status=0
+    tmp=$(_setup_tmpdir)
+
+    # the servers, and other daemons of the setup with a pid file; a process
+    # which does not stop fails the call, after the cleanup below
+    for pidfile in "$tmp"/*/*.pid; do
+        stop_pid_file "$pidfile" || status=1
+        rm -f "$pidfile"
+    done
+
+    for link in "$tmp"/*/admin; do
+        [[ -L "$link" ]] || continue
+        rm -rf "$(readlink "$link")"
+        rm -f "$link"
+    done
+
+    # Only -f is portable: -a lists the ancestors on macOS, and the pgrep of
+    # BusyBox has no -u. The path is unique, thus it matches no other process.
+    survivors=$(pgrep -f -- "$tmp/" || true)
+
+    if [[ -n "$survivors" ]]; then
+        echo "stop_servers: processes survived:" >&2
+        for pid in $survivors; do
+            ps -o pid=,args= -p "$pid" >&2 2>/dev/null || echo "$pid" >&2
+        done
+        return 1
+    fi
+
+    return "$status"
+}
+
+# On failure, print the client log of the test and the log of each server,
+# which has only the lines of the test.
+bats::on_failure() {
+    local log name
+
+    [[ -z "${BATS_SKIP_SERVER_LOGS:-}" ]] || return 0
+
+    for log in "${BATS_FILE_TMPDIR:-/nonexistent}"/*/xrootd.log \
+               "${BATS_TEST_TMPDIR:-/nonexistent}"/*/xrootd.log \
+               "${BATS_TEST_TMPDIR:-/nonexistent}"/client.log; do
+        [[ -s "$log" ]] || continue
+        name=$(basename "$(dirname "$log")")
+        [[ "$log" == */client.log ]] && name=client
+        printf '\n'
+        sed "s|^|[$name] |" "$log"
+        printf '\n'
+    done
+}
