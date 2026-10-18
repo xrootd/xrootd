@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Test-only OSS wrapper loaded by tests/XRootD/tpcredir.cfg to exercise the
+// Test-only OSS wrapper, which redirect/plugin.cfg loads, to exercise the
 // URL-form SFS_REDIRECT branch of fsRedirPI().
 //
 // For any path beginning with "/urlredir/" the Open() implementation returns
