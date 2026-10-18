@@ -246,7 +246,6 @@ void XrdSys::IOEvents::PollPort::Dispatch(XrdSys::IOEvents::Channel *cP,
 //
    cbNow = cP;
    if (!CbkXeq(cP, events, eNum, eTxt)) Exclude(cP, isLocked, 0);
-      else Modify(cP, eNum, &eTxt, isLocked);
    cbNow = 0;
 }
 
