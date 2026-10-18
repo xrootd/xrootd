@@ -594,9 +594,10 @@ const char *XrdNetIF::GetDomain()
 {
    const char *dnP = XrdNetIdentity::Domain();
 
-// Get our fully resilved name (this doesn't always work)
+// Get our fully resolved name (this does not always work). Skip the leading
+// dot, and return null when there is no domain.
 //
-   return (dnP ? dnP+1 : 0);
+   return (dnP && *dnP == '.' ? dnP+1 : 0);
 }
 
 /******************************************************************************/
