@@ -5,7 +5,10 @@ load ../../helper/common.bash
 export XRD_LOGLEVEL=Debug
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
 
-export XRD_HTTPCERTFILE="$BATS_SUITE_TMPDIR/ca.pem"
+export XRD_HTTPCERTFILE="$CREDENTIALS/ca.pem"
+# No client certificate, as the authdb lets in the client of the test CA. The
+# missing file also hides a grid proxy of the user in /tmp from XrdClHttp.
+export X509_USER_PROXY=/dev/null/x509
 
 readonly XROOTD_AUTH="localhost:8558"
 readonly XROOTD_NOAUTH="localhost:8559"

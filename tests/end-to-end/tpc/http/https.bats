@@ -4,7 +4,9 @@ load ../../helper/common.bash
 
 export XRD_LOGLEVEL=Debug
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
-export XRD_HTTPCERTFILE="$BATS_SUITE_TMPDIR/ca.pem"
+export XRD_HTTPCERTFILE="$CREDENTIALS/ca.pem"
+# the client certificate of the test CA, never a grid proxy of the user
+export XRD_HTTPCLIENTCERTFILE="$CREDENTIALS/client.crt" XRD_HTTPCLIENTKEYFILE="$CREDENTIALS/client.key"
 
 readonly XROOTD_SRC="localhost:8468"
 readonly XROOTD_DST="localhost:8469"
