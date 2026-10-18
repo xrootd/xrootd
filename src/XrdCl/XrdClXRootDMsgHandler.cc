@@ -448,7 +448,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Process the message
     //--------------------------------------------------------------------------
-    Status st = XRootDTransport::UnMarshallBody( pResponse.get(), req->header.requestid );
+    Status st = XRootDTransport::UnMarshallBody( pResponse.get(), ntohs( req->header.requestid ) );
     if( !st.IsOK() )
     {
       pStatus = Status( stFatal, errInvalidMessage );
