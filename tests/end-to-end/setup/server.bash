@@ -318,6 +318,78 @@ authorization_strategy = capability
 EOF
 }
 
+# start_collector <name>
+#
+# Start a collector of monitoring data in the directory <name> of the current
+# context: it receives UDP datagrams on a free port and writes each one as a
+# line of a file. Export <NAME>_PORT, the port, and <NAME>_RECORDS, the file;
+# a snippet names the port with "set x = $<NAME>_PORT". stop_servers stops it.
+start_collector() {
+    local name=$1 dir var
+    dir="$(_setup_tmpdir)/$name"
+    var=$(_setup_var "$name")
+
+    require_commands python3
+    mkdir -p "$dir"
+    touch "$dir/records"
+    python3 "$SETUP_DIR/udp-collector.py" "$dir/port" "$dir/records" "$dir/collector.pid" || return 1
+
+    for _ in {1..100}; do
+        [[ -s "$dir/collector.pid" ]] && break
+        sleep 0.05
+    done
+    if [[ ! -s "$dir/collector.pid" ]]; then
+        echo "start_collector: collector '$name' wrote no pid file" >&2
+        return 1
+    fi
+
+    export "${var}_PORT=$(<"$dir/port")"
+    export "${var}_RECORDS=$dir/records"
+}
+
+# collected <records> <ere>: succeed when a record of the collector matches
+# the extended regular expression
+collected() {
+    grep -qE "$2" "$1"
+}
+
+# gstream_count <records> <key>
+#
+# The sum over the servers of the count of the HTTP counter <key>, for example
+# HTTP_GET_302, in the g-stream records. A server reports the total since its
+# start, and the "sid" of the header of its records tells it apart.
+gstream_count() {
+    awk -v key="\"$2\":{\"count\":" '
+        match($0, /"sid":[0-9]+/) && (i = index($0, key)) {
+            sid = substr($0, RSTART + 6, RLENGTH - 6)
+            n = substr($0, i + length(key)) + 0
+            if (n > max[sid]) max[sid] = n
+        }
+        END { for (sid in max) total += max[sid]; print total + 0 }' "$1"
+}
+
+# gstream_base <records> <key>
+#
+# The count of <key> when it stays the same for one flush period of the
+# g-stream (3 s in monitor.cfg). Thus a late report of an earlier request does
+# not count for the request of the test.
+gstream_base() {
+    local last now
+    now=$(gstream_count "$1" "$2")
+    for _ in 1 2 3 4 5; do
+        last=$now
+        sleep 4
+        now=$(gstream_count "$1" "$2")
+        (( now == last )) && break
+    done
+    echo "$now"
+}
+
+# gstream_above <records> <key> <n>: succeed when the count of <key> is above <n>
+gstream_above() {
+    (( $(gstream_count "$1" "$2") > $3 ))
+}
+
 # make_token <scope> [lifetime]
 #
 # Print a token of the issuer (see start_issuer) with the scope, for example

@@ -105,6 +105,41 @@ require_commands() {
     done
 }
 
+# Print a TCP port on which nothing listens, for a daemon which cannot choose
+# a port itself. The port is from 32000 to 32767: above the random ports of
+# start_server (21000 to 31999), and below the ephemeral ports of Linux
+# (32768) and macOS (49152), which the system gives to the clients. Another
+# process can take the port before the daemon binds it, which is not likely.
+free_port() {
+    python3 -c '
+import random, socket
+for port in random.sample(range(32000, 32768), 768):
+    try:
+        with socket.socket() as s:
+            s.bind(("localhost", port))
+    except OSError:
+        continue
+    print(port)
+    break
+else:
+    raise SystemExit("free_port: no free port from 32000 to 32767")
+'
+}
+
+# wait_for <seconds> <command...>
+#
+# Run the command until it succeeds, for at most the given time, for results
+# which come later, such as monitoring data.
+wait_for() {
+    local end=$(( SECONDS + $1 ))
+    shift
+
+    until "$@"; do
+        (( SECONDS < end )) || return 1
+        sleep 0.2
+    done
+}
+
 # Skip the test (or all tests of the file, in setup_file) when the build has
 # not the plugin, for example libXrdHttp. Without a build directory, the test
 # assumes that the installation has it.
