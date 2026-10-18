@@ -34,6 +34,7 @@ endfunction()
 add_subdirectory(setup)
 
 add_subdirectory(cks)
+add_subdirectory(diglib)
 add_subdirectory(example)
 add_subdirectory(http)
 add_subdirectory(tpc)
