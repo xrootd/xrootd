@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-load "$(dirname $(realpath ${BASH_SOURCE[0]}))/helper/tls.bash"
-
 # When run from a CMake build, the tests must use the programs of that build,
 # rather than the ones of an XRootD installation on the system.
 check_build_programs() {
@@ -17,10 +15,31 @@ check_build_programs() {
     done
 }
 
+# CTest creates the shared credentials once for all tests (the fixture
+# "credentials", see setup/credentials.sh) and sets CREDENTIALS. A run of bats
+# without CTest creates them for its own tests.
+check_credentials() {
+    if [[ -r "${CREDENTIALS:-}/ca.pem" ]]; then
+        return 0
+    fi
+
+    export CREDENTIALS="$BATS_SUITE_TMPDIR/credentials"
+    PATH="${BINARY_DIR:+${BINARY_DIR}/bin:}${PATH}" \
+        "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/setup/credentials.sh" create "$CREDENTIALS"
+}
+
 setup_suite() {
     # The programs print their messages in English, and bash counts the
     # length of a string in bytes, for example of the admin path.
     export LC_ALL=C
     check_build_programs
-    generate_tls
+    check_credentials
+}
+
+# Remove the credentials which check_credentials created, with their
+# read-only files.
+teardown_suite() {
+    if [[ "${CREDENTIALS:-}" == "$BATS_SUITE_TMPDIR/credentials" ]]; then
+        "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/setup/credentials.sh" remove "$CREDENTIALS"
+    fi
 }

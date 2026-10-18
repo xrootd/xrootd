@@ -221,6 +221,16 @@ teardown() {
     run -0 grep -F 'Authenticated with unix' "$XRD_LOGFILE"
 }
 
+@test "the shared credentials are read-only" {
+    # shellcheck disable=SC2016 # the inner bash expands the variable
+    run ! bash -c 'echo >> "$CREDENTIALS/ca.pem"'
+}
+
+@test "the shared host certificate names localhost and both loopback addresses" {
+    run -0 openssl x509 -in "$CREDENTIALS/host.pem" -noout -ext subjectAltName
+    assert_output --regexp 'DNS:localhost.*IP Address:127\.0\.0\.1.*IP Address:0:0:0:0:0:0:0:1'
+}
+
 @test "the client logs at the Debug level or above" {
     assert_regex "$XRD_LOGLEVEL" '^(Debug|Dump)$'
 }
