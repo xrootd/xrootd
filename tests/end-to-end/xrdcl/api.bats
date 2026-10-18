@@ -197,6 +197,17 @@ skip_unsupported() {
     assert_output ''
 }
 
+@test "FileSystem::DirList of a missing directory fails" {
+    run ! xrdcl-api dirlist "$SERVER_URL" "/d${BATS_TEST_NUMBER}"
+}
+
+# The server opens the directory without a stat before; a failed open must
+# not leave a directory object without a name behind (fixed in XrdOfs)
+@test "the server keeps running after a DirList of a missing directory" {
+    xrdcl-api dirlist "$SERVER_URL" "/d${BATS_TEST_NUMBER}" || true
+    run -0 server_is_up "$SERVER_URL"
+}
+
 @test "concurrent reads of one File object return the whole file" {
     make_random_file "$SERVER_DATA$FILE" 3000001
     xrdcl-api threads "$SERVER_URL/$FILE" 20 > copy.dat
