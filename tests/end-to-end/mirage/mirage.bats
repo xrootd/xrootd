@@ -1,56 +1,56 @@
 #!/usr/bin/env bash
 
-load ../helper/common.bash
+load ../setup/server.bash
 
-readonly MIRAGE=localhost:11969
-
-setup() {
-    sleep 0.5
-    PORT=${MIRAGE##*:} launch_xrootd mirage.cfg mirage
-    sleep 0.5
-
-    run -0 bats_pipe printf 'seed' \| xrdcp - "root://$MIRAGE//file"
+setup_file() {
+    start_server server server mirage.cfg
 }
 
-teardown() {
-    kill_pid_files
+teardown_file() {
+    stop_servers
+}
+
+# Each test has its own file, with the content "seed"
+setup() {
+    FILE="/t${BATS_TEST_NUMBER}"
+    run -0 bats_pipe printf 'seed' \| xrdcp - "$SERVER_URL/$FILE"
 }
 
 @test "uploaded file reports the uploaded size" {
-    run -0 xrdfs "root://$MIRAGE" stat //file
+    run -0 xrdfs "$SERVER_URL" stat "$FILE"
     assert_output --regexp 'Size:   4[^0-9]'
 }
 
 @test "truncate changes the reported size" {
-    run -0 xrdfs "root://$MIRAGE" truncate //file 1000
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 1000
 
-    run -0 xrdfs "root://$MIRAGE" stat //file
+    run -0 xrdfs "$SERVER_URL" stat "$FILE"
     assert_output --regexp 'Size:   1000[^0-9]'
 }
 
 @test "empty pattern returns content of the correct size" {
-    run -0 xrdfs "root://$MIRAGE" truncate //file 1000
-    run -0 xrdfs "root://$MIRAGE" xattr //file del pattern
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 1000
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" del pattern
 
     # Empty pattern content is arbitrary memory by design (see
     # src/XrdOssMirage/README.md), so only the size can be checked.
-    run bats_pipe -0 xrdcp -f "root://$MIRAGE//file" - \| wc -c
+    run bats_pipe -0 xrdcp -f "$SERVER_URL/$FILE" - \| wc -c
     assert_output --regexp '^ *1000 *$'
 }
 
 @test "single character pattern repeats exactly" {
-    run -0 xrdfs "root://$MIRAGE" truncate //file 1000
-    run -0 xrdfs "root://$MIRAGE" xattr //file set pattern=a
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 1000
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" set pattern=a
 
-    run -0 xrdcp -f "root://$MIRAGE//file" -
+    run -0 xrdcp -f "$SERVER_URL/$FILE" -
     assert_output "$(printf 'a%.0s' {1..1000})"
 }
 
 @test "string pattern repeats exactly" {
-    run -0 xrdfs "root://$MIRAGE" truncate //file 1000
-    run -0 xrdfs "root://$MIRAGE" xattr //file set pattern=abcde
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 1000
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" set pattern=abcde
 
-    run -0 xrdcp -f "root://$MIRAGE//file" -
+    run -0 xrdcp -f "$SERVER_URL/$FILE" -
     assert_output "$(printf 'abcde%.0s' {1..200})"
 }
 
@@ -59,10 +59,10 @@ teardown() {
     # 5-byte pattern, so every chunk starts at a different offset into
     # the pattern. This exercises the wraparound copy out of the
     # once-initialized pattern buffer in XrdOssMirageFile::Read.
-    run -0 xrdfs "root://$MIRAGE" truncate //file 10007
-    run -0 xrdfs "root://$MIRAGE" xattr //file set pattern=abcde
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 10007
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" set pattern=abcde
 
-    XRD_CPCHUNKSIZE=37 run -0 xrdcp -f "root://$MIRAGE//file" -
+    XRD_CPCHUNKSIZE=37 run -0 xrdcp -f "$SERVER_URL/$FILE" -
     assert_output "$(printf 'abcde%.0s' {1..2001})ab"
 }
 
@@ -71,20 +71,20 @@ teardown() {
     # flight at once on the same open file, which is exactly the
     # concurrency that the pattern buffer's std::call_once protects
     # against.
-    run -0 xrdfs "root://$MIRAGE" truncate //file 10007
-    run -0 xrdfs "root://$MIRAGE" xattr //file set pattern=abcde
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 10007
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" set pattern=abcde
 
-    XRD_CPCHUNKSIZE=37 XRD_CPPARALLELCHUNKS=8 run -0 xrdcp -f "root://$MIRAGE//file" -
+    XRD_CPCHUNKSIZE=37 XRD_CPPARALLELCHUNKS=8 run -0 xrdcp -f "$SERVER_URL/$FILE" -
     assert_output "$(printf 'abcde%.0s' {1..2001})ab"
 }
 
 @test "pattern content is accurate under concurrent chunk reads from two clients with different chunk sizes" {
-    run -0 xrdfs "root://$MIRAGE" truncate //file 10007
-    run -0 xrdfs "root://$MIRAGE" xattr //file set pattern=abcde
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 10007
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" set pattern=abcde
 
-    XRD_CPCHUNKSIZE=37 xrdcp -f "root://$MIRAGE//file" "$BATS_TEST_TMPDIR/first" &
+    XRD_CPCHUNKSIZE=37 xrdcp -f "$SERVER_URL/$FILE" "$BATS_TEST_TMPDIR/first" &
     local first_pid=$!
-    XRD_CPCHUNKSIZE=53 xrdcp -f "root://$MIRAGE//file" "$BATS_TEST_TMPDIR/second" &
+    XRD_CPCHUNKSIZE=53 xrdcp -f "$SERVER_URL/$FILE" "$BATS_TEST_TMPDIR/second" &
     local second_pid=$!
 
     wait "$first_pid"
@@ -103,12 +103,12 @@ teardown() {
 }
 
 @test "two clients downloading the same file at the same time both succeed" {
-    run -0 xrdfs "root://$MIRAGE" truncate //file 1073741824
-    run -0 xrdfs "root://$MIRAGE" xattr //file set pattern=abcde
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 1073741824
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" set pattern=abcde
 
-    xrdcp -f "root://$MIRAGE//file" /dev/null &
+    xrdcp -f "$SERVER_URL/$FILE" /dev/null &
     local first_pid=$!
-    xrdcp -f "root://$MIRAGE//file" /dev/null &
+    xrdcp -f "$SERVER_URL/$FILE" /dev/null &
     local second_pid=$!
 
     wait "$first_pid"
@@ -121,12 +121,12 @@ teardown() {
 }
 
 @test "two clients downloading the same file with different chunk sizes both succeed" {
-    run -0 xrdfs "root://$MIRAGE" truncate //file 1073741824
-    run -0 xrdfs "root://$MIRAGE" xattr //file set pattern=abcde
+    run -0 xrdfs "$SERVER_URL" truncate "$FILE" 1073741824
+    run -0 xrdfs "$SERVER_URL" xattr "$FILE" set pattern=abcde
 
-    XRD_CPCHUNKSIZE=8381608 xrdcp -f "root://$MIRAGE//file" /dev/null &
+    XRD_CPCHUNKSIZE=8381608 xrdcp -f "$SERVER_URL/$FILE" /dev/null &
     local first_pid=$!
-    XRD_CPCHUNKSIZE=8388608 xrdcp -f "root://$MIRAGE//file" /dev/null &
+    XRD_CPCHUNKSIZE=8388608 xrdcp -f "$SERVER_URL/$FILE" /dev/null &
     local second_pid=$!
 
     wait "$first_pid"
