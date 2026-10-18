@@ -29,6 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <atomic>
 #include "Xrd/XrdLinkXeq.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
@@ -71,7 +72,7 @@ static XrdLink *Alloc(XrdNetAddr &peer, int opts=0);
 
 static XrdLink  *fd2link(int fd)
                  {if (fd < 0) fd = -fd;
-                  return (fd <= LTLast && LinkBat[fd] ? LinkTab[fd] : 0);
+                  return (fd < maxFD && isUsed(fd) ? LinkTab[fd] : 0);
                  }
 
 //-----------------------------------------------------------------------------
@@ -85,9 +86,12 @@ static XrdLink  *fd2link(int fd)
 //-----------------------------------------------------------------------------
 
 static XrdLink  *fd2link(int fd, unsigned int inst)
-                 {if (fd < 0) fd = -fd;
-                  if (fd <= LTLast && LinkBat[fd] && LinkTab[fd]
-                  && LinkTab[fd]->Instance == inst) return LinkTab[fd];
+                 {XrdLinkCtl *lp;
+                  if (fd < 0) fd = -fd;
+                  if (fd >= maxFD || !isUsed(fd) || !(lp = LinkTab[fd]))
+                     return (XrdLink *)0;
+                  XrdSysMutexHelper opHelper(lp->LinkInfo.opMutex);
+                  if (isUsed(fd) && lp->Instance == inst) return lp;
                   return (XrdLink *)0;
                  }
 
@@ -102,7 +106,7 @@ static XrdLink  *fd2link(int fd, unsigned int inst)
 
 static XrdPollInfo *fd2PollInfo(int fd)
                     {if (fd < 0) fd = -fd;
-                     if (fd <= LTLast && LinkBat[fd])
+                     if (fd < maxFD && isUsed(fd))
                         return &(LinkTab[fd]->PollInfo);
                      return 0;
                     }
@@ -210,7 +214,9 @@ private:
 
 static XrdSysMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
 static XrdLinkCtl  **LinkTab;
-static char         *LinkBat;
+enum LinkState {LinkUsed=1, LinkInit};
+static bool          isUsed(int fd) {return LinkBat[fd].load(std::memory_order_acquire) == LinkUsed;}
+static std::atomic<char> *LinkBat;
 static const unsigned int LinkAlloc;
 static int           LTLast;
 static int           maxFD;
