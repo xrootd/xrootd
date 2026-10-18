@@ -1880,6 +1880,10 @@ XrdCmsNode *XrdCmsCluster::SelbyLoadR(SMask_t mask, XrdCmsSelector &selR)
     NodeWeight[i] = totWeight;
   }
 
+  // No node passed the filters, and a distribution needs a nonempty range
+  if (totWeight == 0)
+    return calcDelay(selR);
+
   std::uniform_int_distribution<int> distr(1, totWeight);
   int selected = distr(generator);
 
