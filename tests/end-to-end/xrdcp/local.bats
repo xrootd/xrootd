@@ -34,3 +34,9 @@ setup() {
     xrdcp --force local.dat copy.dat
     run -0 cmp local.dat copy.dat
 }
+
+@test "copy to a local directory writes the file with the name of the source into it" {
+    mkdir dir
+    xrdcp local.dat dir
+    run -0 cmp local.dat dir/local.dat
+}

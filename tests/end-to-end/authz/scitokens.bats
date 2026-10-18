@@ -86,6 +86,13 @@ status() {
     run -0 cmp local.txt copy.txt
 }
 
+@test "a missing BEARER_TOKEN_FILE makes the client use the token in XDG_RUNTIME_DIR" {
+    mkdir -m 0700 runtime
+    cp "$BATS_FILE_TMPDIR/create.token" "runtime/bt_u$(id -u)"
+    BEARER_TOKEN_FILE="$BATS_TEST_TMPDIR/missing.token" XDG_RUNTIME_DIR="$BATS_TEST_TMPDIR/runtime" \
+        run -0 xrdcp local.txt "$ROOTS//protected/subdir/root$N.txt"
+}
+
 #
 # HTTPS
 #
