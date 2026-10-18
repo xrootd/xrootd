@@ -49,6 +49,8 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <memory>
+#include <unistd.h>
 
 #ifdef HAVE_READLINE
 #include <readline/history.h>
@@ -1651,6 +1653,20 @@ XRootDStatus DoCat( FileSystem                      *fs,
   {
     log->Error( AppMsg, "If '-o' is used only can be used with only one remote file." );
     return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  // a file URL needs an absolute path, else the path becomes its host
+  if( !local.empty() && local[0] != '/' )
+  {
+    std::unique_ptr<char, decltype( &free )> cwd( getcwd( nullptr, 0 ), free );
+    if( !cwd )
+    {
+      int err = errno;
+      log->Error( AppMsg, "Unable to get the current directory: %s",
+                  XrdSysE2T( err ) );
+      return XRootDStatus( stError, errOSError, err );
+    }
+    local = std::string( cwd.get() ) + "/" + local;
   }
 
   std::vector<URL> remoteUrls;
