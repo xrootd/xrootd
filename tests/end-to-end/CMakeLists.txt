@@ -33,6 +33,7 @@ endfunction()
 
 add_subdirectory(setup)
 
+add_subdirectory(apps)
 add_subdirectory(authz)
 add_subdirectory(cks)
 add_subdirectory(diglib)
