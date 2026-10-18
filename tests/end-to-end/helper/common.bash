@@ -65,6 +65,27 @@ require_commands() {
     done
 }
 
+# Print a TCP port on which nothing listens, for a daemon which cannot choose
+# a port itself. Another process can take the port before the daemon binds
+# it, which on a test host is not likely.
+free_port() {
+    python3 -c 'import socket; s = socket.socket(); s.bind(("localhost", 0)); print(s.getsockname()[1])'
+}
+
+# wait_for <seconds> <command...>
+#
+# Run the command until it succeeds, for at most the given time, for results
+# which come later, such as monitoring data.
+wait_for() {
+    local end=$(( SECONDS + $1 ))
+    shift
+
+    until "$@"; do
+        (( SECONDS < end )) || return 1
+        sleep 0.2
+    done
+}
+
 # Skip the test (or all tests of the file, in setup_file) when the build has
 # not the plugin, for example libXrdHttp. Without a build directory, the test
 # assumes that the installation has it.

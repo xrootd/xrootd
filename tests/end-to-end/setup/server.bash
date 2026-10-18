@@ -275,6 +275,31 @@ authorization_strategy = capability
 EOF
 }
 
+# start_collector <name>
+#
+# Start a collector of monitoring data in the directory <name> of the current
+# context: it receives UDP datagrams on a free port and writes each one as a
+# line of a file. Export <NAME>_PORT, the port, and <NAME>_RECORDS, the file;
+# a snippet names the port with "set x = $<NAME>_PORT". stop_servers stops it.
+start_collector() {
+    local name=$1 dir var
+    dir="$(_setup_tmpdir)/$name"
+    var=$(_setup_var "$name")
+
+    require_commands python3
+    mkdir -p "$dir"
+    touch "$dir/records"
+    python3 "$SETUP_DIR/udp-collector.py" "$dir/port" "$dir/records" "$dir/collector.pid" || return 1
+
+    for _ in {1..100}; do
+        [[ -s "$dir/collector.pid" ]] && break
+        sleep 0.05
+    done
+
+    export "${var}_PORT=$(<"$dir/port")"
+    export "${var}_RECORDS=$dir/records"
+}
+
 # make_token <scope> [lifetime]
 #
 # Print a token of the issuer (see start_issuer) with the scope, for example

@@ -9,12 +9,6 @@ PATH="$PATH:/usr/sbin"
 
 readonly KDC_REALM=XROOTD.ORG
 
-# Print a TCP port on which nothing listens. Another process can take it
-# before the caller binds it, which the KDC on a test host does not risk much.
-free_port() {
-    python3 -c 'import socket; s = socket.socket(); s.bind(("localhost", 0)); print(s.getsockname()[1])'
-}
-
 # start_kdc
 #
 # Start a KDC for the realm XROOTD.ORG in the directory "kdc" of the current
