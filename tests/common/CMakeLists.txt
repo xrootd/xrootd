@@ -1,5 +1,4 @@
 add_library(XrdTestUtils SHARED
-  Server.cc  Server.hh
   TestEnv.cc TestEnv.hh
   Utils.cc   Utils.hh)
 

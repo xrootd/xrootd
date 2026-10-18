@@ -12,14 +12,18 @@
 #include "XrdCl/XrdClCheckpointOperation.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClPollerBuiltIn.hh"
+#include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClURL.hh"
 
+#include <arpa/inet.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <atomic>
 #include <condition_variable>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -635,6 +639,165 @@ int OpenUsers( const std::vector<std::string> &args )
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Transport: the XRootD handshake over a raw Socket
+//------------------------------------------------------------------------------
+
+constexpr uint32_t HandShakeResponseSize = 16;
+
+ClientInitHandShake HandShake()
+{
+  ClientInitHandShake hs{};
+  hs.fourth = htonl( 4 );
+  hs.fifth  = htonl( 2012 );
+  return hs;
+}
+
+// Print the protocol version and the server type of a handshake response
+void PrintHandShake( const char *response )
+{
+  ServerInitHandShake body;
+  memcpy( &body, response + 4, sizeof( body ) );
+  std::cout << "msglen=" << ntohl( body.msglen )
+            << " protover=" << std::hex << ntohl( body.protover ) << std::dec
+            << " type=" << ntohl( body.msgval ) << '\n';
+}
+
+void Connect( Socket &socket, const std::string &host, const std::string &port,
+              int family = AF_INET6 )
+{
+  Check( socket.Initialize( family ), "socket" );
+  Check( socket.Connect( host, ToNumber( port ) ), "connect" );
+
+  // the second call returns the name which the first one stored
+  if( socket.GetSockName().empty() || socket.GetSockName().empty() )
+    throw Failure{ ExitError, "the connected socket has no name" };
+}
+
+// socket <host> <port> [ipv4]: send the handshake with Socket::WriteRaw, read
+// the response with Socket::ReadRaw, and print it. The socket is of the IPv6
+// family, which also connects to IPv4 addresses, or of the IPv4 family.
+int SocketHandShake( const std::vector<std::string> &args )
+{
+  if( args.size() < 2 || args.size() > 3 || ( args.size() == 3 && args[2] != "ipv4" ) )
+    Usage( "socket <host> <port> [ipv4]" );
+
+  Socket socket;
+  Connect( socket, args[0], args[1], args.size() == 3 ? AF_INET : AF_INET6 );
+
+  ClientInitHandShake hs = HandShake();
+  char response[HandShakeResponseSize];
+  uint32_t bytes = 0;
+
+  Check( socket.WriteRaw( &hs, sizeof( hs ), 10, bytes ), "write handshake" );
+  Check( socket.ReadRaw( response, sizeof( response ), 10, bytes ), "read response" );
+
+  PrintHandShake( response );
+  socket.Close();
+  return 0;
+}
+
+// Read the handshake responses of the sockets on read events of the poller
+class HandShakeReader : public SocketHandler
+{
+  public:
+    void Initialize( Poller *poller ) override { pPoller = poller; }
+
+    void Event( uint8_t type, Socket *socket ) override
+    {
+      std::lock_guard<std::mutex> lock( pMutex );
+      std::string &data = pData[socket];
+
+      if( type & ReadyToRead )
+      {
+        char buffer[HandShakeResponseSize];
+        ssize_t n;
+        while( data.size() < HandShakeResponseSize &&
+               ( n = ::read( socket->GetFD(), buffer,
+                             HandShakeResponseSize - data.size() ) ) > 0 )
+          data.append( buffer, n );
+      }
+
+      if( data.size() == HandShakeResponseSize || ( type & ReadTimeOut ) )
+      {
+        pPoller->EnableReadNotification( socket, false );
+        ++pDone;
+        pDoneCV.notify_all();
+      }
+    }
+
+    // Wait until each socket has its response or a timeout
+    void Wait( size_t count )
+    {
+      std::unique_lock<std::mutex> lock( pMutex );
+      pDoneCV.wait( lock, [&] { return pDone >= count; } );
+    }
+
+    std::map<Socket*, std::string> pData;
+
+  private:
+    Poller                  *pPoller = nullptr;
+    std::mutex               pMutex;
+    std::condition_variable  pDoneCV;
+    size_t                   pDone = 0;
+};
+
+// poller <host> <port> <sockets>: send the handshake on each socket, read the
+// responses on read events of the built-in poller, and print each response
+int PollerHandShake( const std::vector<std::string> &args )
+{
+  if( args.size() != 3 ) Usage( "poller <host> <port> <sockets>" );
+
+  PollerBuiltIn poller;
+  HandShakeReader reader;
+  std::vector<Socket> sockets( ToNumber( args[2] ) );
+
+  // Stop the thread of the poller before the reader and the sockets go, also
+  // on an error. Stop and Finalize do nothing the second time.
+  struct PollerStop
+  {
+    PollerBuiltIn &poller;
+    ~PollerStop() { poller.Stop(); poller.Finalize(); }
+  } pollerStop{ poller };
+
+  if( !poller.Initialize() || !poller.Start() )
+    throw Failure{ ExitError, "cannot start the poller" };
+
+  for( auto &socket : sockets )
+  {
+    Connect( socket, args[0], args[1] );
+
+    if( !poller.AddSocket( &socket, &reader ) ||
+        !poller.EnableReadNotification( &socket, true, 10 ) ||
+        !poller.IsRegistered( &socket ) )
+      throw Failure{ ExitError, "cannot register a socket" };
+
+    ClientInitHandShake hs = HandShake();
+    uint32_t bytes = 0;
+    Check( socket.WriteRaw( &hs, sizeof( hs ), 10, bytes ), "write handshake" );
+  }
+
+  reader.Wait( sockets.size() );
+
+  for( auto &socket : sockets )
+    if( !poller.RemoveSocket( &socket ) || poller.IsRegistered( &socket ) )
+      throw Failure{ ExitError, "cannot remove a socket" };
+
+  poller.Stop();
+  poller.Finalize();
+
+  for( auto &socket : sockets )
+  {
+    const std::string &response = reader.pData[&socket];
+    if( response.size() != HandShakeResponseSize )
+      throw Failure{ ExitError, "no complete response on " + socket.GetSockName() };
+    PrintHandShake( response.data() );
+    socket.Close();
+  }
+
+  return 0;
+}
+
 const std::map<std::string, std::function<int( const std::vector<std::string>& )>> Commands =
 {
   { "read",       Read            },
@@ -657,6 +820,8 @@ const std::map<std::string, std::function<int( const std::vector<std::string>& )
   { "threads",    Threads         },
   { "fork",       Fork            },
   { "open-users", OpenUsers       },
+  { "socket",     SocketHandShake },
+  { "poller",     PollerHandShake },
 };
 
 } // namespace
