@@ -3,11 +3,6 @@
 # $XRD_HTTPHEADERS is a second entry path that never passes through the xrdcp
 # command line, so the plug-in has to apply the same rules by itself
 
-bats_require_minimum_version 1.5.0
-
-bats_load_library 'bats-support'
-bats_load_library 'bats-assert'
-
 load ../../helper/common.bash
 
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"

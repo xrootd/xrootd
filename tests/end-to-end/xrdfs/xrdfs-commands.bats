@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-bats_require_minimum_version 1.5.0
-
-bats_load_library 'bats-support'
-bats_load_library 'bats-assert'
-
 load ../helper/common.bash
 
 readonly endpoint=root://localhost:11966
