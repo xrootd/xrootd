@@ -3,16 +3,18 @@
 # the endpoints --header applies to: one side of the transfer must speak http
 # or https, in either direction
 
-load ../../helper/common.bash
+load ../../setup/server.bash
 
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
 
-HOST=http://localhost:9879
-HOSTS=https://localhost:9879
-ROOT=root://localhost:9879
-S3=s3://localhost:9879
-DAV=dav://localhost:9879
-DAVS=davs://localhost:9879
+# No server runs on NO_SERVER_PORT, thus a request which the client sends
+# fails to connect.
+HOST=http://localhost:$NO_SERVER_PORT
+HOSTS=https://localhost:$NO_SERVER_PORT
+ROOT=root://localhost:$NO_SERVER_PORT
+S3=s3://localhost:$NO_SERVER_PORT
+DAV=dav://localhost:$NO_SERVER_PORT
+DAVS=davs://localhost:$NO_SERVER_PORT
 
 # The endpoints are examined before any connection is made, so these tests need
 # no server. This is the message the command line check writes.

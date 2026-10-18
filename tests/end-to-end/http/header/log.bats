@@ -2,11 +2,13 @@
 
 # what the client log is allowed to say about a header, one message per fault
 
-load ../../helper/common.bash
+load ../../setup/server.bash
 
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
 
-HOST=http://localhost:9878
+# No server runs on NO_SERVER_PORT, thus a request which the client sends
+# fails to connect.
+HOST=http://localhost:$NO_SERVER_PORT
 
 setup() {
 	# workdir as test tmp dir (all files are removed after execution)
@@ -22,7 +24,9 @@ setup() {
 @test "a rejected credential should not be written to the client log" {
 	XRD_LOGLEVEL=Dump XRD_LOGFILE=client.log \
 		run ! xrdcp -H 'Proxy-Authorization: Basic SUPERSECRETTOKEN' $HOST//examplefile -
-	run ! grep -F -- 'SUPERSECRETTOKEN' client.log
+	run -0 cat client.log
+	assert_output --partial 'Requested header Proxy-Authorization must not be set by the client'
+	refute_output --partial 'SUPERSECRETTOKEN'
 }
 
 # An accepted credential is put in the request, and its value stays out of the
@@ -30,7 +34,9 @@ setup() {
 @test "an accepted credential should not be written to the client log" {
 	XRD_LOGLEVEL=Dump XRD_LOGFILE=client.log \
 		run xrdcp -H 'Authorization: Bearer SUPERSECRETTOKEN' $HOST//examplefile -
-	run ! grep -F -- 'SUPERSECRETTOKEN' client.log
+	run -0 cat client.log
+	assert_output --partial 'Authorization'
+	refute_output --partial 'SUPERSECRETTOKEN'
 }
 
 # The name is reported so that a transfer can be told apart from one that sent
@@ -45,7 +51,9 @@ setup() {
 @test "a refused header should not write its value to the client log" {
 	XRD_LOGLEVEL=Error XRD_LOGFILE=client.log \
 		run ! xrdcp -H 'Host: evil.example.com' $HOST//examplefile -
-	run ! grep -F -- 'evil.example.com' client.log
+	run -0 cat client.log
+	assert_output --partial 'Requested header Host must not be set by the client'
+	refute_output --partial 'evil.example.com'
 }
 
 #
