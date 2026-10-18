@@ -15,3 +15,10 @@ target_link_libraries(xrdouc-hashval-unit-tests XrdUtils GTest::gtest GTest::gte
 
 gtest_discover_tests(xrdouc-hashval-unit-tests
   PROPERTIES DISCOVERY_TIMEOUT 10)
+
+add_executable(xrdoucutils-unit-tests XrdOucUtilsTests.cc)
+
+target_link_libraries(xrdoucutils-unit-tests XrdUtils GTest::gtest GTest::gtest_main)
+
+gtest_discover_tests(xrdoucutils-unit-tests
+  PROPERTIES DISCOVERY_TIMEOUT 10)
