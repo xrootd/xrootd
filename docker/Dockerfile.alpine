@@ -27,7 +27,9 @@ RUN apk add \
 	readline-dev \
 	sudo \
 	util-linux-dev \
+	unzip \
 	uuidgen \
+	zip \
 	zlib-dev
 
 RUN adduser -D xrootd && echo "xrootd ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers

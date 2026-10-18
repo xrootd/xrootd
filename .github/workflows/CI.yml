@@ -68,6 +68,8 @@ jobs:
           util-linux-dev \
           uuidgen \
           util-linux \
+          unzip \
+          zip \
           zlib-dev
 
     - name: Clone repository

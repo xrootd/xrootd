@@ -84,6 +84,8 @@ BuildRequires:	openssl
 BuildRequires:	procps-ng
 BuildRequires:	python3-pytest
 BuildRequires:	sqlite
+BuildRequires:	unzip
+BuildRequires:	zip
 %if 0%{?fedora}
 BuildRequires:	util-linux-script
 %else
