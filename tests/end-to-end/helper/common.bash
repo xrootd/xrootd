@@ -81,6 +81,30 @@ is_running() {
     fi
 }
 
+# Stop the process and wait until it exits, so that the next server can bind
+# the same port. A process which ignores SIGTERM for 5 s gets SIGKILL.
+stop_pid() {
+    local pid=$1
+
+    [[ "$pid" =~ ^[0-9]+$ ]] && is_running "$pid" || return 0
+
+    kill "$pid" 2>/dev/null
+
+    for _ in {1..100}; do
+        is_running "$pid" || return 0
+        sleep 0.05
+    done
+
+    kill -9 "$pid" 2>/dev/null
+
+    for _ in {1..100}; do
+        is_running "$pid" || return 0
+        sleep 0.05
+    done
+
+    return 1
+}
+
 # Stop every daemon started by the test and wait until it exits, so that the
 # next test can bind the same ports.
 kill_pid_files() {
@@ -89,22 +113,73 @@ kill_pid_files() {
     # xrootd writes its pid both to the file given with -s and to all.pidpath,
     # without a newline, thus awk rather than cat
     for pid in $(find "$BATS_TEST_TMPDIR" -name '*.pid' -type f -exec awk '{ print }' {} + | sort -u); do
-        [[ "$pid" =~ ^[0-9]+$ ]] && is_running "$pid" || continue
-
-        kill "$pid" 2>/dev/null
-
-        for _ in {1..100}; do
-            is_running "$pid" || break
-            sleep 0.05
-        done
-
-        # the graceful shutdown timed out
-        is_running "$pid" && kill -9 "$pid" 2>/dev/null
+        stop_pid "$pid"
     done
 
     find "$BATS_TEST_TMPDIR" -name '*.pid' -type f -delete
 
     return 0
+}
+
+# Skip the test (or all tests of the file, in setup_file) when a command
+# which it needs is not available.
+require_commands() {
+    local cmd
+
+    for cmd in "$@"; do
+        command -v "$cmd" >/dev/null || skip "command not found: $cmd"
+    done
+}
+
+# Skip the test (or all tests of the file, in setup_file) when the file system
+# of the directory has no user extended attributes.
+require_xattr() {
+    local dir=$1 probe status=0
+
+    probe=$(mktemp "$dir/xattr.XXXXXX") || return 1
+    if command -v setfattr > /dev/null; then
+        setfattr -n user.probe -v 1 "$probe" 2>/dev/null || status=1
+    elif command -v xattr > /dev/null; then
+        # macOS
+        xattr -w user.probe 1 "$probe" 2>/dev/null || status=1
+    else
+        status=1
+    fi
+    rm -f "$probe"
+
+    (( status == 0 )) || skip "no extended attributes in $dir"
+}
+
+# Skip the test when the client cannot use IPv6. The client uses IPv6 only
+# when an interface has an address which is not loopback and not link-local
+# (see XrdNetIF::GetIF), and the server needs the loopback address ::1.
+require_ipv6() {
+    if [[ -r /proc/net/if_inet6 ]]; then
+        grep -q '^0*1 ' /proc/net/if_inet6 &&
+            awk '$6 != "lo" && $1 !~ /^fe80/ { found = 1 } END { exit !found }' \
+                /proc/net/if_inet6
+    else
+        ifconfig 2>/dev/null | grep -q 'inet6 ::1 ' &&
+            ifconfig 2>/dev/null | grep 'inet6 ' | grep -v -q -e 'inet6 fe80:' -e 'inet6 ::1 '
+    fi || skip 'the host has no IPv6 address for the client'
+}
+
+# Write a file with the given number of random bytes.
+make_random_file() {
+    local path=$1 size=$2
+
+    openssl rand -out "$path" "$size"
+}
+
+# Print the checksum of a local file, in the format of xrdfs query checksum.
+checksum() {
+    local type=$1 path=$2
+
+    case "$type" in
+        adler32) xrdadler32 < "$path" ;;
+        crc32c)  xrdcrc32c < "$path" ;;
+        *) echo "checksum: unknown type '$type'" >&2; return 1 ;;
+    esac | cut -d' ' -f1
 }
 
 bats::on_failure() {
