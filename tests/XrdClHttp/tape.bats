@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 
-bats_load_library bats-support
-bats_load_library bats-assert
+load ../end-to-end/helper/common.bash
 
 setup() {
   TEST_NAME=curl

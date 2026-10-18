@@ -2,11 +2,6 @@
 
 # a header the client refuses fails the transfer and never reaches the server
 
-bats_require_minimum_version 1.5.0
-
-bats_load_library 'bats-support'
-bats_load_library 'bats-assert'
-
 load ../../helper/common.bash
 
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"

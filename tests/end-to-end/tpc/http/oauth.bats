@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-bats_require_minimum_version 1.5.0
-
 load ../../helper/common.bash
 
 export XRD_LOGLEVEL=Debug
