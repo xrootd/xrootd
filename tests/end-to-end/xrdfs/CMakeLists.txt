@@ -1,2 +1,6 @@
 add_bats_test(XrdCl::xrdfs-commands xrdfs-commands.bats)
 add_bats_test(XrdCl::xrdfs-full-url xrdfs-full-url.bats)
+add_bats_test(namespace.bats)
+add_bats_test(paths.bats)
+add_bats_test(query.bats)
+add_bats_test(rm.bats)
