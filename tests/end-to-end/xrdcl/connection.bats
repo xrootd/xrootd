@@ -34,6 +34,13 @@ stat_twice() {
         XRD_DATASERVERTTL=1 xrdfs "$SERVER_URL"
 }
 
+@test "a client connects to the server by the name of the host" {
+    local host
+    host=$(hostname -f 2>/dev/null || uname -n)
+    getent hosts "$host" > /dev/null 2>&1 || skip "the name of the host does not resolve"
+    run -0 xrdfs "root://$host:$SERVER_PORT" query config version
+}
+
 @test "a server which does not run gives a connection error" {
     XRD_CONNECTIONRETRY=1 run ! xrdfs "$GONE_URL" query config version
     assert_output --partial 'Connection error'
