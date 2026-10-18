@@ -57,3 +57,11 @@ stat_twice() {
 @test "16 substreams with a short TTL do not hang the client" {
     XRD_SUBSTREAMSPERCHANNEL=16 run -0 stat_twice
 }
+
+@test "opens of 20 users with 16 substreams and a short TTL each fail with no such file" {
+    # each user has 17 sockets; the default limit of macOS is 256 files
+    (( $(ulimit -n) >= 1024 )) || ulimit -n 1024 || skip 'cannot open 1024 files'
+    XRD_SUBSTREAMSPERCHANNEL=16 XRD_DATASERVERTTL=1 XRD_CONNECTIONRETRY=0 \
+        run -0 xrdcl-api open-users "localhost:$SERVER_PORT" /missing 20 4
+    assert_equal "$(grep -c '^3011$' <<< "$output")" 20
+}
