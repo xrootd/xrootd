@@ -1,12 +1,9 @@
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tmp")
-
 add_executable(xrdcl-cluster-tests
   IdentityPlugIn.cc
   # XrdClFileTest.cc
   # XrdClFileCopyTest.cc
   # XrdClFileSystemTest.cc
   # XrdClOperationsWorkflowTest.cc
-  XrdClLocalFileHandlerTest.cc
   XrdClPostMasterTest.cc
   XrdClThreadingTest.cc
   XrdClZip.cc

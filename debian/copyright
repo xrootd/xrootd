@@ -118,7 +118,7 @@ Files:
  src/XrdCl/XrdClLocalFileHandler.*
  src/XrdCl/XrdClLocalFileTask.*
  src/XrdCms/XrdCmsRedirLocal.*
- tests/XrdClTests/LocalFileHandlerTest.cc
+ tests/unit/XrdCl/XrdClLocalFileHandler.cc
 Copyright:
  2017, 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH
 License: LGPL-3
