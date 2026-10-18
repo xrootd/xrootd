@@ -92,9 +92,11 @@ Files:
  src/XrdZip/*
  tests/common/*
  tests/XrdCephTests/*
+ tests/unit/XrdCeph/*
  tests/XrdCl/*
+ tests/unit/XrdCl/*
  tests/XrdClTests/*
- tests/XrdEc/*
+ tests/unit/XrdEc/*
  tests/XrdEcTests/*
  utils/xrootd-config
 Copyright:

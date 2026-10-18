@@ -1,22 +1,3 @@
-add_executable(xrdcl-unit-tests
-  XrdClEnv.cc
-  XrdClURL.cc
-  XrdClPoller.cc
-  XrdClSocket.cc
-  XrdClUtilsTest.cc
-  XrdClProtocolRespTest.cc
-  )
-
-target_link_libraries(xrdcl-unit-tests
-  XrdTestUtils GTest::gtest GTest::gtest_main)
-
-gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX XrdCl:: 
-  PROPERTIES DISCOVERY_TIMEOUT 10)
-
-if(NOT ENABLE_SERVER_TESTS)
-  return()
-endif()
-
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tmp")
 
 add_executable(xrdcl-cluster-tests

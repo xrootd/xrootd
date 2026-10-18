@@ -7,5 +7,5 @@ target_link_libraries(xrdcks-unit-tests
   GTest::gtest_main
 )
 
-gtest_discover_tests(xrdcks-unit-tests
+gtest_discover_tests(xrdcks-unit-tests TEST_PREFIX unit::XrdCks::
   PROPERTIES DISCOVERY_TIMEOUT 10)

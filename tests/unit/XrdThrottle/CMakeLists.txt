@@ -40,5 +40,5 @@ target_include_directories(xrdthrottle-unit-tests
     ${PROJECT_SOURCE_DIR}/vendor/inih
 )
 
-gtest_discover_tests(xrdthrottle-unit-tests
+gtest_discover_tests(xrdthrottle-unit-tests TEST_PREFIX unit::XrdThrottle::
   PROPERTIES DISCOVERY_TIMEOUT 10)

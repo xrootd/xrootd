@@ -7,6 +7,5 @@ target_link_libraries(xrdsecgsi-tests-unit
         GTest::gtest_main
         )
 
-gtest_discover_tests(xrdsecgsi-tests-unit
-        TEST_PREFIX XrdSecgsi::
+gtest_discover_tests(xrdsecgsi-tests-unit TEST_PREFIX unit::XrdSecgsi::
         PROPERTIES DISCOVERY_TIMEOUT 10)

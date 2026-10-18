@@ -2,20 +2,6 @@ find_package(CURL REQUIRED)
 
 include(GoogleTest)
 
-add_executable(xrdcl-http-unit-tests
-  HeaderParserTest.cc
-  ParseTimeoutTest.cc
-  TapeTest.cc
-)
-
-target_link_libraries(xrdcl-http-unit-tests
-  XrdClHttpObj XrdCl CURL::libcurl GTest::gtest_main)
-target_include_directories(xrdcl-http-unit-tests
-  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src")
-
-gtest_discover_tests(xrdcl-http-unit-tests TEST_PREFIX XrdClHttp::
-  PROPERTIES DISCOVERY_TIMEOUT 10)
-
 # XrdClHttp integration tests depend on scitokens fixture for authentication
 if(NOT BUILD_SCITOKENS)
   return()

@@ -13,5 +13,5 @@ add_executable(xrdmacaroons-unit-tests
 
 target_link_libraries(xrdmacaroons-unit-tests GTest::gtest GTest::gtest_main)
 
-gtest_discover_tests(xrdmacaroons-unit-tests
+gtest_discover_tests(xrdmacaroons-unit-tests TEST_PREFIX unit::XrdMacaroons::
   PROPERTIES DISCOVERY_TIMEOUT 10)
