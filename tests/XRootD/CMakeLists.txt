@@ -17,11 +17,6 @@ list(APPEND XROOTD_CONFIGS cachepurge)
 add_executable(xrdpfc-read utils/xrdpfc-read.cc)
 target_link_libraries(xrdpfc-read XrdCl XrdUtils Threads::Threads)
 
-if(ENABLE_FUSE_TESTS)
-  list(APPEND XROOTD_CONFIGS fuse)
-endif()
-
-
 # Note: HAVE_SCITOKEN_CONFIG_SET_STR is required to override the CA file
 # for the scitokens library; otherwise, the test will fail with TLS errors.
 if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
@@ -34,7 +29,6 @@ endif()
 foreach(CACHE_CONFIG cache cacheevict cacheprefetch cacheblacklist cachespaces cacherestart cachepurge)
   list(APPEND ${CACHE_CONFIG}_FIXTURES XRootD::host)
 endforeach()
-
 
 foreach(CONFIG ${XROOTD_CONFIGS})
   add_test(NAME XRootD::${CONFIG}::setup
