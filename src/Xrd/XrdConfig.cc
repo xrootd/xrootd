@@ -1401,6 +1401,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 //
    PortTCP = ProtInfo.Port = XrdNetTCP->Port();
    XrdOucEnv::Export("XRDPORT", PortTCP);
+   ProtInfo.Stats->SetPort(PortTCP);
 
 // Now check if we have to setup automatic reporting
 //
