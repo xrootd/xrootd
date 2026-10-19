@@ -901,8 +901,15 @@ const char *XrdCpConfig::OpName()
    extern int optind, optopt;
    static char oName[4] = {'-', 0, 0, 0};
 
-   if (!optopt || optopt == '-' || *(Argv[optind-1]+1) == '-')
-      return Argv[optind-1];
+// When the argument of the last short option is missing, musl reads the null
+// pointer after the last argument as the argument. Then, optind is past the
+// end, or it permutes the operands so that this null pointer is at optind-1.
+// In both cases, we have no argument to show, thus we use the option letter.
+//
+   const char *opt = (optind <= Argc ? Argv[optind-1] : 0);
+
+   if (opt && (!optopt || optopt == '-' || *(opt+1) == '-'))
+      return opt;
    oName[1] = optopt;
    return oName;
 }
