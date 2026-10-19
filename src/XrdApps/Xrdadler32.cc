@@ -135,7 +135,7 @@ int fGetXattrAdler32(const char *path, int fd, const char* attr, char *value)
 }
 
 /* the rooturl should point to the data server, not redirector */
-char getchksum(const char *rooturl, char *chksum) 
+int getchksum(const char *rooturl, char *chksum)
 {
     char csBuff[256];
     int  csLen;
