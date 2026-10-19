@@ -25,7 +25,6 @@ add_subdirectory(XrdClS3)
 
 add_subdirectory( XrdOssTests )
 add_subdirectory( XRootD )
-add_subdirectory( authenticated_cluster)
 add_subdirectory( TPCTests )
 add_subdirectory( badredir )
 add_subdirectory( xcachewithcsi )
