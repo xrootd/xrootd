@@ -10,12 +10,21 @@ export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
 # the option takes a mandatory argument
 #
 
+# With musl, xrdcp crashed here, which run ! takes as a failure too, thus
+# check the message (fixed in XrdApps)
 @test "-H with no argument fails" {
 	run ! xrdcp -H
+	assert_output --partial "'-H' argument missing"
+}
+
+@test "-H with no argument after an operand fails" {
+	run ! xrdcp file -H
+	assert_output --partial "'-H' argument missing"
 }
 
 @test "--header with no argument fails" {
 	run ! xrdcp --header
+	assert_output --partial "'--header' argument missing"
 }
 
 #
