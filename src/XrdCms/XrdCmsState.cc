@@ -127,7 +127,7 @@ void *XrdCmsState::Monitor()
           {if (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Resume)
                     {myStatus.Hdr.streamid = htonl(myPort); RTsend = 1;}
                else {myStatus.Hdr.streamid = 0;
-                     RTsend = (isMan > 0 ? (theState & SRV_Suspend) : 0);
+                     RTsend = (isMan != 0 ? (theState & SRV_Suspend) : 0);
                     }
            if (isMan && RTsend)
               RTable.Send("status", (char *)&myStatus, sizeof(myStatus));
