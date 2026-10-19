@@ -87,3 +87,20 @@ setup() {
     xrdcp --zip-append "$MEMBERS/deflated.txt" "$SERVER_URL/$ARCHIVE"
     run -0 python3 -m zipfile -t "$SERVER_DATA$ARCHIVE"
 }
+
+# The status of one listing of the archive, for the concurrent listings below
+list_archive() {
+    xrdfs "$SERVER_URL" ls -Z /archive.zip > /dev/null 2>&1
+    echo $?
+}
+
+# A response which came before the handler set its next step made a listing
+# fail, or crash the client (fixed in XrdCl). One listing in a few hundred
+# failed, thus run 2000 of them, 32 at a time.
+@test "2000 concurrent listings of an archive all succeed" {
+    export -f list_archive
+    export SERVER_URL
+    seq 2000 | xargs -P 32 -I{} bash -c list_archive > status.txt
+    run -0 sort -u status.txt
+    assert_output 0
+}
