@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # A manager whose cmsd has stopped: its xrootd cannot locate files. The tests
-# share the cluster; setup_file stops the cmsd of the manager.
+# share the cluster; setup_file stops the cmsd of the manager. A data server
+# without a manager has no cmsd either, but serves its files.
 
 load ../setup/cluster.bash
 
@@ -14,6 +15,8 @@ setup_file() {
     stop_pid "$(<"$BATS_FILE_TMPDIR/manager/cmsd.pid")"
     rm -f "$BATS_FILE_TMPDIR/manager/cmsd.pid"
     echo 'no cmsd' > "$SERVER_DATA/file"
+    start_server lone server lone.cfg
+    echo 'no cmsd' > "$LONE_DATA/file"
 }
 
 teardown_file() {
@@ -36,4 +39,9 @@ setup() {
 @test "the xrootd of a manager whose cmsd stopped keeps running" {
     XRD_REQUESTTIMEOUT=5 xrdcp -f "$MANAGER_URL//file" copy.txt || true
     run -0 server_is_up "$MANAGER_URL"
+}
+
+@test "a data server without a manager serves its files" {
+    xrdcp -f "$LONE_URL//file" copy.txt
+    run -0 cmp "$LONE_DATA/file" copy.txt
 }

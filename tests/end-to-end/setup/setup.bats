@@ -272,3 +272,12 @@ _stopped() {
     restart_server other
     run -0 server_is_up "$OTHER_URL"
 }
+
+# xrootd -n writes the log below a directory of the instance name; the link
+# lets _setup_run find the log
+@test "a server with an instance name logs in a directory of that name" {
+    _setup_compose named server
+    ln -s inst/xrootd.log "$BATS_TEST_TMPDIR/named/xrootd.log"
+    _setup_run xrootd named any -n inst
+    run -0 test -s "$BATS_TEST_TMPDIR/named/inst/xrootd.log"
+}
