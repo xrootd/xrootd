@@ -74,6 +74,22 @@ _setup_tmpdir() {
     echo "${BATS_TEST_TMPDIR:-$BATS_FILE_TMPDIR}"
 }
 
+# The run directory of the server: of the test, else of the file, thus a
+# test can also stop or restart a server of its file.
+_setup_rundir() {
+    local dir
+
+    for dir in "${BATS_TEST_TMPDIR:-/nonexistent}/$1" "$BATS_FILE_TMPDIR/$1"; do
+        if [[ -d "$dir" ]]; then
+            echo "$dir"
+            return
+        fi
+    done
+
+    echo "no server '$1'" >&2
+    return 1
+}
+
 # The name of the variables which start_server exports for a server.
 _setup_var() {
     local var
@@ -111,7 +127,7 @@ _setup_run() {
     local prog=$1 name=$2 port=$3
     shift 3
     local rundir admin log pidfile line offset=0
-    rundir="$(_setup_tmpdir)/$name"
+    rundir=$(_setup_rundir "$name") || return 1
     admin="$rundir/admin"
     # a link to a directory outside of a long run directory
     if [[ -L "$admin" ]]; then
@@ -253,7 +269,7 @@ _setup_export() {
 # thus a test of a port without a server uses NO_SERVER_PORT.
 stop_server() {
     local name=$1 pidfile
-    pidfile="$(_setup_tmpdir)/$name/xrootd.pid"
+    pidfile="$(_setup_rundir "$name")/xrootd.pid" || return 1
 
     stop_pid "$(<"$pidfile")" && rm -f "$pidfile"
 }
@@ -264,7 +280,7 @@ stop_server() {
 # configuration and data.
 restart_server() {
     local name=$1 rundir
-    rundir="$(_setup_tmpdir)/$name"
+    rundir=$(_setup_rundir "$name") || return 1
 
     stop_pid "$(<"$rundir/xrootd.pid")" || return 1
     rm -f "$rundir/xrootd.pid"

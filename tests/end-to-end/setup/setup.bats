@@ -267,3 +267,8 @@ _stopped() {
     "$SETUP_DIR/reaper.sh" "$(sh -c 'echo $$')" "$BATS_TEST_TMPDIR/run" ''
     run -0 test -d "$BATS_TEST_TMPDIR/run"
 }
+
+@test "restart_server in a test restarts a server of the file" {
+    restart_server other
+    run -0 server_is_up "$OTHER_URL"
+}
