@@ -59,6 +59,13 @@ setup() {
     assert_output --partial "adler32: $(checksum adler32 "$REF") "
 }
 
+# The adler32 of the byte 0x01 is 00020002 (fixed in XrdCl)
+@test "--cksum adler32:print prints the leading zeros of the checksum" {
+    printf '\001' > one.dat
+    run -0 xrdcp --cksum adler32:print one.dat copy.dat
+    assert_output --partial 'adler32: 00020002 '
+}
+
 @test "--cksum md5:print prints the md5 of the file" {
     require_commands md5sum
     run -0 xrdcp --cksum md5:print "$SERVER_URL//ref.dat" copy.dat
