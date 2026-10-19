@@ -823,8 +823,6 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 {
    EPNAME("Admit_Redirector");
-   static CmsStatusRequest newState
-                   = {{0, kYR_status, CmsStatusRequest::kYR_Resume, 0}};
 
 // Indicate what role I have
 //
@@ -842,11 +840,20 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
        return 0;
       } else myNode->setSlot(RSlot);
 
-// If we told the redirector we were suspended then we must check if that is no
-// longer true and generate a reume event as the redirector may have missed it
-//
-   if (wasSuspended && !CmsState.Suspended)
-      myNode->Send((char *)&newState, sizeof(newState));
+   // The reply was sampled before this node was on the notify list. Fill in a
+   // service suspend the reply missed. A resume clears every suspend the reply
+   // advertised.
+   //
+   const int serviceSuspended = (CmsState.Suspended & XrdCmsState::SRV_Suspend) ? 1 : 0;
+   if ((wasSuspended && !CmsState.Suspended) || (!wasSuspended && serviceSuspended))
+      {CmsStatusRequest newState = {{0, kYR_status, 0, 0}};
+       if (!wasSuspended)
+          newState.Hdr.modifier = CmsStatusRequest::kYR_Suspend;
+          else {newState.Hdr.modifier = CmsStatusRequest::kYR_Resume;
+                newState.Hdr.streamid = htonl(CmsState.Port());
+               }
+       myNode->Send((char *)&newState, sizeof(newState));
+      }
 
 // Login succeeded
 //
