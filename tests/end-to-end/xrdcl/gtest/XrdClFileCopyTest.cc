@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -61,7 +61,7 @@ void FileCopyTest::DownloadTestFunc()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string remoteFile;
@@ -137,7 +137,7 @@ void FileCopyTest::UploadTestFunc()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -317,7 +317,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string metamanager;
   std::string manager1;

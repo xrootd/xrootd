@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "Utils.hh"
 #include "IdentityPlugIn.hh"
 
@@ -42,7 +42,7 @@ class ZipTest: public ::testing::Test {
 };
 
 void ZipTest::SetUp(){
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;

@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "Utils.hh"
 #include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
@@ -107,7 +107,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = XrdClTests::TestEnv::GetEnv();
+  XrdClTests::TestSetup *testEnv = XrdClTests::TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -250,7 +250,7 @@ TEST_F(ThreadingTest, MultiStreamReadTest)
 //------------------------------------------------------------------------------
 int runChild( ThreadData *td )
 {
-  XrdCl::Log *log = XrdClTests::TestEnv::GetLog();
+  XrdCl::Log *log = XrdClTests::TestSetup::GetLog();
   log->Debug( 1, "Running the child" );
 
   for( int i = 0; i < 20; ++i )
@@ -280,7 +280,7 @@ int runChild( ThreadData *td )
 //------------------------------------------------------------------------------
 void forkAndRead( ThreadData *data )
 {
-  XrdCl::Log *log = XrdClTests::TestEnv::GetLog();
+  XrdCl::Log *log = XrdClTests::TestSetup::GetLog();
   for( int chld = 0; chld < 5; ++chld )
   {
     sleep(1);

@@ -1,6 +1,6 @@
 #undef NDEBUG
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClFile.hh>
 
@@ -9,16 +9,14 @@
 
 using namespace testing;
 
-class FileTest : public ::testing::Test {};
-
 static constexpr int NF = 20;
 
-TEST(FileTest, TTLManyStreams)
+TEST(FileTTLTest, TTLManyStreams)
 {
   std::string address;
   std::string dataPath;
 
-  XrdCl::Env *testEnv = XrdClTests::TestEnv::GetEnv();
+  XrdClTests::TestSetup *testEnv = XrdClTests::TestSetup::Get();
 
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
   EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );

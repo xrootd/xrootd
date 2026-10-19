@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "Utils.hh"
 #include "IdentityPlugIn.hh"
 
@@ -122,7 +122,7 @@ void FileTest::RedirectReturnTest()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -170,7 +170,7 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -331,7 +331,7 @@ void FileTest::WriteTest()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -422,7 +422,7 @@ void FileTest::WriteVTest()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -505,7 +505,7 @@ void FileTest::VectorReadTest()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -667,7 +667,7 @@ void FileTest::VectorWriteTest()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -778,7 +778,7 @@ void FileTest::VirtualRedirectorTest()
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -880,7 +880,7 @@ void FileTest::XAttrTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;

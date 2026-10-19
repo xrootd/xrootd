@@ -27,7 +27,7 @@
 #include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "IdentityPlugIn.hh"
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 
 using namespace XrdCl;
 using namespace XrdClTests;
@@ -45,7 +45,7 @@ namespace
       //------------------------------------------------------------------------
       IdentityFile()
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::IdentityFile" );
         pFile = new File( false );
       }
@@ -55,7 +55,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~IdentityFile()
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::~IdentityFile" );
         delete pFile;
       }
@@ -69,7 +69,7 @@ namespace
                                  ResponseHandler   *handler,
                                  time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Open" );
         return pFile->Open( url, flags, mode, handler, timeout );
       }
@@ -80,7 +80,7 @@ namespace
       virtual XRootDStatus Close( ResponseHandler *handler,
                                   time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Close" );
         return pFile->Close( handler, timeout );
       }
@@ -92,7 +92,7 @@ namespace
                                  ResponseHandler *handler,
                                  time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Stat" );
         return pFile->Stat( force, handler, timeout );
       }
@@ -107,7 +107,7 @@ namespace
                                  ResponseHandler *handler,
                                  time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Read" );
         return pFile->Read( offset, size, buffer, handler, timeout );
       }
@@ -121,7 +121,7 @@ namespace
                                   ResponseHandler *handler,
                                   time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Write" );
         return pFile->Write( offset, size, buffer, handler, timeout );
       }
@@ -132,7 +132,7 @@ namespace
       virtual XRootDStatus Sync( ResponseHandler *handler,
                                  time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Sync" );
         return pFile->Sync( handler, timeout );
       }
@@ -144,7 +144,7 @@ namespace
                                      ResponseHandler *handler,
                                      time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Truncate" );
         return pFile->Truncate( size, handler, timeout );
       }
@@ -157,7 +157,7 @@ namespace
                                        ResponseHandler *handler,
                                        time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::VectorRead" );
         return pFile->VectorRead( chunks, buffer, handler, timeout );
       }
@@ -169,7 +169,7 @@ namespace
                                   ResponseHandler *handler,
                                   time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Fcntl" );
         return pFile->Fcntl( arg, handler, timeout );
       }
@@ -180,7 +180,7 @@ namespace
       virtual XRootDStatus Visa( ResponseHandler *handler,
                                  time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::Visa" );
         return pFile->Visa( handler, timeout );
       }
@@ -190,7 +190,7 @@ namespace
       //------------------------------------------------------------------------
       virtual bool IsOpen() const
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::IsOpen" );
         return pFile->IsOpen();
       }
@@ -201,7 +201,7 @@ namespace
       virtual bool SetProperty( const std::string &name,
                                 const std::string &value )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::SetProperty" );
         return pFile->SetProperty( name, value );
       }
@@ -212,7 +212,7 @@ namespace
       virtual bool GetProperty( const std::string &name,
                                 std::string &value ) const
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFile::GetProperty" );
         return pFile->GetProperty( name, value );
       }
@@ -232,7 +232,7 @@ namespace
       //------------------------------------------------------------------------
       IdentityFileSystem( const std::string &url )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::IdentityFileSystem" );
         pFileSystem = new XrdCl::FileSystem( URL(url), false );
       }
@@ -242,7 +242,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~IdentityFileSystem()
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::~IdentityFileSysytem" );
         delete pFileSystem;
       }
@@ -255,7 +255,7 @@ namespace
                                    ResponseHandler   *handler,
                                    time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Locate" );
         return pFileSystem->Locate( path, flags, handler, timeout );
       }
@@ -268,7 +268,7 @@ namespace
                                ResponseHandler   *handler,
                                time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Mv" );
         return pFileSystem->Mv( source, dest, handler, timeout );
       }
@@ -281,7 +281,7 @@ namespace
                                   ResponseHandler *handler,
                                   time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Query" );
         return pFileSystem->Query( queryCode, arg, handler, timeout );
       }
@@ -294,7 +294,7 @@ namespace
                                      ResponseHandler   *handler,
                                      time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Truncate" );
         return pFileSystem->Truncate( path, size, handler, timeout );
       }
@@ -306,7 +306,7 @@ namespace
                                ResponseHandler   *handler,
                                time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Rm" );
         return pFileSystem->Rm( path, handler, timeout );
       }
@@ -320,7 +320,7 @@ namespace
                                   ResponseHandler   *handler,
                                   time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::MkDir" );
         return pFileSystem->MkDir( path, flags, mode, handler, timeout );
       }
@@ -332,7 +332,7 @@ namespace
                                   ResponseHandler   *handler,
                                   time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::RmDir" );
         return pFileSystem->RmDir( path, handler, timeout );
       }
@@ -345,7 +345,7 @@ namespace
                                   ResponseHandler   *handler,
                                   time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::ChMod" );
         return pFileSystem->ChMod( path, mode, handler, timeout );
       }
@@ -356,7 +356,7 @@ namespace
       virtual XRootDStatus Ping( ResponseHandler *handler,
                                  time_t           timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Ping" );
         return pFileSystem->Ping( handler, timeout );
       }
@@ -368,7 +368,7 @@ namespace
                                  ResponseHandler   *handler,
                                  time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Stat" );
         return pFileSystem->Stat( path, handler, timeout );
       }
@@ -380,7 +380,7 @@ namespace
                                     ResponseHandler   *handler,
                                     time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::StatVFS" );
         return pFileSystem->StatVFS( path, handler, timeout );
       }
@@ -391,7 +391,7 @@ namespace
       virtual XRootDStatus Protocol( ResponseHandler *handler,
                                      time_t           timeout = 0 )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Protocol" );
         return pFileSystem->Protocol( handler, timeout );
       }
@@ -404,7 +404,7 @@ namespace
                                     ResponseHandler     *handler,
                                     time_t               timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::DirList" );
         return pFileSystem->DirList( path, flags, handler, timeout );
       }
@@ -416,7 +416,7 @@ namespace
                                      ResponseHandler   *handler,
                                      time_t             timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::SendInfo" );
         return pFileSystem->SendInfo( info, handler, timeout );
       }
@@ -430,7 +430,7 @@ namespace
                                     ResponseHandler                *handler,
                                     time_t                          timeout )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::Prepare" );
         return pFileSystem->Prepare( fileList, flags, priority, handler,
                                      timeout );
@@ -442,7 +442,7 @@ namespace
       virtual bool SetProperty( const std::string &name,
                                 const std::string &value )
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFileSystem::SetProperty" );
         return pFileSystem->SetProperty( name, value );
       }
@@ -453,7 +453,7 @@ namespace
       virtual bool GetProperty( const std::string &name,
                                 std::string &value ) const
       {
-        XrdCl::Log *log = TestEnv::GetLog();
+        XrdCl::Log *log = TestSetup::GetLog();
         log->Debug( 1, "Calling IdentityFilesystem::GetProperty" );
         return pFileSystem->GetProperty( name, value );
       }
@@ -470,7 +470,7 @@ namespace XrdClTests
   //----------------------------------------------------------------------------
   FilePlugIn *IdentityFactory::CreateFile( const std::string &url )
   {
-    XrdCl::Log *log = TestEnv::GetLog();
+    XrdCl::Log *log = TestSetup::GetLog();
     log->Debug( 1, "Creating an identity file plug-in" );
     return new IdentityFile();
   }
@@ -480,7 +480,7 @@ namespace XrdClTests
   //----------------------------------------------------------------------------
   FileSystemPlugIn *IdentityFactory::CreateFileSystem( const std::string &url )
   {
-    XrdCl::Log *log = TestEnv::GetLog();
+    XrdCl::Log *log = TestSetup::GetLog();
     log->Debug( 1, "Creating an identity file system plug-in" );
     return new IdentityFileSystem( url );
   }

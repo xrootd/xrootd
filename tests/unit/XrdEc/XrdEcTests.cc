@@ -22,7 +22,6 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#include "TestEnv.hh"
 #include "GTestXrdHelpers.hh"
 #include <gtest/gtest.h>
 

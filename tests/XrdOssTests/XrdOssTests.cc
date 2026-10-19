@@ -21,21 +21,19 @@ struct trig_s {
    const char *url;
 };
 
-//
-// Used by one of the tests in cluster/test.sh
+// Used by the redirect tests in end-to-end/cluster/cluster.bats: an open for
+// read of cluster_redirfile1 redirects to a local file which does not exist,
+// and one of cluster_redirfile2 to the URL in XRDOSSTESTS_REDIRECT_URL. The
+// test sets that URL, as its servers use free ports.
 constexpr const std::array<trig_s, 2> URLRedirTriggers = {{
     { "cluster_redirfile1",
       "file://localhost//tmp/cluster_redirfile1_local" },
-    { "cluster_redirfile2",
-      "root://localhost:10944//cluster_redirfile3" } // redirect to srv2 in cluster test
+    { "cluster_redirfile2", nullptr }
     }};
 
-// The target of cluster_redirfile2 is a server of the test, thus a test with
-// servers on free ports sets it in XRDOSSTESTS_REDIRECT_URL.
-std::string RedirectURL(const trig_s &trigger) {
-    const char *url = getenv("XRDOSSTESTS_REDIRECT_URL");
-    if (url && std::string(trigger.fn) == "cluster_redirfile2") return url;
-    return trigger.url;
+// The URL of the redirect, or null for none
+const char *RedirectURL(const trig_s &trigger) {
+    return trigger.url ? trigger.url : getenv("XRDOSSTESTS_REDIRECT_URL");
 }
 
 class File final : public XrdOssWrapDF {
@@ -67,8 +65,9 @@ class File final : public XrdOssWrapDF {
         } else {
             if ((Oflag & O_ACCMODE) == O_RDONLY) {
               for(const auto &s: URLRedirTriggers) {
-                if (leaf == s.fn) {
-                  env.Put("FileURL", RedirectURL(s).c_str());
+                const char *url = RedirectURL(s);
+                if (leaf == s.fn && url) {
+                  env.Put("FileURL", url);
                   return -EDESTADDRREQ;
               }
             }

@@ -26,7 +26,7 @@
 #include <stdexcept>
 #include <pthread.h>
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "GTestXrdHelpers.hh"
 
 using namespace XrdClTests;
@@ -226,7 +226,7 @@ void *TestThreadFunc( void *arg )
   using namespace XrdCl;
 
   std::string address;
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
 
   ArgHelper *a = (ArgHelper*)arg;
@@ -303,7 +303,7 @@ TEST_F(PostMasterTest, FunctionalTest)
   // Initialize the stuff
   //----------------------------------------------------------------------------
   Env *env = DefaultEnv::GetEnv();
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
   env->PutInt( "TimeoutResolution", 1 );
   env->PutInt( "ConnectionWindow",  5 );
 
@@ -514,7 +514,7 @@ TEST_F(PostMasterTest, MultiIPConnectionTest)
   // Initialize the stuff
   //----------------------------------------------------------------------------
   Env *env = DefaultEnv::GetEnv();
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
   env->PutInt( "TimeoutResolution", 1 );
   env->PutInt( "ConnectionWindow",  5 );
 

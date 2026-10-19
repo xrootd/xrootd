@@ -15,7 +15,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "Utils.hh"
 #include "IdentityPlugIn.hh"
 
@@ -56,7 +56,7 @@ TEST_F(FileClone, FileCloneTest)
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  XrdCl::Env *testEnv = TestEnv::GetEnv();
+  XrdClTests::TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
