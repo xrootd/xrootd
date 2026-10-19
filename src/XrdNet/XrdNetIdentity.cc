@@ -205,6 +205,7 @@ const char *XrdNetIdentity::FQN(const char **eText)
 void XrdNetIdentity::SetFQN(const char *fqn)
 {
    strlcpy(DNS_FQN, fqn, sizeof(DNS_FQN));
+   XrdOucUtils::toLower(DNS_FQN);
    if (!(DNS_Domain = index(DNS_FQN, '.'))) DNS_Domain = "";
    FQN_DNS = false;
 }
