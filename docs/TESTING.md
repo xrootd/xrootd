@@ -91,12 +91,12 @@ Test project xrootd/build
 19/23 Test #19: XrdEc::AlignedWrite1MissingTestIsalCrcNoMt ...   Passed    0.06 sec
       Start 20: XrdEc::AlignedWrite2MissingTestIsalCrcNoMt
 20/23 Test #20: XrdEc::AlignedWrite2MissingTestIsalCrcNoMt ...   Passed    0.06 sec
-      Start 21: XRootD::start
-21/23 Test #21: XRootD::start ................................   Passed    0.01 sec
-      Start 23: XRootD::smoke-test
-22/23 Test #23: XRootD::smoke-test ...........................   Passed    1.63 sec
-      Start 22: XRootD::stop
-23/23 Test #22: XRootD::stop .................................   Passed    1.00 sec
+      Start 21: end-to-end::setup::credentials::create
+21/23 Test #21: end-to-end::setup::credentials::create .......   Passed    0.30 sec
+      Start 22: end-to-end::xrdfs::namespace
+22/23 Test #22: end-to-end::xrdfs::namespace .................   Passed    2.41 sec
+      Start 23: end-to-end::setup::credentials::remove
+23/23 Test #23: end-to-end::setup::credentials::remove .......   Passed    0.00 sec
 
 100% tests passed, 0 tests failed out of 23
 
@@ -105,6 +105,121 @@ Total Test time (real) =  16.55 sec
 
 For full verbose output, use `-VV` instead of `-V`. We recommend using at least `-V`
 to add some verbosity. The output is too terse to be useful otherwise.
+
+### Layout of the test suite
+
+The tests are in three directories below `tests/`:
+
+| Directory               | Contents                                                     |
+|:------------------------|:-------------------------------------------------------------|
+| `tests/unit/<Comp>`     | GoogleTest tests of one component of `src/<Comp>`            |
+| `tests/integration/...` | GoogleTest and GMock tests of components together            |
+| `tests/end-to-end/...`  | BATS tests against real servers, caches and clusters         |
+
+The other directories of `tests/` hold code which the tests share, or tests
+which are not in this layout yet:
+
+- `tests/common`: the library `XrdTestUtils` with the helpers of the
+  GoogleTest tests
+- `tests/XrdClHttpCommon` and `tests/XrdOssTests`: a transfer test library of
+  XrdClHttp and OSS plugins which inject faults, which the end-to-end tests
+  load
+- `tests/XrdClS3` and `tests/XrdSsiTests`: the S3 tests of XrdClS3 with their
+  own MinIO server, and a test of the shared memory map of XrdSsi
+
+The name of an end-to-end test is `end-to-end::<subdir>::<name>` for the
+file `tests/end-to-end/<subdir>/<name>.bats`. Use the name to run a part of
+the suite:
+
+```sh
+xrootd $ ctest --test-dir build -R '^end-to-end::cache::'
+xrootd $ ctest --test-dir build -R '^end-to-end::' --output-on-failure
+```
+
+The end-to-end tests need `bash`, `curl`, `openssl` and `python3`. Some tests
+also need `jq`, `setfattr`, `script`, or the programs of a Kerberos KDC, and
+skip when they are not available. The FUSE tests need a FUSE device and run
+only with `-DENABLE_FUSE_TESTS=ON`.
+
+The tests write their files below `TMPDIR`, or `/tmp` when `TMPDIR` is not
+set. The XrdCl tests of `xrdcl/cluster.bats` need about 3 GiB there, thus
+set `TMPDIR` to a directory with enough space when `/tmp` is a small tmpfs.
+
+### End-to-end tests with BATS
+
+The end-to-end tests use [BATS](https://bats-core.readthedocs.io), which is
+in `vendor/bats`. Each test file starts its servers with the helpers of
+`tests/end-to-end/setup`, either in `setup_file()` for all tests of the file,
+or in `setup()` for each test. Each server runs on a free port below the
+temporary directory of BATS, thus files can run in parallel, and BATS removes
+all their files after the run.
+
+The helpers are:
+
+- `start_server <name> <role> [snippet...]` in `setup/server.bash` starts an
+  xrootd with the configuration `base.cfg`, the role, and the snippets. The
+  roles are `server`, a data server with unix authentication, `server-nosec`,
+  a data server without the security library, and `cache`, a caching proxy in
+  front of the server at `$ORIGIN`. A snippet is a file of `setup/`, like
+  `http`, `tls`, `tpc`, `ztn`, `scitokens` or `krb5`, or a file of the test
+  directory. The helper exports `<NAME>_URL`, `<NAME>_HTTP`, `<NAME>_HTTPS`,
+  `<NAME>_PORT`, `<NAME>_DATA` and `<NAME>_LOG`.
+- `start_meta_manager`, `start_manager` and `start_data_server` in
+  `setup/cluster.bash` start the nodes of a cluster, each an xrootd with a
+  cmsd, and `wait_for_cluster` waits until the cluster forms.
+- `start_issuer` and `make_token` start a token issuer and make its tokens,
+  `start_collector` receives monitoring data, and `start_kdc` in
+  `setup/kerberos.bash` starts a Kerberos KDC.
+- `stop_servers` stops all servers of the current test or file, and fails if
+  a process survives.
+
+All tests share one set of credentials: a CA, a host certificate for
+`localhost` and both loopback addresses, a client certificate, keys of a token
+issuer and a macaroon secret. The CTest fixture `credentials` makes them once
+for a run, read-only. A test sets `XrdSecPROTOCOL` when it needs a protocol
+other than unix, thus a grid proxy of the user does not change the results.
+
+A minimal test file is:
+
+```sh
+#!/usr/bin/env bash
+
+load ../setup/server.bash
+
+setup_file() {
+    start_server server server http
+}
+
+teardown_file() {
+    stop_servers
+}
+
+@test "a download returns the file of the server" {
+    echo 'content' > "$SERVER_DATA/file"
+    xrdcp "$SERVER_URL//file" "$BATS_TEST_TMPDIR/copy"
+    run -0 cmp "$SERVER_DATA/file" "$BATS_TEST_TMPDIR/copy"
+}
+```
+
+Register the file with `add_bats_test(<name>.bats)` in the `CMakeLists.txt` of
+its directory. Each test has one main assertion and little logic. When a test
+fails, BATS prints the client log of the test and the lines which each server
+logged during the test.
+
+To run one file without CTest, give BATS the libraries and the suite setup.
+The suite then makes its own credentials:
+
+```sh
+xrootd $ env PATH=$PWD/build/bin:$PATH BINARY_DIR=$PWD/build \
+             BATS_LIB_PATH=$PWD/vendor/bats/lib/bats \
+         vendor/bats/bin/bats --setup-suite-file tests/end-to-end/setup_suite.bash \
+             tests/end-to-end/xrdfs/commands.bats
+```
+
+Add `--no-tempdir-cleanup` to keep the run directories, with the logs and the
+configuration of each server, after the run. When CTest stops BATS at a
+timeout, the teardown does not run; a reaper which `setup_suite.bash` starts
+then stops the daemons and removes their directories.
 
 ### Customizing the Build
 
