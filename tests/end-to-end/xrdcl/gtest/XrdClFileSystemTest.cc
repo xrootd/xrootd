@@ -24,7 +24,7 @@
 
 #include <pthread.h>
 #include <sys/stat.h>
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "IdentityPlugIn.hh"
 
 using namespace XrdClTests;
@@ -163,7 +163,7 @@ void FileSystemTest::LocateTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string remoteFile;
@@ -196,7 +196,7 @@ void FileSystemTest::MvTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -243,7 +243,7 @@ void FileSystemTest::ServerQueryTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string remoteFile;
@@ -274,7 +274,7 @@ void FileSystemTest::TruncateRmTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -308,7 +308,7 @@ void FileSystemTest::MkdirRmdirTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -341,7 +341,7 @@ void FileSystemTest::ChmodTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -375,7 +375,7 @@ void FileSystemTest::PingTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
@@ -393,7 +393,7 @@ void FileSystemTest::StatTest()
 {
   using namespace XrdCl;
 
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string remoteFile;
@@ -431,7 +431,7 @@ void FileSystemTest::StatVFSTest()
 {
   using namespace XrdCl;
 
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -456,7 +456,7 @@ void FileSystemTest::ProtocolTest()
 {
   using namespace XrdCl;
 
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
@@ -480,7 +480,7 @@ void FileSystemTest::DeepLocateTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string remoteFile;
@@ -517,7 +517,7 @@ void FileSystemTest::DirListTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -616,7 +616,7 @@ void FileSystemTest::SendInfoTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -645,7 +645,7 @@ void FileSystemTest::PrepareTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -680,7 +680,7 @@ void FileSystemTest::XAttrTest()
   //----------------------------------------------------------------------------
   // Get the environment variables
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string remoteFile;

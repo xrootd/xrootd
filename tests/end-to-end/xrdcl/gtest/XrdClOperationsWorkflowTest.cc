@@ -22,7 +22,7 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#include "TestEnv.hh"
+#include "TestSetup.hh"
 #include "IdentityPlugIn.hh"
 #include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClURL.hh"
@@ -62,14 +62,14 @@ namespace {
   using namespace XrdCl;
 
   XrdCl::URL GetAddress(){
-      Env *testEnv = TestEnv::GetEnv();
+      TestSetup *testEnv = TestSetup::Get();
       std::string address;
       EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
       return XrdCl::URL(address);
   }
 
   std::string GetPath(const std::string &fileName){
-      Env *testEnv = TestEnv::GetEnv();
+      TestSetup *testEnv = TestSetup::Get();
 
       std::string dataPath;
       EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
@@ -79,7 +79,7 @@ namespace {
 
 
   std::string GetFileUrl(const std::string &fileName){
-      Env *testEnv = TestEnv::GetEnv();
+      TestSetup *testEnv = TestSetup::Get();
 
       std::string address;
       std::string dataPath;
@@ -180,7 +180,7 @@ TEST(WorkflowTest, ReadingWorkflowTest){
   const OpenFlags::Flags flags = OpenFlags::Read;
   uint64_t offset = 0;
 
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
   std::string localDataPath;
   std::string dataPath;
   EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
@@ -722,7 +722,7 @@ TEST(WorkflowTest, WorkflowWithFutureTest)
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;
@@ -786,7 +786,7 @@ TEST(WorkflowTest, XAttrWorkflowTest)
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  TestSetup *testEnv = TestSetup::Get();
 
   std::string address;
   std::string dataPath;

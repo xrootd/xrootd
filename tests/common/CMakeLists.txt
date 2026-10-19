@@ -1,5 +1,4 @@
 add_library(XrdTestUtils SHARED
-  TestEnv.cc TestEnv.hh
   Utils.cc   Utils.hh)
 
 target_link_libraries(XrdTestUtils ZLIB::ZLIB XrdCl XrdUtils)
