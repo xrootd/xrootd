@@ -55,19 +55,47 @@ struct timeval *XrdSysTimer::Delta_Time(struct timeval &tbeg)
 /*                              M i d n i g h t                               */
 /******************************************************************************/
 
+// Midnight() uses localtime_r() and no mktime(). The latter calls tzset(),
+// which reads TZ with getenv() on each call, and the logger calls Midnight()
+// in a thread while the configuration adds variables to the environment. With
+// glibc before 2.40, that getenv() can read the environment array which a
+// concurrent putenv() has just freed. localtime_r() reads TZ only once, and
+// main() calls tzset() before it starts any thread.
+
+namespace
+{
+// The seconds since the local midnight of the day of t
+//
+long SecondsOfDay(time_t t)
+{
+   struct tm tmv;
+   localtime_r(&t, &tmv);
+   return tmv.tm_hour*3600L + tmv.tm_min*60L + tmv.tm_sec;
+}
+}
+
 time_t XrdSysTimer::Midnight(time_t tnow)
 {
-   struct tm midtime;
    time_t add_time;
 
-// Compute time at midnight
+// Compute time at midnight, today (tnow 0) or at the end of today (tnow 1)
 //
    if (tnow == 0 || tnow == 1) {add_time = tnow; tnow = time(0);}
       else add_time = 0;
-   localtime_r((const time_t *) &tnow, &midtime);
-   if (add_time) {midtime.tm_hour = 23; midtime.tm_min = midtime.tm_sec = 59;}
-      else        midtime.tm_hour =     midtime.tm_min = midtime.tm_sec = 0;
-   return mktime(&midtime) + add_time;
+
+   time_t midnight = tnow - SecondsOfDay(tnow);
+   if (add_time) midnight += 86400;
+
+// On the day of a daylight saving change, a day is not 86400 seconds long, and
+// the result can be an hour off. Correct it to the nearest local midnight. In
+// a zone where the clock jumps from 00:00 to 01:00, the day has no midnight
+// and starts at the change; a step back from it would give 23:00 of the day
+// before, thus keep the result when the step back does not end at midnight.
+//
+   long secs = SecondsOfDay(midnight);
+   if (secs >= 43200) midnight += 86400 - secs;
+      else if (secs && !SecondsOfDay(midnight - secs)) midnight -= secs;
+   return midnight;
 }
   
 /******************************************************************************/
