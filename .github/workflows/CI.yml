@@ -264,7 +264,7 @@ jobs:
     - name: Install development tools
       run: |
         sudo apt update -qq
-        sudo apt install -y build-essential devscripts equivs git
+        sudo apt install -y build-essential devscripts equivs git python3-venv
 
     - name: Clone repository
       uses: actions/checkout@v6
@@ -277,6 +277,9 @@ jobs:
     - name: Build and Test with CTest
       run: env CC=${CC} CXX=${CC/g*/g++} ctest -VV -S test.cmake
 
+    - name: Check CMake wheel in a fresh virtual environment
+      run: python3 python/tests/check_wheel.py build/python/dist/*.whl
+
     - name: Install with CMake
       run: sudo cmake --install build
 
@@ -284,7 +287,7 @@ jobs:
       run: |
         sudo python3 -m pip install \
           --target /usr/lib/python3/dist-packages \
-          --verbose build/python/dist/*.whl
+          --verbose build/python/native-bindings/dist/*.whl
 
     - name: Run post-install tests
       run: |
@@ -326,6 +329,9 @@ jobs:
 
     - name: Build and Test with CTest
       run: ctest -VV -S test.cmake
+
+    - name: Check CMake wheel in a fresh virtual environment
+      run: python3 python/tests/check_wheel.py build/python/dist/*.whl
 
     - name: Install with CMake
       run: sudo cmake --install build
