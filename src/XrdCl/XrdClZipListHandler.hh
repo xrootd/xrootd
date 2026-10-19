@@ -110,13 +110,20 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Open the ZIP archive
+      //!
+      //! @return true if the open runs: its response, which may come before
+      //!         the call returns, then owns this object
       //------------------------------------------------------------------------
-      void DoZipOpen( time_t timeLeft );
+      bool DoZipOpen( time_t timeLeft );
 
       //------------------------------------------------------------------------
       //! Close the ZIP archive
+      //!
+      //! @param next : the step of the response of the close, CLOSE to send
+      //!               the listing, or DONE when the handler got an error
+      //! @return true if the close runs: its response then owns this object
       //------------------------------------------------------------------------
-      void DoZipClose( time_t timeLeft );
+      bool DoZipClose( time_t timeLeft, int next = CLOSE );
 
       URL                             pUrl;
       DirListFlags::Flags             pFlags;
