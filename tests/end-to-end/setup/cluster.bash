@@ -12,7 +12,8 @@ load "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/server.bash"
 # _cluster_start <name> <cluster snippet> [snippet...]
 #
 # Start the cmsd, then the xrootd, of a node. The cmsd starts first, as the
-# xrootd connects to it.
+# xrootd connects to it. Both log through a fifo (-k fifo), which a log
+# rotation can use.
 _cluster_start() {
     local name=$1 text=$2 tmp
     shift 2
@@ -20,8 +21,8 @@ _cluster_start() {
 
     printf '%s\n' "# Snippet: the place of $name in the cluster" "$text" > "$tmp/$name-cluster.cfg"
     _setup_compose "$name" server cluster "$tmp/$name-cluster.cfg" "$@" || return 1
-    _setup_run cmsd "$name" any || return 1
-    _setup_run_xrootd "$name" any || return 1
+    _setup_run cmsd "$name" any -k fifo || return 1
+    _setup_run xrootd "$name" any -k fifo || return 1
     _setup_export "$name"
 }
 

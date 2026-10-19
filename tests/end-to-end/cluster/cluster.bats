@@ -9,15 +9,16 @@ load ../setup/cluster.bash
 setup_file() {
     require_plugin libXrdHttp
     require_commands curl
-    start_meta_manager metaman http
-    start_manager man1 metaman http
-    start_manager man2 metaman http
-    start_data_server srv2 man1 http
+    start_collector monitor
+    start_meta_manager metaman http monitor.cfg
+    start_manager man1 metaman http monitor.cfg
+    start_manager man2 metaman http monitor.cfg
+    start_data_server srv2 man1 http monitor.cfg
     # an open of cluster_redirfile2 on srv1 redirects to srv2
     export XRDOSSTESTS_REDIRECT_URL="root://localhost:$SRV2_PORT//cluster_redirfile3"
-    start_data_server srv1 man1 http
-    start_data_server srv3 man2 http
-    start_data_server srv4 man2 http
+    start_data_server srv1 man1 http monitor.cfg
+    start_data_server srv3 man2 http monitor.cfg
+    start_data_server srv4 man2 http monitor.cfg
     wait_for_cluster metaman 4
 }
 
@@ -197,4 +198,35 @@ servers_of() {
     cp local.dat "$SRV1_DATA/cluster_redirfile2"
     XRD_LOGLEVEL=Dump run ! xrdcp -f "$METAMAN_URL//cluster_redirfile2" /dev/null
     run -0 grep -F ":$METAMAN_PORT] Got notification that outgoing message kXR_open (file: /cluster_redirfile2?tried=" "$XRD_LOGFILE"
+}
+
+#
+# Monitoring of the nodes
+#
+
+# Succeed when a record of the collector matches the extended regular
+# expression
+recorded() {
+    grep -qE "$1" "$MONITOR_RECORDS"
+}
+
+@test "the g-stream of a redirector counts the redirect of an HTTP GET" {
+    cp local.dat "$SRV3_DATA/$F"
+    curl --silent --fail -L -o copy.dat "$METAMAN_HTTP$F"
+    run -0 wait_for 10 recorded '"HTTP_GET_302":\{"count":[1-9]'
+}
+
+@test "the g-stream of a redirector counts the redirect of an HTTP PUT" {
+    curl --silent --fail -L -T local.dat "$MAN2_HTTP$F"
+    run -0 wait_for 10 recorded '"HTTP_PUT_307":\{"count":[1-9]'
+}
+
+@test "the summary report of a node has the statistics of the HTTP plugin" {
+    run -0 wait_for 10 recorded '"site":"srv1",.*"stats_http_plugin"'
+}
+
+# The node listens on "xrd.port any", thus it knows the port only after the
+# network binds it (fixed in Xrd)
+@test "the summary report of a node names the port which it listens on" {
+    run -0 wait_for 10 recorded "\"src\":\"[^\"]*:$SRV1_PORT\",[^}]*\"site\":\"srv1\""
 }
