@@ -10,15 +10,15 @@ setup_file() {
     require_plugin libXrdHttp
     require_commands curl
     start_collector monitor
-    start_meta_manager metaman http monitor.cfg
-    start_manager man1 metaman http monitor.cfg
-    start_manager man2 metaman http monitor.cfg
-    start_data_server srv2 man1 http monitor.cfg
+    start_meta_manager metaman http monitor
+    start_manager man1 metaman http monitor
+    start_manager man2 metaman http monitor
+    start_data_server srv2 man1 http monitor
     # an open of cluster_redirfile2 on srv1 redirects to srv2
     export XRDOSSTESTS_REDIRECT_URL="root://localhost:$SRV2_PORT//cluster_redirfile3"
-    start_data_server srv1 man1 http monitor.cfg
-    start_data_server srv3 man2 http monitor.cfg
-    start_data_server srv4 man2 http monitor.cfg
+    start_data_server srv1 man1 http monitor
+    start_data_server srv3 man2 http monitor
+    start_data_server srv4 man2 http monitor
     wait_for_cluster metaman 4
 }
 

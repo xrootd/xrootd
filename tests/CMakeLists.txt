@@ -25,4 +25,3 @@ add_subdirectory(XrdClS3)
 
 add_subdirectory( XrdOssTests )
 add_subdirectory( XRootD )
-add_subdirectory( TPCTests )

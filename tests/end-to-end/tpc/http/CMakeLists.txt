@@ -20,3 +20,12 @@ if(BUILD_SCITOKENS)
   add_bats_test(oauth.bats)
   add_bats_test(scitokens.bats)
 endif()
+
+# A preload library which aborts a server on a close of a descriptor which is
+# not open (issue #2889), for curl.bats
+add_library(checkclose SHARED checkclose.cc)
+target_link_libraries(checkclose ${CMAKE_DL_LIBS})
+
+if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
+  add_bats_test(curl.bats)
+endif()

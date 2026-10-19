@@ -19,7 +19,7 @@ setup_file() {
     make_token 'storage.modify:/ storage.create:/ storage.read:/' 1800 > "$BATS_FILE_TMPDIR/token"
     chmod 0600 "$BATS_FILE_TMPDIR/token"
     export BEARER_TOKEN_FILE="$BATS_FILE_TMPDIR/token"
-    local snippets=(http tls scitokens ztn.cfg)
+    local snippets=(http tls scitokens ztn)
     start_meta_manager metaman "${snippets[@]}"
     start_manager man1 metaman "${snippets[@]}"
     start_manager man2 metaman "${snippets[@]}"
