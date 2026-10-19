@@ -1,4 +1,8 @@
-add_executable(xrdnet-unit-tests XrdNetAddrTests.cc XrdNetMsgTests.cc)
+add_executable(xrdnet-unit-tests
+  XrdNetAddrTests.cc
+  XrdNetIdentityTests.cc
+  XrdNetMsgTests.cc
+)
 
 target_link_libraries(xrdnet-unit-tests
   XrdUtils
