@@ -69,6 +69,11 @@ void  Init(char **Dest, int iVal=600, int xOpts=0, int jOpts=0);
 
 void  Report();
 
+// Set the port of the source of the reports. The configuration calls it once
+// the network has bound the port, which "xrd.port any" does not know before.
+//
+void  SetPort(int port);
+
 class CallBack
      {public: virtual void Info(const  char*  data,  int dlen) = 0;
               virtual void Info(struct iovec* ioVec, int iovn) = 0;
@@ -89,7 +94,9 @@ void  Stats(XrdStats::CallBack *InfoBack, int xOpts, int jOpts=0);
                const char *hn, int port, const char *in, const char *pn,
                const char *sn);
 
-virtual ~XrdStats() {if (buff) free(buff); if (Head) free(Head); }
+virtual ~XrdStats() {if (buff) free(buff); if (Head) free(Head);
+                     if (Jead) free(Jead);
+                    }
 
 private:
 
@@ -122,6 +129,8 @@ bool        autoSync = false;
 
 const char *myHost;
 const char *myName;
+const char *myProg;
+const char *mySite;
 int         myPort;
 };
 #endif
