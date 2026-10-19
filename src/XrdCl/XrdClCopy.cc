@@ -263,8 +263,18 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       if( checkSum.empty() )
         return;
       std::string::size_type i = checkSum.find( ':' );
-      std::cerr << checkSum.substr( 0, i+1 ) << " ";
-      std::cerr << checkSum.substr( i+1, checkSum.length()-i ) << " ";
+      std::string type  = checkSum.substr( 0, i );
+      std::string value = checkSum.substr( i+1, checkSum.length()-i );
+
+      //------------------------------------------------------------------------
+      // The comparison uses adler32 and crc32 without leading zeros (see
+      // Utils::NormalizeChecksum), but print all 8 digits, as xrdadler32 and
+      // the servers do
+      //------------------------------------------------------------------------
+      if( ( type == "adler32" || type == "crc32" ) && value.length() < 8 )
+        value.insert( 0, 8 - value.length(), '0' );
+
+      std::cerr << type << ": " << value << " ";
 
       if( url->IsLocalFile() )
         std::cerr << url->GetPath() << " ";
