@@ -19,7 +19,7 @@
 /******************************************************************************/
 
 #include "XrdClHttp/XrdClHttpFile.hh"
-#include "../XrdClHttpCommon/TransferTest.hh"
+#include "TransferTest.hh"
 
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClLog.hh>

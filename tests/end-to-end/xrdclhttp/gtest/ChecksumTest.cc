@@ -20,7 +20,7 @@
 
 #include "XrdClHttp/XrdClHttpFactory.hh"
 #include "XrdClHttp/XrdClHttpFile.hh"
-#include "../XrdClHttpCommon/TransferTest.hh"
+#include "TransferTest.hh"
 
 #include <gtest/gtest.h>
 #include <XrdCl/XrdClBuffer.hh>
