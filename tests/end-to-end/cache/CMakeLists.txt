@@ -7,6 +7,7 @@ target_link_libraries(xrdpfc-read XrdCl XrdUtils Threads::Threads)
 
 add_bats_test(read.bats)
 add_bats_test(blacklist.bats)
+add_bats_test(checksum.bats)
 add_bats_test(evict.bats)
 add_bats_test(http.bats)
 add_bats_test(prefetch.bats)

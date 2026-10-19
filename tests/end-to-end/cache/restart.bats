@@ -2,7 +2,8 @@
 
 # A restart of the cache keeps the files on disk. Before the restart, the
 # cache has one complete file and one file with only blocks 0 and 8 of 32.
-# The tests share this state.
+# The tests share this state. The last test restarts the origin, under the
+# open connection of the cache.
 
 load cache.bash
 
@@ -64,4 +65,12 @@ setup() {
     wait_for_complete part.dat
     run -0 cinfo_blocks part.dat
     assert_output '32 32 complete'
+}
+
+@test "a read through the cache after a restart of the origin fetches the file" {
+    make_origin_file after.dat 8
+    xrdcp -f "$CACHE_URL//part.dat" /dev/null
+    restart_server origin
+    xrdcp -f "$CACHE_URL//after.dat" out.dat
+    run -0 cmp "$ORIGIN_DATA/after.dat" out.dat
 }
