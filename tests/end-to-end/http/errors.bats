@@ -44,6 +44,20 @@ status() {
     assert_output 400
 }
 
+# The server closes the connection without a response, but a malformed
+# header line gets a 400
+@test "a request line without the HTTP version does not get the file" {
+    run -0 bash -c "printf 'GET /5mb.dat\r\nHost: localhost\r\n\r\n' |
+        python3 '$BATS_TEST_DIRNAME/raw_tcp_status.py' localhost '$SERVER_PORT'"
+    refute_output --regexp '^HTTP/1\.[01] 2'
+}
+
+@test "the server answers after a request line without the HTTP version" {
+    printf 'GET /5mb.dat\r\nHost: localhost\r\n\r\n' |
+        python3 "$BATS_TEST_DIRNAME/raw_tcp_status.py" localhost "$SERVER_PORT" || true
+    run -0 server_is_up "$SERVER_URL"
+}
+
 @test "an upload to a read-only export fails with 403" {
     run -0 status --upload-file "$BATS_FILE_TMPDIR/5mb.dat" "$SERVER_HTTP/readonly/file$N"
     assert_output 403
