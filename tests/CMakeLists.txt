@@ -17,8 +17,6 @@ endif()
 
 add_subdirectory(end-to-end)
 
-add_subdirectory(scitokens)
-
 add_subdirectory(XrdClHttpCommon)
 add_subdirectory(XrdClS3)
 
