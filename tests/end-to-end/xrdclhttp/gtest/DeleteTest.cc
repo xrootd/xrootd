@@ -18,52 +18,29 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "../XrdClHttpCommon/TransferTest.hh"
+#include "TransferTest.hh"
 
 #include <XrdCl/XrdClFileSystem.hh>
 
-#include <memory>
+class CurlDeleteFixture : public TransferFixture {};
 
-class CurlMkcolFixture : public TransferFixture {};
-
-TEST_F(CurlMkcolFixture, Test)
+TEST_F(CurlDeleteFixture, Test)
 {
-    std::string fname = "/test/mkcol_directory";
+    std::string fname = "/test/delete_file";
+    auto url = GetOriginURL() + fname;
+    WritePattern(url, 8, 'a', 2);
     XrdCl::FileSystem fs(GetOriginURL());
 
-    std::unique_ptr<XrdCl::StatInfo> response_ptr;
     XrdCl::StatInfo *response{nullptr};
     auto st = fs.Stat(fname + "?authz=" + GetReadToken(), response, 10);
-    response_ptr.reset(response);
-    ASSERT_FALSE(st.IsOK()) << "New directory should not already exist: " << st.ToString();
-    ASSERT_EQ(st.errNo, kXR_NotFound);
+    ASSERT_TRUE(st.IsOK()) << "Failed to stat new file: " << st.ToString();
+    delete response;
 
-    st = fs.MkDir(fname + "?authz=" + GetWriteToken(), XrdCl::MkDirFlags::None, XrdCl::Access::None, 10);
-    ASSERT_TRUE(st.IsOK()) << "Failed to create directory: " << st.ToString();
+    st = fs.Rm(fname + "?authz=" + GetWriteToken(), 10);
+    ASSERT_TRUE(st.IsOK()) << "Failed to remove file: " << st.ToString();
 
     response = nullptr;
     st = fs.Stat(fname + "?authz=" + GetReadToken(), response, 10);
-    response_ptr.reset(response);
-    ASSERT_TRUE(st.IsOK()) << "Stat of created directory failed: " << st.ToString();
-}
-
-TEST_F(CurlMkcolFixture, MkpathTest)
-{
-    std::string fname = "/test/mkpath_directory/subdir1/subdir2";
-    XrdCl::FileSystem fs(GetOriginURL());
-
-    std::unique_ptr<XrdCl::StatInfo> response_ptr;
-    XrdCl::StatInfo *response{nullptr};
-    auto st = fs.Stat(fname + "?authz=" + GetReadToken(), response, 10);
-    response_ptr.reset(response);
-    ASSERT_FALSE(st.IsOK()) << "New directory should not already exist: " << st.ToString();
+    ASSERT_FALSE(st.IsOK()) << "Stat of removed file should have failed";
     ASSERT_EQ(st.errNo, kXR_NotFound);
-
-    st = fs.MkDir(fname + "?authz=" + GetWriteToken(), XrdCl::MkDirFlags::MakePath, XrdCl::Access::None, 10);
-    ASSERT_TRUE(st.IsOK()) << "Failed to create directory: " << st.ToString();
-
-    response = nullptr;
-    st = fs.Stat(fname + "?authz=" + GetReadToken(), response, 10);
-    response_ptr.reset(response);
-    ASSERT_TRUE(st.IsOK()) << "Stat of created directory failed: " << st.ToString();
 }

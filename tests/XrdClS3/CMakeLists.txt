@@ -66,9 +66,9 @@ add_executable(xrdcl-s3-test
 
 target_link_libraries(xrdcl-s3-test XrdClS3Obj XrdClHttpTransferTest GTest::gtest_main)
 
-# See tests/XrdClHttp/CMakeLists.txt: X509_USER_PROXY points at a path that
-# can never exist, so that a grid proxy belonging to the user running the
-# tests is never presented to minio, which cannot verify it.
+# X509_USER_PROXY points at a path that can never exist, so that a grid
+# proxy belonging to the user running the tests is never presented to minio,
+# which cannot verify it.
 
 gtest_add_tests(TARGET xrdcl-s3-test TEST_LIST S3Tests)
 set_tests_properties(${S3Tests}
