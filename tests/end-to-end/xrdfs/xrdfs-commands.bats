@@ -343,6 +343,23 @@ teardown() {
     assert_failure
 }
 
+@test "cat writes a relative output path in the current directory" {
+    cd "$BATS_TEST_TMPDIR"
+
+    run -0 xrdfs "$endpoint" cat -o output //file
+    run -0 cmp output xrdfs-commands/file
+}
+
+@test "cat rejects a relative output path without a current directory" {
+    mkdir "$BATS_TEST_TMPDIR/gone"
+    cd "$BATS_TEST_TMPDIR/gone"
+    rmdir "$BATS_TEST_TMPDIR/gone"
+
+    run xrdfs "$endpoint" cat -o output //file
+    assert_failure
+    assert_output --partial 'OS Error'
+}
+
 @test "tail handles offsets and malformed requests" {
     run -0 xrdfs "$endpoint" tail -c 5 //file
     assert_output 'cdef'
