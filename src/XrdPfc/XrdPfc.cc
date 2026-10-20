@@ -1270,6 +1270,7 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
    ActiveMap_i  it;
    File        *file = 0;
    long long    st_blocks_to_purge = 0;
+   bool         file_existed = false;
    {
       XrdSysCondVarHelper lock(&m_active_cond);
 
@@ -1302,11 +1303,14 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
    }
 
    if (file) {
+      file_existed = true;
       RemoveWriteQEntriesFor(file);
    } else {
       struct stat f_stat;
-      if (m_oss->Stat(f_name.c_str(), &f_stat) == XrdOssOK)
+      if (m_oss->Stat(f_name.c_str(), &f_stat) == XrdOssOK) {
+         file_existed = true;
          st_blocks_to_purge = f_stat.st_blocks;
+      }
    }
 
    std::string i_name = f_name + Info::s_infoExtension;
@@ -1315,7 +1319,9 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
    int f_ret = m_oss->Unlink(f_name.c_str());
    int i_ret = m_oss->Unlink(i_name.c_str());
 
-   if (st_blocks_to_purge)
+   // Count a removal for any file that existed, even with zero blocks, and never
+   // for an absent one.
+   if (file_existed)
       m_res_mon->register_file_purge(f_name, st_blocks_to_purge);
 
    TRACE(Debug, trc_pfx << f_name << ", f_ret=" << f_ret << ", i_ret=" << i_ret);

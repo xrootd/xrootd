@@ -36,6 +36,7 @@ protected:
    XrdOucEnv m_env;
 
    bool m_maintain_dirstate   = false;
+   bool m_statret_warned      = false; // StatRet() failure reported once per traversal
 
 public:
    DirState *m_root_dir_state = nullptr;

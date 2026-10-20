@@ -151,7 +151,15 @@ void FsTraversal::slurp_dir_ll(XrdOssDF &dh, int dir_level, const char *path, co
    char fname[256];
    struct stat fstat = {};
 
-   dh.StatRet(&fstat);
+   int srrc = dh.StatRet(&fstat);
+   if (srrc != XrdOssOK && ! m_statret_warned)
+   {
+      // Without StatRet the stat stays zeroed and every subdirectory looks like a file.
+      m_statret_warned = true;
+      TRACE(Error, trc_pfx << "StatRet() not available at " << path << ", err "
+            << XrdSysE2T(-srrc) << ". Directory entries cannot be classified; "
+            "cache usage accounting and purge will not work.");
+   }
 
    const char   *info_ext     = Info::s_infoExtension;
    const size_t  info_ext_len = Info::s_infoExtensionLen;
