@@ -51,13 +51,9 @@ namespace XrdCl
     {
       *status = XRootDStatus( stError, errOperationExpired );
       pHandler->HandleResponse( status.release(), 0 );
-      if( pZip.IsOpen() )
-      {
-        DoZipClose( 1 );
-        pStep = DONE;
-      }
-      else
-        delete this;
+      if( pZip.IsOpen() && DoZipClose( 1, DONE ) )
+        return;
+      delete this;
       return;
     }
     time_t left = pTimeout - took;
@@ -71,8 +67,8 @@ namespace XrdCl
 
         if( info->TestFlags( StatInfo::IsDir ) )
           DoDirList( left );
-        else
-          DoZipOpen( left );
+        else if( DoZipOpen( left ) )
+          return;
 
         break;
       }
@@ -89,7 +85,8 @@ namespace XrdCl
         else
         {
           pDirList.reset( list );
-          DoZipClose( left );
+          if( DoZipClose( left ) )
+            return;
         }
         break;
       }
@@ -119,28 +116,33 @@ namespace XrdCl
       pHandler->HandleResponse( new XRootDStatus( st ), 0 );
   }
 
-  void ZipListHandler::DoZipOpen( time_t timeLeft )
+  //----------------------------------------------------------------------------
+  // The step is set before the call, as the response can come in another
+  // thread before the call returns, and can delete this object.
+  //----------------------------------------------------------------------------
+  bool ZipListHandler::DoZipOpen( time_t timeLeft )
   {
+    pStep = OPEN;
     XRootDStatus st = pZip.OpenArchive( pUrl.GetURL(), OpenFlags::Read, this, timeLeft );
-    if( !st.IsOK() )
-    {
-      pHandler->HandleResponse( new XRootDStatus( st ), 0 );
-      pStep = DONE;
-    }
-    else
-      pStep = OPEN;
+    if( st.IsOK() )
+      return true;
+
+    pHandler->HandleResponse( new XRootDStatus( st ), 0 );
+    pStep = DONE;
+    return false;
   }
 
-  void ZipListHandler::DoZipClose( time_t timeLeft )
+  bool ZipListHandler::DoZipClose( time_t timeLeft, int next )
   {
+    pStep = next;
     XRootDStatus st = pZip.CloseArchive( this, timeLeft );
-    if( !st.IsOK() )
-    {
+    if( st.IsOK() )
+      return true;
+
+    if( next != DONE )
       pHandler->HandleResponse( new XRootDStatus( st ), 0 );
-      pStep = DONE;
-    }
-    else
-      pStep = CLOSE;
+    pStep = DONE;
+    return false;
   }
 
 } /* namespace XrdCl */
