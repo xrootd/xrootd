@@ -17,6 +17,7 @@ add_library(XrdCl SHARED
   XrdClPollerFactory.cc          XrdClPollerFactory.hh
   XrdClPollerBuiltIn.cc          XrdClPollerBuiltIn.hh
   XrdClPostMaster.cc             XrdClPostMaster.hh
+                                 XrdClStopAtExit.hh
                                  XrdClPostMasterInterfaces.hh
   XrdClChannel.cc                XrdClChannel.hh
   XrdClStream.cc                 XrdClStream.hh

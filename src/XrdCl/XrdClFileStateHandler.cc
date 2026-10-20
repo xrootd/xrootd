@@ -35,6 +35,7 @@
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClResponseJob.hh"
 #include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClStopAtExit.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -3376,6 +3377,12 @@ namespace XrdCl
                                                ResponseHandler   *handler,
                                                MessageSendParams &sendParams )
   {
+    // The response of a local or Metalink request comes in a job of the job
+    // manager, and the job manager stops at exit (see PostMaster::Send)
+    if( gStoppedAtExit.load( std::memory_order_relaxed ) )
+      return XRootDStatus( stError, errInvalidOp, 0,
+                           "the client threads stopped at exit" );
+
     // first handle Metalinks
     if( pUseVirtRedirector && url.IsMetalink() )
       return MessageUtils::RedirectMessage( url, msg, handler,

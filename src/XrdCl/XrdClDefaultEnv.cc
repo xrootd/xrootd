@@ -19,6 +19,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClStopAtExit.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClForkHandler.hh"
 #include "XrdCl/XrdClFileTimer.hh"
@@ -33,6 +34,8 @@
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
+
+#include <openssl/ssl.h>
 
 #include <libgen.h>
 #include <cstring>
@@ -493,6 +496,26 @@ namespace XrdCl
       sForkHandler->RegisterPostMaster( postMaster );
       postMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
       AtomicCAS(sPostMaster, sPostMaster, postMaster);
+
+      //------------------------------------------------------------------------
+      // Stop the threads before the process exits. Exit handlers run in the
+      // reverse order of registration. Thus, we initialize OpenSSL first, so
+      // that our handler runs before the OPENSSL_cleanup() handler, and
+      // before the static destructors. Exit handlers also run without the
+      // locks of the dynamic loader, unlike the library destructors on musl.
+      // A request after the stop would wait forever for its response, thus
+      // the post master refuses requests from the start of the stop on.
+      // A request of another thread at the same time can stay without a
+      // response, but that thread ends with the process.
+      //------------------------------------------------------------------------
+      OPENSSL_init_ssl( 0, nullptr );
+      atexit( []
+      {
+        PostMaster *postMaster = AtomicGet( sPostMaster );
+        if( !postMaster ) return;
+        gStoppedAtExit = true;
+        postMaster->Stop();
+      } );
     }
 
     return postMaster;

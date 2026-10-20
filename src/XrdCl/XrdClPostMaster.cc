@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClStopAtExit.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -37,6 +38,8 @@
 
 namespace XrdCl
 {
+  std::atomic<bool> gStoppedAtExit{ false };
+
   struct ConnErrJob : public Job
   {
     ConnErrJob( const URL &url, const XRootDStatus &status,
@@ -251,6 +254,10 @@ namespace XrdCl
                                  bool          stateful,
                                  time_t        expires )
   {
+    if( gStoppedAtExit.load( std::memory_order_relaxed ) )
+      return XRootDStatus( stError, errInvalidOp, 0,
+                           "the client threads stopped at exit" );
+
     auto channel = pImpl->GetChannel( url );
 
     if( !channel )
