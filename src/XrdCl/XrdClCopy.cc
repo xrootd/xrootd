@@ -637,11 +637,6 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
 
-  /* Stop PostMaster when exiting main() to ensure proper shutdown */
-  struct scope_exit {
-    ~scope_exit() { XrdCl::DefaultEnv::GetPostMaster()->Stop(); }
-  } stopPostMaster;
-
   if( config.nStrm != 0 )
     env->PutInt( "SubStreamsPerChannel", config.nStrm + 1 /*stands for the control stream*/ );
 
