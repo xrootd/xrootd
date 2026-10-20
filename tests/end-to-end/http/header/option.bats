@@ -2,11 +2,6 @@
 
 # the xrdcp option table, which the header argument never reaches
 
-bats_require_minimum_version 1.5.0
-
-bats_load_library 'bats-support'
-bats_load_library 'bats-assert'
-
 load ../../helper/common.bash
 
 export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"

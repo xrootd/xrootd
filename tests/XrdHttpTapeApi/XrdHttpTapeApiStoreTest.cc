@@ -28,8 +28,9 @@ class TapeApiStoreTest : public testing::Test
   protected:
     void SetUp() override
     {
-      char path[] = "/tmp/xrd-http-tape-api.XXXXXX";
-      const char *created = mkdtemp(path);
+      std::string path = (fs::temp_directory_path() /
+                          "xrd-http-tape-api.XXXXXX").string();
+      const char *created = mkdtemp(path.data());
       ASSERT_NE(created, nullptr);
       m_root = created;
       m_store = std::make_unique<XrdHttpTapeApiStore>(m_root);

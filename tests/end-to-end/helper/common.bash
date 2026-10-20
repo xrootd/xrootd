@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+# Every BATS file loads this file. The tests run with the bundled BATS in
+# vendor/bats, thus they can use all of its features and the bats-support and
+# bats-assert libraries, without a version check or a library load of their own.
+
+bats_require_minimum_version 1.13.0
+bats_load_library bats-support
+bats_load_library bats-assert
+
 # Prefer command-line tools from the active CMake build when CTest provides it.
 if [[ -n "${BINARY_DIR:-}" ]]; then
     export PATH="${BINARY_DIR}/bin:${PATH}"
