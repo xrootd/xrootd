@@ -32,6 +32,23 @@
 #include "strings.h"
 #endif
 
+namespace
+{
+// Load n bytes of the key as a little-endian word, so that the hash does not
+// depend on the byte order of the host.
+//
+unsigned long LoadWord(const char *cp, size_t n = sizeof(unsigned long))
+{
+   unsigned long w = 0;
+   memcpy(&w, cp, n);
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+   if (sizeof(w) == 8) w = __builtin_bswap64(w);
+      else w = __builtin_bswap32(w);
+#endif
+   return w;
+}
+}
+
 unsigned long XrdOucHashVal(const char *KeyVal)
          {extern unsigned long XrdOucHashVal2(const char *, int);
           return XrdOucHashVal2(KeyVal, strlen(KeyVal));
@@ -39,31 +56,28 @@ unsigned long XrdOucHashVal(const char *KeyVal)
 
 unsigned long XrdOucHashVal2(const char *KeyVal, int KeyLen)
 {  int j;
-   unsigned long *lp, lword, hval = 0;
+   const char *cp;
+   unsigned long hval = 0;
    int hl = sizeof(hval);
 
 // If name is shorter than the hash length, use the name.
 //
-   if (KeyLen <= hl)
-      {memcpy(&hval, KeyVal, (size_t)KeyLen);
-       return hval;
-      }
+   if (KeyLen <= hl) return LoadWord(KeyVal, (size_t)KeyLen);
 
 // Compute the length of the name and develop starting hash.
 //
    hval = KeyLen;
    j = KeyLen % hl; KeyLen /= hl;
-   if (j) 
-      {memcpy(&lword, KeyVal, (size_t)hl);
-       hval ^= lword;
-      }
-   lp = (unsigned long *)&KeyVal[j];
+   if (j) hval ^= LoadWord(KeyVal);
+   cp = &KeyVal[j];
 
-// Compute and return the full hash.
+// Compute and return the full hash. The key is walked with a byte pointer
+// since it is not aligned for unsigned long; LoadWord() does the unaligned
+// load, and the word arithmetic happens on the copy.
 //
    while(KeyLen--)
-        {memcpy(&lword, lp++, (size_t)hl);
-         hval ^= lword;
+        {hval ^= LoadWord(cp);
+         cp += hl;
         }
    return (hval ? hval : 1);
 }

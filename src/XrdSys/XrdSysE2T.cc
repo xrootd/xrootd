@@ -42,12 +42,22 @@
 
 namespace
 {
-static const int           errSlots = 144;
-XrdSysMutex                e2sMutex;
-std::map<int, std::string> e2sMap;
-       const char*         Errno2String[errSlots] = {0};
+static const int errSlots = 144;
 
-int initErrTable()
+// State of XrdSysE2T(), made on first use by errTable(). Static initializers
+// and destructors in other files can call XrdSysE2T().
+//
+struct ErrTable
+{
+   XrdSysMutex                e2sMutex;
+   std::map<int, std::string> e2sMap;
+   const char*                Errno2String[errSlots] = {0};
+   int                        maxErrno = 0;
+
+   ErrTable();
+};
+
+ErrTable::ErrTable()
 {
    char *eTxt, eBuff[80];
    int lastGood = 0;
@@ -88,13 +98,19 @@ int initErrTable()
            }
        }
 
-// Return the highest valid one
+// Record the highest valid one
 //
    Errno2String[0] = "no error";
-   return lastGood;
+   maxErrno = lastGood;
 }
 
-int maxErrno = initErrTable();
+// The table is never destroyed, so it stays valid until the process exits.
+//
+ErrTable& errTable()
+{
+   static ErrTable &table = *new ErrTable;
+   return table;
+}
 }
 
 /******************************************************************************/
@@ -103,13 +119,14 @@ int maxErrno = initErrTable();
   
 const char *XrdSysE2T(int errcode)
 {
+   ErrTable &T = errTable();
    char eBuff[80];
 
 // Check if we can return this immediately
 //
-   if (errcode == 0) return Errno2String[0];
-   if (errcode > ERRNOBASE && errcode <= ERRNOBASE + maxErrno)
-      return Errno2String[errcode - ERRNOBASE];
+   if (errcode == 0) return T.Errno2String[0];
+   if (errcode > ERRNOBASE && errcode <= ERRNOBASE + T.maxErrno)
+      return T.Errno2String[errcode - ERRNOBASE];
 
 // If this is a negative value, then return a generic message
 //
@@ -118,16 +135,16 @@ const char *XrdSysE2T(int errcode)
 // Our errno registration wasn't sufficient, so check if it's already
 // registered and if not, register it.
 //
-   e2sMutex.Lock();
-   std::string &eTxt = e2sMap[errcode];
+   T.e2sMutex.Lock();
+   std::string &eTxt = T.e2sMap[errcode];
    if (!eTxt.size())
       {snprintf(eBuff, sizeof(eBuff), "unknown error %d", errcode);
        eTxt = std::string(eBuff);
-       e2sMap[errcode] = eTxt;
+       T.e2sMap[errcode] = eTxt;
       }
 
 // Return the result
 //
-   e2sMutex.UnLock();
+   T.e2sMutex.UnLock();
    return eTxt.c_str();
 }
