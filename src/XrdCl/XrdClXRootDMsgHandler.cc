@@ -202,6 +202,7 @@ namespace XrdCl
                    "message %s", pUrl.GetHostId().c_str(),
                    pRequest->GetObfuscatedDescription().c_str() );
 
+        pTimeoutFence.store( true, std::memory_order_relaxed );
         pResponse.reset();
         return Ignore; // This must be handled synchronously!
       }
@@ -248,6 +249,7 @@ namespace XrdCl
         {
           pPartialResps.emplace_back( std::move( pResponse ) );
         }
+        pTimeoutFence.store( true, std::memory_order_relaxed );
 
         //----------------------------------------------------------------------
         // For kXR_read we either read in raw mode if the message has not
@@ -257,7 +259,6 @@ namespace XrdCl
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
         {
-          pTimeoutFence.store( true, std::memory_order_relaxed );
           return Raw | ( pOksofarAsAnswer ? None : NoProcess );
         }
 
@@ -266,7 +267,6 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( reqId == kXR_readv )
         {
-          pTimeoutFence.store( true, std::memory_order_relaxed );
           return Raw | ( pOksofarAsAnswer ? None : NoProcess );
         }
 

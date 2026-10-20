@@ -732,7 +732,7 @@ namespace XrdCl
                  pStreamName.c_str(), msg->GetObfuscatedDescription().c_str() );
 
       // if we are handling partial response we have to take down the timeout fence
-      if( IsPartial( *msg ) )
+      if( IsPartial( *msg ) || ((ServerResponse*)msg->GetBuffer())->hdr.status == kXR_waitresp )
       {
         XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( handler );
         if( xrdHandler ) xrdHandler->PartialReceived();
@@ -1055,6 +1055,14 @@ namespace XrdCl
     bool closing;
     StreamMutexHelper scopedLock( pMutex, subStream, closing );
     if( closing ) return;
+    const bool incomingTimeout = status.code == errOperationExpired &&
+                                 HasIncomingTimeout( subStream );
+    auto reportIncomingTimeout = [&]() {
+      scopedLock.UnLock(); if( incomingTimeout ) pIncomingQueue->ReportTimeout();
+    };
+    auto reportFatalError = [&]( uint16_t stream, XRootDStatus failure ) {
+      OnFatalError( stream, failure, scopedLock, incomingTimeout );
+    };
     Log *log = DefaultEnv::GetLog();
     SockHandlerClose( subStream );
 
@@ -1073,8 +1081,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( subStream > 0 )
     {
-      if( pSubStreams[subStream]->outQueue->IsEmpty() )
-        return;
+      if( pSubStreams[subStream]->outQueue->IsEmpty() ) {
+        reportIncomingTimeout(); return;
+      }
 
       if( pSubStreams[0]->status != Socket::Disconnected )
       {
@@ -1082,12 +1091,13 @@ namespace XrdCl
         if( pSubStreams[0]->status == Socket::Connected )
         {
           XRootDStatus st = pSubStreams[0]->socket->EnableUplink();
-          if( !st.IsOK() )
-            OnFatalError( 0, st, scopedLock );
+          if( !st.IsOK() ) reportFatalError( 0, st );
+          else reportIncomingTimeout();
           return;
         }
       }
-      OnFatalError( subStream, status, scopedLock );
+      if( incomingTimeout ) status = XRootDStatus( stError, errSocketError );
+      reportFatalError( subStream, status );
       return;
     }
 
@@ -1112,7 +1122,7 @@ namespace XrdCl
         XRootDStatus st = EnableLink( path );
         if( !st.IsOK() )
         {
-          OnFatalError( 0, st, scopedLock );
+          reportFatalError( 0, st );
           return;
         }
       }
@@ -1126,8 +1136,9 @@ namespace XrdCl
       OutQueue q;
       for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
         q.GrabStateful( *(*it)->outQueue );
-      scopedLock.UnLock();
+      reportIncomingTimeout();
 
+      if( incomingTimeout ) status = XRootDStatus( stError, errSocketError );
       q.Report( status );
       pIncomingQueue->ReportStreamEvent( MsgHandler::Broken, status );
       pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
@@ -1193,7 +1204,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnFatalError( uint16_t           subStream,
                              XRootDStatus       status,
-                             StreamMutexHelper &lock )
+                             StreamMutexHelper &lock,
+                             bool               reportTimeout )
   {
     Log    *log = DefaultEnv::GetLog();
     SockHandlerClose( subStream );
@@ -1216,6 +1228,7 @@ namespace XrdCl
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       q.GrabItems( *(*it)->outQueue );
     lock.UnLock();
+    if( reportTimeout ) pIncomingQueue->ReportTimeout();
 
     status.status = stFatal;
     q.Report( status );
@@ -1242,11 +1255,20 @@ namespace XrdCl
     }
   }
 
+  bool Stream::HasIncomingTimeout( uint16_t substream ) const
+  {
+    const InMessageHelper &incoming = pSubStreams[substream]->inMsgHelper;
+    return incoming.handler && incoming.expires && incoming.expires <= time(0);
+  }
+
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
   bool Stream::OnReadTimeout( uint16_t substream )
   {
+    if( HasIncomingTimeout( substream ) ) { OnError( substream,
+      XRootDStatus( stError, errOperationExpired ) ); return false; }
+
     //--------------------------------------------------------------------------
     // We only take the main stream into account
     //--------------------------------------------------------------------------
