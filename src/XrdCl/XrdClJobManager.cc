@@ -36,6 +36,16 @@ extern "C"
   }
 }
 
+namespace
+{
+  //----------------------------------------------------------------------------
+  // Set in a worker which stopped the job manager from a job, and thus did
+  // not stop itself. The worker ends after the job, because a new start of
+  // the job manager makes a new worker in its place.
+  //----------------------------------------------------------------------------
+  thread_local bool sRetire = false;
+}
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -116,6 +126,18 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     for( uint32_t i = 0; i < n; ++i )
     {
+      //------------------------------------------------------------------------
+      // A worker cannot join itself, e.g. when a callback calls exit() or
+      // fork(). The worker ends after its job, or with the process.
+      //------------------------------------------------------------------------
+      if( pthread_equal( pthread_self(), pWorkers[i] ) )
+      {
+        log->Dump( JobMgrMsg, "Not stopping worker #%d, which is the calling "
+                   "thread", i );
+        sRetire = true;
+        continue;
+      }
+
       void *threadRet;
       log->Dump( JobMgrMsg, "Stopping worker #%d...", i );
       int rc = pthread_cancel( pWorkers[i] );
@@ -151,6 +173,14 @@ namespace XrdCl
       JobHelper h = pJobs.Get();
       pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
       h.job->Run( h.arg );
+
+      if( sRetire )
+      {
+        sRetire = false;
+        pthread_detach( pthread_self() );
+        return;
+      }
+
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
     }
   }
