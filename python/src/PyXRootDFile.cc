@@ -354,18 +354,18 @@ namespace PyXRootD
     uint32_t            size     = 0;
     time_t              timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
-    PyObject           *py_offset = NULL, *py_size = NULL, *py_timeout = NULL;
+    PyObject           *py_offset = NULL, *py_size = NULL;
     char               *buffer   = 0;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOOO:read",
-        (char**) kwlist, &py_offset, &py_size, &py_timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOO&O:read",
+        (char**) kwlist, &py_offset, &py_size, ConvertTimeout, &timeout,
+        &callback ) ) return NULL;
 
     unsigned long long tmp_offset = 0;
     unsigned int tmp_size = 0;
-    unsigned long long tmp_timeout = 0;
 
     if ( py_offset && PyObjToUllong( py_offset, &tmp_offset, "offset" ) )
       return NULL;
@@ -373,12 +373,8 @@ namespace PyXRootD
     if ( py_size && PyObjToUint(py_size, &tmp_size, "size" ) )
       return NULL;
 
-    if ( py_timeout && PyObjToUllong(py_timeout, &tmp_timeout, "timeout" ) )
-      return NULL;
-
     offset = (uint64_t)tmp_offset;
     size = (uint32_t)tmp_size;
-    timeout = (time_t)tmp_timeout;
 
     if (!size) {
       XrdCl::StatInfo *info = 0;
@@ -630,18 +626,17 @@ namespace PyXRootD
     uint32_t     size     = 0;
     time_t       timeout  = 0;
     PyObject    *callback = NULL, *pystatus = NULL;
-    PyObject    *py_offset = NULL, *py_size = NULL, *py_timeout = NULL;
+    PyObject    *py_offset = NULL, *py_size = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|OOOO:write",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|OOO&O:write",
          (char**) kwlist, &buffer, &buffsize, &py_offset, &py_size,
-         &py_timeout, &callback ) ) return NULL;
+         ConvertTimeout, &timeout, &callback ) ) return NULL;
 
     unsigned long long tmp_offset = 0;
     unsigned int tmp_size = 0;
-    unsigned long long tmp_timeout = 0;
 
     if (py_offset && PyObjToUllong(py_offset, &tmp_offset, "offset"))
       return NULL;
@@ -649,12 +644,8 @@ namespace PyXRootD
     if (py_size && PyObjToUint(py_size, &tmp_size, "size"))
       return NULL;
 
-    if (py_timeout && PyObjToUllong(py_timeout, &tmp_timeout, "timeout"))
-      return NULL;
-
     offset = (uint64_t)tmp_offset;
     size = (uint32_t)tmp_size;
-    timeout = (time_t)tmp_timeout;
 
     if (!size) {
       size = buffsize;
@@ -719,25 +710,21 @@ namespace PyXRootD
     uint64_t           size;
     time_t             timeout  = 0;
     PyObject          *callback = NULL, *pystatus = NULL;
-    PyObject          *py_size = NULL, *py_timeout = NULL;
+    PyObject          *py_size = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO:truncate",
-         (char**) kwlist, &py_size, &py_timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|O&O:truncate",
+         (char**) kwlist, &py_size, ConvertTimeout, &timeout, &callback ) )
+      return NULL;
 
     unsigned long long tmp_size = 0;
-    unsigned long long tmp_timeout = 0;
 
     if ( py_size && PyObjToUllong( py_size, &tmp_size, "size" ) )
       return NULL;
 
-    if ( py_timeout && PyObjToUllong( py_timeout, &tmp_timeout, "timeout" ) )
-      return NULL;
-
     size = (uint64_t)tmp_size;
-    timeout = (time_t)tmp_timeout;
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
@@ -767,21 +754,15 @@ namespace PyXRootD
     uint64_t            offset   = 0;
     uint32_t            length   = 0;
     PyObject           *pychunks = NULL, *callback = NULL;
-    PyObject           *pyresponse = NULL, *pystatus = NULL, *py_timeout = NULL;
+    PyObject           *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
     XrdCl::ChunkList    chunks;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO:vector_read",
-         (char**) kwlist, &pychunks, &py_timeout, &callback ) ) return NULL;
-
-    unsigned long long tmp_timeout = 0;
-
-    if ( py_timeout && PyObjToUllong( py_timeout, &tmp_timeout, "timeout" ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|O&O:vector_read",
+         (char**) kwlist, &pychunks, ConvertTimeout, &timeout, &callback ) )
       return NULL;
-
-    timeout = (time_t)tmp_timeout;
 
     if ( !PyList_Check( pychunks ) ) {
       PyErr_SetString( PyExc_TypeError, "chunks parameter must be a list" );
