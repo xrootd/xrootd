@@ -137,3 +137,37 @@ setup() {
     assert_equal "$first_status" 0
     assert_equal "$second_status" 0
 }
+
+@test "a download returns as many bytes as were uploaded" {
+    run -0 bats_pipe xrdcp -f "$SERVER_URL/$FILE" - \| wc -c
+    assert_output --regexp '^ *4 *$'
+}
+
+@test "the attribute open.return_code makes an open fail with that error" {
+    xrdfs "$SERVER_URL" xattr "$FILE" set open.return_code=12
+    run ! xrdcp -f "$SERVER_URL/$FILE" -
+    # 12 is ENOMEM, which the server returns as kXR_NoMemory (3008); the text
+    # of the error depends on the C library
+    assert_output --partial '[3008]'
+}
+
+@test "the attribute read.return_code makes a read fail with that error" {
+    xrdfs "$SERVER_URL" truncate "$FILE" 1000
+    xrdfs "$SERVER_URL" xattr "$FILE" set read.return_code=12
+    run ! xrdcp -f "$SERVER_URL/$FILE" -
+    assert_output --partial '[3008]'
+}
+
+# the server reports a failed close only for a file open for writing
+@test "the attribute close.return_code makes a close fail with that error" {
+    echo data > "$BATS_TEST_TMPDIR/upload"
+    xrdfs "$SERVER_URL" xattr "$FILE" set close.return_code=12
+    run ! xrdcp -f "$BATS_TEST_TMPDIR/upload" "$SERVER_URL/$FILE"
+    assert_output --partial '[3008]'
+}
+
+@test "an open succeeds again after the removal of open.return_code" {
+    xrdfs "$SERVER_URL" xattr "$FILE" set open.return_code=12
+    xrdfs "$SERVER_URL" xattr "$FILE" del open.return_code
+    run -0 xrdcp -f "$SERVER_URL/$FILE" -
+}

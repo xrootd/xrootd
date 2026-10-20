@@ -1,5 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS host cache mirage)
+list(APPEND XROOTD_CONFIGS host cache)
 
 # XCache (XrdPfc) configurations. Each fronts the XRootD::host fixture as its
 # origin and exercises one aspect of the cache; the shared shell helpers are in
