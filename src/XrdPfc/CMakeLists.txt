@@ -38,11 +38,8 @@ install(
     XrdPfc.hh
     XrdPfcDirStateBase.hh
     XrdPfcDirStatePurgeshot.hh
-    XrdPfcFile.hh
-    XrdPfcInfo.hh
     XrdPfcPathParseTools.hh
     XrdPfcPurgePin.hh
-    XrdPfcStats.hh
     XrdPfcTypes.hh
   DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdPfc
