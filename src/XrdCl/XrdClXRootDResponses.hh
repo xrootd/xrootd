@@ -557,8 +557,9 @@ namespace XrdCl
       {
         char ts[256];
         time_t modTime = time;
-        tm *t = gmtime( &modTime );
-        strftime( ts, 255, "%F %T", t );
+        tm t;
+        localtime_r( &modTime, &t );
+        strftime( ts, sizeof( ts ), "%F %T %z", &t );
         return ts;
       }
 
