@@ -145,6 +145,10 @@ void DirState::upward_propagate_initial_scan_usages()
       subdirs.m_StBlocks     += dhere.m_StBlocks     + dsubdirs.m_StBlocks;
       subdirs.m_NFiles       += dhere.m_NFiles       + dsubdirs.m_NFiles;
       subdirs.m_NDirectories += dhere.m_NDirectories + dsubdirs.m_NDirectories;
+
+      // Carry the last-access times up, as update_stats_and_usages() does.
+      subdirs.update_last_times(dhere);
+      subdirs.update_last_times(dsubdirs);
    }
 }
 

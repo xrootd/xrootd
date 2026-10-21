@@ -3,6 +3,9 @@
 
 #include "XrdPfcStats.hh"
 #include "XrdPfcStableChunkVector.hh"
+#include "XrdPfcDirStateBase.hh"
+
+#include <sys/stat.h>
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -148,6 +151,12 @@ class ResourceMonitor
    std::list<LfnCondRecord> m_dir_scan_open_requests;
    int                      m_dir_scan_check_counter = 0;
    bool                     m_dir_scan_in_progress = true;
+
+   //! cinfo mtime cannot tell open from close, so both get it.
+   static void seed_last_times_from_cinfo(DirUsage &u, const struct stat &cinfo_stat) {
+      if (cinfo_stat.st_mtime > u.m_LastOpenTime)  u.m_LastOpenTime  = cinfo_stat.st_mtime;
+      if (cinfo_stat.st_mtime > u.m_LastCloseTime) u.m_LastCloseTime = cinfo_stat.st_mtime;
+   }
 
    void process_inter_dir_scan_open_requests(FsTraversal &fst);
    void cross_check_or_process_oob_lfn(const std::string &lfn, FsTraversal &fst);
