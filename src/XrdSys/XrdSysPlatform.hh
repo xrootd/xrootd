@@ -295,7 +295,7 @@ extern "C"
 
 // The following gets arround a relative new gcc compiler bug
 //
-#define XRDABS(x) (x < 0 ? -x : x)
+#define XRDABS(x) ((x) < 0 ? -(x) : (x))
 
 #ifndef LT_MODULE_EXT
 #define LT_MODULE_EXT ".so"
