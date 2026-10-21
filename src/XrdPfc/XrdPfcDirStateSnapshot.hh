@@ -17,8 +17,9 @@ namespace XrdPfc
 
 struct DirStateElement : public DirStateBase
 {
-   DirStats m_stats;
-   DirUsage m_usage;
+   DirStats  m_stats;
+   DirUsage  m_usage;
+   long long m_st_blocks_fuzz = 0; //!< subtree total, see DirState::m_StBlocksFuzz
 
    int m_parent = -1;
    int m_daughters_begin = -1, m_daughters_end = -1;
@@ -28,6 +29,7 @@ struct DirStateElement : public DirStateBase
      DirStateBase(b),
      m_stats(b.m_sshot_stats),
      m_usage(b.m_here_usage, b.m_recursive_subdir_usage),
+     m_st_blocks_fuzz(b.m_StBlocksFuzz + b.m_RecursiveStBlocksFuzz),
      m_parent(parent)
    {}
 };
@@ -36,6 +38,7 @@ struct DataFsSnapshot : public DataFsStateBase
 {
    std::vector<DirStateElement> m_dir_states;
    time_t                       m_sshot_stats_reset_time = 0;
+   long long                    m_st_blocks_fuzz = 0; //!< DataFsState::m_st_blocks_fuzz
 
    DataFsSnapshot() {}
    DataFsSnapshot(const DataFsStateBase &b, time_t sshot_stats_reset_time) :

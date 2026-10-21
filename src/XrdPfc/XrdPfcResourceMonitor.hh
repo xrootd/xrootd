@@ -275,9 +275,10 @@ public:
    time_t         m_purge_task_end   {0};
    bool           m_purge_task_active   {false}; // from the perspective of heart-beat, set only in heartbeat
    bool           m_purge_task_complete {false}; // from the perspective of the task, reset in heartbeat, set in task
-   // When m_purge_task_active == true, DirState entries are not removed from the tree to
-   // allow purge thread to report cleared files directly via DirState ptr.
-   // Note, DirState removal happens during stat propagation traversal.
+   // When m_purge_task_active == true at the start of a heart_beat(), DirState entries
+   // are not removed from the tree in it, to allow a purge thread to report cleared
+   // files directly via DirState ptr (not used yet: the purge shot is a copy).
+   // Note, DirState removal happens at the end of heart_beat().
 
    // Purge helpers etc.
    void update_vs_and_file_usage_info();
