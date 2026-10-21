@@ -62,9 +62,41 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeFailsWithINVAL
     EXPECT_EQ(-EINVAL, xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
     EXPECT_EQ(-EINVAL, xattr.Set("U.close.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
     EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
-    EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_position", "18446744073709551615", 20, "/dummy", 0, 0));
     EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
-    EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_position", "18446744073709551615", 20, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetPositionsToMaximumOffsetShouldSucceed)
+{
+    EXPECT_EQ(0, xattr.Set("U.read.return_position", "9223372036854775807", 19, "/dummy", 0, 0));
+    EXPECT_EQ(0, xattr.Set("U.write.return_position", "9223372036854775807", 19, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetPositionsToMaximumOffsetChangesTheirValues)
+{
+    xattr.Set("U.read.return_position", "9223372036854775807", 19, "/dummy", 0, 0);
+    xattr.Set("U.write.return_position", "9223372036854775807", 19, "/dummy", 0, 0);
+
+    auto entry = oss.get_entry_read("/dummy").value();
+
+    EXPECT_EQ(9223372036854775807ULL, entry.read.return_position);
+    EXPECT_EQ(9223372036854775807ULL, entry.write.return_position);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetPositionsBeyondMaximumOffsetFailsWithINVAL)
+{
+    EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_position", "9223372036854775808", 19, "/dummy", 0, 0));
+    EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_position", "9223372036854775808", 19, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetPositionsBeyondMaximumOffsetDoesNotChangeTheirValues)
+{
+    xattr.Set("U.read.return_position", "9223372036854775808", 19, "/dummy", 0, 0);
+    xattr.Set("U.write.return_position", "9223372036854775808", 19, "/dummy", 0, 0);
+
+    auto entry = oss.get_entry_read("/dummy").value();
+
+    EXPECT_EQ(0, entry.read.return_position);
+    EXPECT_EQ(0, entry.write.return_position);
 }
 
 TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeDoesNotChangeTheirValues)
@@ -72,18 +104,124 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeDoesNotChangeT
     xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
     xattr.Set("U.close.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
     xattr.Set("U.read.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
-    xattr.Set("U.read.return_position", "18446744073709551615", 20, "/dummy", 0, 0);
     xattr.Set("U.write.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
-    xattr.Set("U.write.return_position", "18446744073709551615", 20, "/dummy", 0, 0);
 
     auto entry = oss.get_entry_read("/dummy").value();
 
     EXPECT_EQ(0, entry.open.return_code);
     EXPECT_EQ(0, entry.close.return_code);
     EXPECT_EQ(0, entry.read.return_code);
-    EXPECT_EQ(0, entry.read.return_position);
     EXPECT_EQ(0, entry.write.return_code);
-    EXPECT_EQ(0, entry.write.return_position);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetOpenReturnCodeToNegativeIntegerFailsWithINVAL)
+{
+    EXPECT_EQ(-EINVAL, xattr.Set("U.open.return_code", "-1", 2, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetCloseReturnCodeToNegativeIntegerFailsWithINVAL)
+{
+    EXPECT_EQ(-EINVAL, xattr.Set("U.close.return_code", "-1", 2, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetReadReturnCodeToNegativeIntegerFailsWithINVAL)
+{
+    EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_code", "-1", 2, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnCodeToNegativeIntegerFailsWithINVAL)
+{
+    EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_code", "-1", 2, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetOpenReturnCodeToNegativeIntegerKeepsPreviousValue)
+{
+    xattr.Set("U.open.return_code", "5", 1, "/dummy", 0, 0);
+    xattr.Set("U.open.return_code", "-1", 2, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().open.return_code);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetCloseReturnCodeToNegativeIntegerKeepsPreviousValue)
+{
+    xattr.Set("U.close.return_code", "5", 1, "/dummy", 0, 0);
+    xattr.Set("U.close.return_code", "-1", 2, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().close.return_code);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetReadReturnCodeToNegativeIntegerKeepsPreviousValue)
+{
+    xattr.Set("U.read.return_code", "5", 1, "/dummy", 0, 0);
+    xattr.Set("U.read.return_code", "-1", 2, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().read.return_code);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnCodeToNegativeIntegerKeepsPreviousValue)
+{
+    xattr.Set("U.write.return_code", "5", 1, "/dummy", 0, 0);
+    xattr.Set("U.write.return_code", "-1", 2, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().write.return_code);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToNegativeIntegerFailsWithINVAL)
+{
+    EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_position", "-1", 2, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToNegativeIntegerFailsWithINVAL)
+{
+    EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_position", "-1", 2, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToNegativeIntegerKeepsPreviousValue)
+{
+    xattr.Set("U.read.return_position", "5", 1, "/dummy", 0, 0);
+    xattr.Set("U.read.return_position", "-1", 2, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().read.return_position);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToNegativeIntegerKeepsPreviousValue)
+{
+    xattr.Set("U.write.return_position", "5", 1, "/dummy", 0, 0);
+    xattr.Set("U.write.return_position", "-1", 2, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().write.return_position);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToPositiveIntegerShouldSucceed)
+{
+    EXPECT_EQ(0, xattr.Set("U.read.return_position", "5", 1, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToPositiveIntegerShouldSucceed)
+{
+    EXPECT_EQ(0, xattr.Set("U.write.return_position", "5", 1, "/dummy", 0, 0));
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToPositiveIntegerChangesItsValue)
+{
+    xattr.Set("U.read.return_position", "5", 1, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().read.return_position);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToPositiveIntegerChangesItsValue)
+{
+    xattr.Set("U.write.return_position", "5", 1, "/dummy", 0, 0);
+
+    EXPECT_EQ(5, oss.get_entry_read("/dummy").value().write.return_position);
+}
+
+TEST_F(XrdOssMirageXAttrFixture, SetReturnCodesToZeroShouldSucceed)
+{
+    EXPECT_EQ(0, xattr.Set("U.open.return_code", "0", 1, "/dummy", 0, 0));
+    EXPECT_EQ(0, xattr.Set("U.close.return_code", "0", 1, "/dummy", 0, 0));
+    EXPECT_EQ(0, xattr.Set("U.read.return_code", "0", 1, "/dummy", 0, 0));
+    EXPECT_EQ(0, xattr.Set("U.write.return_code", "0", 1, "/dummy", 0, 0));
 }
 
 TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsNumberOfReadBytes)

@@ -51,6 +51,38 @@ TEST_F(XrdOssMirageFileFixture, TruncateIncreasesFileSize)
     ASSERT_EQ(1000000, oss.get_entry_read("/dummy").value().size);
 }
 
+TEST_F(XrdOssMirageFileFixture, TruncateToMaximumOffsetShouldSucceed)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+
+    ASSERT_EQ(XrdOssOK, file.Ftruncate(9223372036854775807ULL));
+}
+
+TEST_F(XrdOssMirageFileFixture, TruncateToMaximumOffsetChangesFileSize)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Ftruncate(9223372036854775807ULL);
+    file.Close();
+
+    ASSERT_EQ(9223372036854775807ULL, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFileFixture, TruncateBeyondMaximumOffsetFailsWithFBIG)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+
+    ASSERT_EQ(-EFBIG, file.Ftruncate(9223372036854775808ULL));
+}
+
+TEST_F(XrdOssMirageFileFixture, TruncateBeyondMaximumOffsetDoesNotChangeFileSize)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Ftruncate(9223372036854775808ULL);
+    file.Close();
+
+    ASSERT_EQ(9999, oss.get_entry_read("/dummy").value().size);
+}
+
 TEST_F(XrdOssMirageFileFixture, OpenInWriteModeShouldSucceed)
 {
     ASSERT_EQ(XrdOssOK, file.Open("/dummy", O_WRONLY, {}, env));
@@ -189,6 +221,42 @@ TEST_F(XrdOssMirageFileFixture, WriteUpdatesItsSize)
     file.Close();
 
     ASSERT_EQ(10999, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFileFixture, WriteReachingMaximumOffsetReturnsTheAmountOfWrittenBytes)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Ftruncate(9223372036854774807ULL);
+
+    ASSERT_EQ(1000, file.Write(nullptr, 9223372036854774807LL, 1000));
+}
+
+TEST_F(XrdOssMirageFileFixture, WriteReachingMaximumOffsetChangesFileSize)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Ftruncate(9223372036854773808ULL);
+    file.Write(nullptr, 9223372036854773808LL, 1000);
+    file.Close();
+
+    ASSERT_EQ(9223372036854774808ULL, oss.get_entry_read("/dummy").value().size);
+}
+
+TEST_F(XrdOssMirageFileFixture, WriteBeyondMaximumOffsetFailsWithFBIG)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Ftruncate(9223372036854774808ULL);
+
+    ASSERT_EQ(-EFBIG, file.Write(nullptr, 9223372036854774808LL, 1000));
+}
+
+TEST_F(XrdOssMirageFileFixture, WriteBeyondMaximumOffsetDoesNotChangeFileSize)
+{
+    file.Open("/dummy", O_WRONLY, {}, env);
+    file.Ftruncate(9223372036854774808ULL);
+    file.Write(nullptr, 9223372036854774808LL, 1000);
+    file.Close();
+
+    ASSERT_EQ(9223372036854774808ULL, oss.get_entry_read("/dummy").value().size);
 }
 
 TEST_F(XrdOssMirageFileFixture, WriteWithPropertyReturnCodeOnlyFailsWithSpecifiedCode)
