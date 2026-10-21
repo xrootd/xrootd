@@ -3,12 +3,16 @@
 
 #include "XrdPfcStats.hh"
 #include "XrdPfcStableChunkVector.hh"
+#include "XrdPfcDirStateBase.hh"
+
+#include <sys/stat.h>
 
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <list>
+#include <set>
 #include <string>
 #include <vector>
-#include <list>
 
 class XrdOss;
 
@@ -131,10 +135,28 @@ class ResourceMonitor
       bool              &f_checked;
    };
 
+   // Top-level directories the traversal does not enter, so they have no DirState.
+   std::set<std::string>    m_protected_top_dirs;
+
+   bool is_in_protected_top_dir(const std::string &path) const {
+      size_t b = path.find_first_not_of('/');
+      if (b == std::string::npos) return false;
+      size_t e = path.find('/', b);
+      return m_protected_top_dirs.find(
+                path.substr(b, e == std::string::npos ? std::string::npos : e - b))
+             != m_protected_top_dirs.end();
+   }
+
    XrdSysMutex              m_dir_scan_mutex;
    std::list<LfnCondRecord> m_dir_scan_open_requests;
    int                      m_dir_scan_check_counter = 0;
    bool                     m_dir_scan_in_progress = true;
+
+   //! cinfo mtime cannot tell open from close, so both get it.
+   static void seed_last_times_from_cinfo(DirUsage &u, const struct stat &cinfo_stat) {
+      if (cinfo_stat.st_mtime > u.m_LastOpenTime)  u.m_LastOpenTime  = cinfo_stat.st_mtime;
+      if (cinfo_stat.st_mtime > u.m_LastCloseTime) u.m_LastCloseTime = cinfo_stat.st_mtime;
+   }
 
    void process_inter_dir_scan_open_requests(FsTraversal &fst);
    void cross_check_or_process_oob_lfn(const std::string &lfn, FsTraversal &fst);
@@ -253,9 +275,10 @@ public:
    time_t         m_purge_task_end   {0};
    bool           m_purge_task_active   {false}; // from the perspective of heart-beat, set only in heartbeat
    bool           m_purge_task_complete {false}; // from the perspective of the task, reset in heartbeat, set in task
-   // When m_purge_task_active == true, DirState entries are not removed from the tree to
-   // allow purge thread to report cleared files directly via DirState ptr.
-   // Note, DirState removal happens during stat propagation traversal.
+   // When m_purge_task_active == true at the start of a heart_beat(), DirState entries
+   // are not removed from the tree in it, to allow a purge thread to report cleared
+   // files directly via DirState ptr (not used yet: the purge shot is a copy).
+   // Note, DirState removal happens at the end of heart_beat().
 
    // Purge helpers etc.
    void update_vs_and_file_usage_info();

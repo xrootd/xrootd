@@ -32,7 +32,10 @@ namespace
 ResourceMonitor::ResourceMonitor(XrdOss& oss) :
    m_fs_state(* new DataFsState),
    m_oss(oss)
-{}
+{
+   // XXXX This should come from config. Also: N2N?
+   m_protected_top_dirs.insert("pfc-stats");
+}
 
 ResourceMonitor::~ResourceMonitor()
 {
@@ -109,6 +112,7 @@ void ResourceMonitor::cross_check_or_process_oob_lfn(const std::string &lfn, FsT
          if (it->second.has_data && it->second.has_cinfo) {
             here.m_StBlocks += it->second.stat_data.st_blocks;
             here.m_NFiles   += 1;
+            seed_last_times_from_cinfo(here, it->second.stat_cinfo);
          }
       }
    }
@@ -143,6 +147,7 @@ void ResourceMonitor::scan_dir_and_recurse(FsTraversal &fst)
          if (it->second.has_data && it->second.has_cinfo) {
             here.m_StBlocks += it->second.stat_data.st_blocks;
             here.m_NFiles   += 1;
+            seed_last_times_from_cinfo(here, it->second.stat_cinfo);
          }
       }
       fst.m_dir_state->m_scanned = true;
@@ -180,7 +185,7 @@ bool ResourceMonitor::perform_initial_scan()
 
    DirState   *root_ds = m_fs_state.get_root();
    FsTraversal fst(m_oss);
-   fst.m_protected_top_dirs.insert("pfc-stats"); // XXXX This should come from config. Also: N2N?
+   fst.m_protected_top_dirs = m_protected_top_dirs;
 
    if ( ! fst.begin_traversal(root_ds, "/"))
       return false;
@@ -309,7 +314,12 @@ int ResourceMonitor::process_queues()
       // i.id: directory-path, i.record: PurgeRecord
       DirState *ds = m_fs_state.get_root()->find_path(i.id, -1, false, false);
       if ( ! ds) {
-         TRACE(Error, trc_pfx << "DirState not found for directory path '" << i.id << "'.");
+         if (is_in_protected_top_dir(i.id)) {
+            TRACE(Debug, trc_pfx << "no DirState for '" << i.id
+                  << "', as expected under a protected top directory.");
+         } else {
+            TRACE(Error, trc_pfx << "DirState not found for directory path '" << i.id << "'.");
+         }
          // find_path can return the last dir found ... but this clearly isn't a valid purge record.
          continue;
       }
@@ -322,7 +332,12 @@ int ResourceMonitor::process_queues()
       // i.id: LFN, i.record: size of file in st_blocks
       DirState *ds = m_fs_state.get_root()->find_path(i.id, -1, true, false);
       if ( ! ds) {
-         TRACE(Error, trc_pfx << "DirState not found for LFN path '" << i.id << "'.");
+         if (is_in_protected_top_dir(i.id)) {
+            TRACE(Debug, trc_pfx << "no DirState for '" << i.id
+                  << "', as expected under a protected top directory.");
+         } else {
+            TRACE(Error, trc_pfx << "DirState not found for LFN path '" << i.id << "'.");
+         }
          continue;
       }
       ds->m_here_stats.m_StBlocksRemoved += i.record;
@@ -379,8 +394,7 @@ void ResourceMonitor::heart_beat()
 
       // Check if purge has been running and has completed yet.
       // For now this is only used to prevent removal of empty leaf directories
-      // during stat propagation so we do not need to wait for the condition in
-      // the above sleep.
+      // while it runs, so we do not need to wait for the condition in the above sleep.
       if (m_purge_task_active) {
          MutexHolder _lck(m_purge_task_cond);
          if (m_purge_task_complete) {
@@ -422,19 +436,7 @@ void ResourceMonitor::heart_beat()
       // Update stats in usages if any secondary activity will happen.
       if (do_sshot_report || do_purge_check || do_purge_report || do_purge_cold_files)
       {
-         unlink_func unlink_foo = [&](const std::string &dp)->int {
-            int ret = m_oss.Unlink(dp.c_str());
-            if (ret != 0) {
-               TRACE(Info, tpfx << "Empty dir unlink error: " << ret << " at " << dp);
-            } else {
-               TRACE(Debug, tpfx << "Empty dir unlink success: " << dp);
-            }
-            return ret;
-         };
-
-         // Potentially prune the empty leaf dirs even less frequently, once per hour, maybe?
-         bool purge_leaf_dirs = do_sshot_report && ! m_purge_task_active;
-         m_fs_state.update_stats_and_usages(queue_swap_time, purge_leaf_dirs, unlink_foo);
+         m_fs_state.update_stats_and_usages(queue_swap_time, do_sshot_report);
 
          // This reporting into log/stdout is to be removed.
          // Meaning of conf.is_dir_stat_reporting_on() etc is to be clarified / improved.
@@ -449,7 +451,6 @@ void ResourceMonitor::heart_beat()
             m_fs_state.dump_recursively(store_depth);
          }
 
-         m_fs_state.reset_stats(queue_swap_time);
       }
 
       if (do_sshot_report)
@@ -461,6 +462,7 @@ void ResourceMonitor::heart_beat()
 
          // json dump to std::out for debug purpose
          DataFsSnapshot ss(m_fs_state, m_fs_state.m_sshot_stats_reset_time);
+         ss.m_st_blocks_fuzz = m_fs_state.m_st_blocks_fuzz;
          const DirState &root_ds = *m_fs_state.get_root();
          const int store_depth  =  conf.m_dirStatsStoreDepth;
          const int n_sshot_dirs = root_ds.count_dirs_to_level(store_depth);
@@ -483,6 +485,24 @@ void ResourceMonitor::heart_beat()
          next_purge_check_time = now + s_purge_check_interval;
          if (do_purge_report) next_purge_report_time = now + s_purge_report_interval;
          if (do_purge_cold_files) next_purge_cold_files_time = now + s_purge_cold_files_interval;
+      }
+
+      // Prune the empty leaves the last snapshot reported, after the purge check, which
+      // needs the tree as propagated, and never while a purge task traverses the
+      // directories: one started above defers this to a later beat.
+      if ( ! m_fs_state.m_reap_candidates.empty() && ! m_purge_task_active)
+      {
+         unlink_func unlink_foo = [&](const std::string &dp)->int {
+            int ret = m_oss.Unlink(dp.c_str());
+            if (ret != 0) {
+               TRACE(Info, tpfx << "Empty dir unlink error: " << ret << " at " << dp);
+            } else {
+               TRACE(Debug, tpfx << "Empty dir unlink success: " << dp);
+            }
+            return ret;
+         };
+         // The residue leaves the tree at the next propagation; keep the total in step.
+         m_current_usage_in_st_blocks -= m_fs_state.reap_empty_leaf_dirs(unlink_foo);
       }
 
    } // end while forever

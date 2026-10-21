@@ -1,8 +1,8 @@
 #include "XrdPfcDirState.hh"
 #include "XrdPfcPathParseTools.hh"
 
+#include <cstdlib>
 #include <string>
-#include <cassert>
 
 using namespace XrdPfc;
 
@@ -145,25 +145,26 @@ void DirState::upward_propagate_initial_scan_usages()
       subdirs.m_StBlocks     += dhere.m_StBlocks     + dsubdirs.m_StBlocks;
       subdirs.m_NFiles       += dhere.m_NFiles       + dsubdirs.m_NFiles;
       subdirs.m_NDirectories += dhere.m_NDirectories + dsubdirs.m_NDirectories;
+
+      // Carry the last-access times up, as update_stats_and_usages() does.
+      subdirs.update_last_times(dhere);
+      subdirs.update_last_times(dsubdirs);
    }
 }
 
 //----------------------------------------------------------------------------
-//! Upward propagate stats to parents, join last open/close timestamps, and
-//! apply deltas / stats to usages.
-//!
-//! Additionally, manage removal of empty leaf directories and destruction
-//! of corresponding leaf DirState objects.
+//! Upward propagate stats to parents, join last open/close timestamps,
+//! apply deltas / stats to usages, and reset the deltas.
+//! If reap_candidates is given, collect the empty leaves into it.
 
-void DirState::update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink_foo)
+void DirState::update_stats_and_usages(std::vector<DirState*> *reap_candidates)
 {
-   // Hmmh.
-   DsMap_i i = m_subdirs.begin();
-   while (i != m_subdirs.end())
+   m_RecursiveStBlocksFuzz = 0;
+   for (auto & [name, sub_ds] : m_subdirs)
    {
-      DirState &sub_ds = i->second;
+      sub_ds.update_stats_and_usages(reap_candidates);
 
-      sub_ds.update_stats_and_usages(purge_empty_dirs, unlink_foo);
+      m_RecursiveStBlocksFuzz += sub_ds.m_StBlocksFuzz + sub_ds.m_RecursiveStBlocksFuzz;
 
       m_recursive_subdir_stats.AddUp(sub_ds.m_recursive_subdir_stats);
       m_recursive_subdir_stats.AddUp(sub_ds.m_here_stats);
@@ -173,28 +174,13 @@ void DirState::update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink
       m_recursive_subdir_usage.update_last_times(sub_ds.m_recursive_subdir_usage);
       m_recursive_subdir_usage.update_last_times(sub_ds.m_here_usage);
 
-      // Clean empty leaf directories. Only do one level at a time.
-      // Note that root will never get purged.
-      bool increment_iter = true;
-      // A pending close still points at this DirState while m_NFilesOpen > 0,
-      // and m_NDirectories can undercount, so check m_subdirs as well.
-      if (purge_empty_dirs && sub_ds.m_here_stats.m_NDirectoriesRemoved == 0 &&
-          sub_ds.m_here_usage.m_NDirectories == 0 && sub_ds.m_here_usage.m_NFiles == 0 &&
-          sub_ds.m_here_usage.m_NFilesOpen == 0 && sub_ds.m_subdirs.empty())
-      {
-         std::string dir_path;
-         dir_path.reserve(1024);
-         sub_ds.generate_dir_path(dir_path);
+      // The parent clears a child's deltas once absorbed; the root's are cleared by
+      // DataFsState::update_stats_and_usages().
+      sub_ds.m_here_stats.Reset();
+      sub_ds.m_recursive_subdir_stats.Reset();
 
-         if (unlink_foo(dir_path) == 0) {
-            DsMap_i j = i++;
-            m_subdirs.erase(j);
-            ++m_here_stats.m_NDirectoriesRemoved;
-            increment_iter = false;
-         }
-      }
-      if (increment_iter)
-         ++i;
+      if (reap_candidates && sub_ds.is_empty_leaf())
+         reap_candidates->push_back(&sub_ds);
    }
 
    // Apply current deltas to sshot_stats (and, if eventually needed, purge_stats).
@@ -209,17 +195,15 @@ void DirState::update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink
 }
 
 //----------------------------------------------------------------------------
-//! Reset current transaction deltas / stats.
-//! Called from ResourceMonitor::heart_beat()
-//----------------------------------------------------------------------------
-void DirState::reset_stats()
+//! No subdirs, files or open files, as of the last propagation, and no opens since.
+//! m_NDirectories can undercount, so m_subdirs is checked as well.
+
+bool DirState::is_empty_leaf() const
 {
-   for (DsMap_i i = m_subdirs.begin(); i != m_subdirs.end(); ++i)
-   {
-      i->second.reset_stats();
-   }
-   m_here_stats.Reset();
-   m_recursive_subdir_stats.Reset();
+   return m_subdirs.empty() &&
+          m_here_usage.m_NDirectories == 0 && m_here_usage.m_NFiles == 0 &&
+          m_here_usage.m_NFilesOpen == 0 &&
+          m_here_stats.m_NFilesOpened == 0 && m_here_stats.m_NFilesCreated == 0;
 }
 
 void DirState::reset_sshot_stats()
@@ -254,10 +238,10 @@ void DirState::dump_recursively(const char *name, int max_depth) const
           2 + 2 * m_depth, m_depth, name,
           512 * m_here_usage.m_StBlocks, 512 * m_recursive_subdir_usage.m_StBlocks,
           512 * (m_here_usage.m_StBlocks + m_recursive_subdir_usage.m_StBlocks),
-          // XXXXX here_stats or sum up? or both?
-          m_here_stats.m_NumIos, m_here_stats.m_Duration,
-          m_here_stats.m_BytesHit, m_here_stats.m_BytesMissed, m_here_stats.m_BytesBypassed,
-          m_here_stats.m_BytesWritten);
+          // Since the last snapshot, this directory and below.
+          m_sshot_stats.m_NumIos, m_sshot_stats.m_Duration,
+          m_sshot_stats.m_BytesHit, m_sshot_stats.m_BytesMissed, m_sshot_stats.m_BytesBypassed,
+          m_sshot_stats.m_BytesWritten);
 
    if (m_depth < max_depth)
    {
@@ -273,16 +257,52 @@ void DirState::dump_recursively(const char *name, int max_depth) const
 // DataFsState
 //==============================================================================
 
-void DataFsState::update_stats_and_usages(time_t last_update, bool purge_empty_dirs, unlink_func unlink_foo)
+void DataFsState::update_stats_and_usages(time_t last_update, bool collect_reap_candidates)
 {
-   m_root.update_stats_and_usages(purge_empty_dirs, unlink_foo);
+   if (collect_reap_candidates)
+      m_reap_candidates.clear();
+   m_root.update_stats_and_usages(collect_reap_candidates ? &m_reap_candidates : nullptr);
+   m_root.m_here_stats.Reset();
+   m_root.m_recursive_subdir_stats.Reset();
    m_usage_update_time = last_update;
+   m_stats_reset_time  = last_update;
 }
 
-void DataFsState::reset_stats(time_t last_update)
+//----------------------------------------------------------------------------
+//! Remove the empty leaves collected at the last snapshot, which reported them once
+//! more, empty. The root is never a candidate, and a parent waits for the next
+//! snapshot. Returns the leftover st_blocks taken out of the tree.
+
+long long DataFsState::reap_empty_leaf_dirs(unlink_func unlink_foo)
 {
-   m_root.reset_stats();
-   m_stats_reset_time = last_update;
+   long long total_residue = 0;
+   for (DirState *ds : m_reap_candidates)
+   {
+      // A pending close points at a DirState while m_NFilesOpen > 0.
+      if ( ! ds->is_empty_leaf())
+         continue;
+
+      std::string dir_path;
+      dir_path.reserve(1024);
+      ds->generate_dir_path(dir_path);
+      if (unlink_foo(dir_path) != 0)
+         continue;
+
+      // Return a leftover st_blocks through the recursive stats, where the ancestors
+      // counted it, rather than lose it with the node. Keep the correction, and the
+      // node's own fuzz, as the parent's.
+      DirState *parent  = ds->m_parent;
+      long long residue = ds->m_here_usage.m_StBlocks + ds->m_recursive_subdir_usage.m_StBlocks;
+      parent->m_recursive_subdir_stats.m_StBlocksRemoved += residue;
+      parent->m_StBlocksFuzz += std::llabs(residue) + ds->m_StBlocksFuzz;
+      m_st_blocks_fuzz       += std::llabs(residue);
+      total_residue          += residue;
+
+      ++parent->m_here_stats.m_NDirectoriesRemoved;
+      parent->m_subdirs.erase(parent->m_subdirs.find(ds->m_dir_name));
+   }
+   m_reap_candidates.clear();
+   return total_residue;
 }
 
 void DataFsState::reset_sshot_stats(time_t last_update)
@@ -297,7 +317,7 @@ void DataFsState::dump_recursively(int max_depth) const
       max_depth = 4096;
 
    printf("DataFsState::dump_recursively delta_t = %lld, max_dump_depth = %d\n",
-          (long long)(m_usage_update_time - m_stats_reset_time), max_depth);
+          (long long)(m_usage_update_time - m_sshot_stats_reset_time), max_depth);
 
    m_root.dump_recursively("root", max_depth);
 }
