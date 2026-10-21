@@ -356,7 +356,7 @@ private:
    // Stats and ResourceMonitor interface
 
    Stats         m_stats;              //!< cache statistics for this instance
-   Stats         m_delta_stats;        //!< unreported updates to stats
+   Stats         m_delta_stats;        //!< accumulated since the last register_file_update_stats(), reset after it
    long long     m_st_blocks;          //!< last reported st_blocks
    long long     m_resmon_report_threshold;
    int           m_resmon_token;       //!< token used in communication with the ResourceMonitor

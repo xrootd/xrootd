@@ -37,11 +37,11 @@ PFC_DEFINE_TYPE_NON_INTRUSIVE(DirStats,
 PFC_DEFINE_TYPE_NON_INTRUSIVE(DirUsage,
     m_LastOpenTime, m_LastCloseTime, m_StBlocks, m_NFilesOpen, m_NFiles, m_NDirectories)
 PFC_DEFINE_TYPE_NON_INTRUSIVE(DirStateElement,
-   m_dir_name, m_stats, m_usage,
+   m_dir_name, m_stats, m_usage, m_st_blocks_fuzz,
    m_parent, m_daughters_begin, m_daughters_end)
 PFC_DEFINE_TYPE_NON_INTRUSIVE(DataFsSnapshot, 
    m_sshot_stats_reset_time, m_usage_update_time, m_disk_total, m_disk_used, m_file_usage, m_meta_total, m_meta_used,
-   m_dir_states)
+   m_st_blocks_fuzz, m_dir_states)
 }
 /*
 namespace
