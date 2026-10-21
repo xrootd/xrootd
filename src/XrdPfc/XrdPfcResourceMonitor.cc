@@ -112,6 +112,7 @@ void ResourceMonitor::cross_check_or_process_oob_lfn(const std::string &lfn, FsT
          if (it->second.has_data && it->second.has_cinfo) {
             here.m_StBlocks += it->second.stat_data.st_blocks;
             here.m_NFiles   += 1;
+            seed_last_times_from_cinfo(here, it->second.stat_cinfo);
          }
       }
    }
@@ -146,6 +147,7 @@ void ResourceMonitor::scan_dir_and_recurse(FsTraversal &fst)
          if (it->second.has_data && it->second.has_cinfo) {
             here.m_StBlocks += it->second.stat_data.st_blocks;
             here.m_NFiles   += 1;
+            seed_last_times_from_cinfo(here, it->second.stat_cinfo);
          }
       }
       fst.m_dir_state->m_scanned = true;
