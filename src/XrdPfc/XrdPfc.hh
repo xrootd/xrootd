@@ -29,7 +29,7 @@
 
 #include "XrdCl/XrdClURL.hh"
 
-#include "XrdPfcFile.hh"
+#include "XrdPfcTypes.hh"
 #include "XrdPfcDecision.hh"
 
 class XrdOss;
@@ -42,6 +42,7 @@ struct XrdVersionInfo;
 
 namespace XrdPfc
 {
+class Block;
 class File;
 class IO;
 class PurgePin;
