@@ -8,6 +8,7 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <vector>
 
 
 //==============================================================================
@@ -68,6 +69,11 @@ struct DirState : public DirStateBase
    DirStats     m_sshot_stats; // here + subdir, reset after sshot dump
    // DirStats     m_purge_stats;  // here + subdir, running avg., as per purge params
 
+   //! Accumulated magnitude of st_blocks corrections made at this node, never reset;
+   //! a reaped child's is carried here. A diagnostic of accounting drift.
+   long long    m_StBlocksFuzz = 0;
+   long long    m_RecursiveStBlocksFuzz = 0; //!< sum over the subdirs, set by propagation
+
    DirState    *m_parent = nullptr;
    DsMap_t      m_subdirs;
    int          m_depth;
@@ -101,8 +107,8 @@ struct DirState : public DirStateBase
    void upward_propagate_initial_scan_usages();
 
    // stat & usages updates / management
-   void update_stats_and_usages(bool purge_empty_dirs, unlink_func unlink_foo);
-   void reset_stats();
+   void update_stats_and_usages(std::vector<DirState*> *reap_candidates = nullptr);
+   bool is_empty_leaf() const;
    void reset_sshot_stats();
 
    int count_dirs_to_level(int max_depth) const;
@@ -142,6 +148,9 @@ struct DataFsState : public DataFsStateBase
    time_t          m_stats_reset_time = 0;
    time_t          m_sshot_stats_reset_time = 0;
    // time_t          m_purge_stats_reset_time = 0;
+   long long       m_st_blocks_fuzz = 0; // all corrections; equals the root's subtree fuzz
+   std::vector<DirState*> m_reap_candidates; // empty leaves at the last snapshot's propagation;
+                                             // only the reap erases DirStates
 
    DataFsState() : m_root() {}
 
@@ -154,8 +163,8 @@ struct DataFsState : public DataFsStateBase
       return m_root.find_path(lfn, -1, true, true, last_existing_dir);
    }
 
-   void update_stats_and_usages(time_t last_update, bool purge_empty_dirs, unlink_func unlink_foo);
-   void reset_stats(time_t last_update);
+   void update_stats_and_usages(time_t last_update, bool collect_reap_candidates);
+   long long reap_empty_leaf_dirs(unlink_func unlink_foo); // returns the residue
    void reset_sshot_stats(time_t last_update);
    // void reset_purge_stats();
 
