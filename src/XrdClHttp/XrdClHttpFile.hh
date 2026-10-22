@@ -169,6 +169,15 @@ private:
     // Must be called with the m_properties_mutex held for write.
     void CalculateCurrentURL(const std::string &value) const;
 
+    // Cancel any outstanding prefetch operation so the worker slot is freed
+    // promptly instead of waiting up to the transfer-stall timeout. Called from
+    // Close() and the destructor. Acquires m_default_prefetch_handler->m_prefetch_mutex
+    // internally; callers must not hold it.
+    void CancelPrefetch();
+
+    // Wakes a paused prefetch op so the worker can drop it. Defined in the .cc.
+    class CancelResponseHandler;
+
     bool m_is_opened{false};
     std::atomic<bool> m_full_download{false}; // Whether the file was in "full download mode" when opened.
 
@@ -277,6 +286,10 @@ private:
     // Protected by m_prefetch_mutex
     std::atomic<off_t> m_prefetch_offset{0};
 
+    // Forward declaration: PrefetchResponseHandler holds a shared_ptr to this so
+    // it can synchronise against File destruction via DetachFile().
+    class PrefetchDefaultHandler;
+
     // Prefetch callback handler class
     //
     // Objects form a linked list of pending prefetch handlers.
@@ -308,13 +321,27 @@ private:
             off_t offset, size_t size, std::atomic<off_t> *prefetch_offset, char *buffer, XrdCl::ResponseHandler *handler,
             std::unique_lock<std::mutex> *lock, time_t timeout);
 
-        virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response);
+        void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response) override;
+
+        ~PrefetchResponseHandler() override;
 
     private:
         // When the prefetch fails, we must resubmit our handler as a non-prefetching read.
-        void ResubmitOperation();
+        // Resubmits via parent->Read if the parent File is still alive (m_default_handler->
+        // GetFileLocked() != nullptr); otherwise propagates the cancellation to each
+        // chained handler with the given status.
+        void ResubmitOperation(XrdCl::XRootDStatus *fallback_status);
 
-        // The open file we are associated with
+        // Strong reference to the default prefetch handler. Keeps the handler's
+        // mutex and File*-tracking state alive even after the parent File has been
+        // destroyed, so a worker-thread callback firing after ~File can safely
+        // synchronise and skip accesses to dead File memory.
+        std::shared_ptr<PrefetchDefaultHandler> m_default_handler;
+
+        // The open file we are associated with. Raw reference because it is set at
+        // construction time on the live File, but no member function may dereference
+        // this except via m_default_handler->GetFileLocked() under the lock — that
+        // is the only thread-safe way to know File is still alive.
         File &m_parent;
 
         // A reference to the handler we are wrapping.  Note we don't own the handler
@@ -359,9 +386,25 @@ private:
     // prefetching.
     class PrefetchDefaultHandler : public XrdCl::ResponseHandler {
     public:
-        PrefetchDefaultHandler(File &file) : m_logger(file.m_logger), m_url(file.m_url) {}
+        PrefetchDefaultHandler(File &file)
+            : m_logger(file.m_logger), m_url(file.m_url), m_file(&file) {}
 
         virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response);
+
+        // Detach the parent File pointer. Called by File::~File just before File-
+        // owned data is freed, so that any in-flight PrefetchResponseHandler that
+        // wakes up afterwards sees a null File pointer and skips File accesses.
+        // Must be called while no other thread is mid-callback against m_file —
+        // the m_prefetch_mutex serializes that.
+        void DetachFile() {
+            std::unique_lock lock(m_prefetch_mutex);
+            m_file = nullptr;
+        }
+
+        // Read the parent File pointer. Caller MUST be holding m_prefetch_mutex;
+        // any File-owned memory derived from this pointer is only safe to access
+        // while the lock is held.
+        File *GetFileLocked() const { return m_file; }
 
         // Disable prefetching for all future operations
         void DisablePrefetch() {
@@ -396,6 +439,12 @@ private:
         // m_prefetch_mutex held to ensure is actually true and not
         // a spurious reading.
         mutable std::atomic<bool> m_prefetch_enabled{true};
+
+    private:
+        // Pointer to the parent File. Initialised in the constructor and cleared
+        // by DetachFile() under m_prefetch_mutex when the File is being destroyed.
+        // Only safe to dereference while holding m_prefetch_mutex.
+        File *m_file{nullptr};
     };
 
     // "Default" handler for prefetching
@@ -426,6 +475,7 @@ private:
     HeaderCallout m_default_header_callout{*this};
 
     static std::atomic<uint64_t> m_prefetch_count; // Count of prefetch operations that have been initiated.
+    static std::atomic<uint64_t> m_prefetch_cancelled_count; // Count of prefetch operations cancelled on file close.
     static std::atomic<uint64_t> m_prefetch_expired_count; // Count of prefetch operations that have expired due to unused data.
     static std::atomic<uint64_t> m_prefetch_failed_count; // Count of prefetch operations that have failed due to errors.
     static std::atomic<uint64_t> m_prefetch_reads_hit; // Count of read operations served from prefetch data.
