@@ -168,7 +168,7 @@ void XrdPollPoll::Disable(XrdPollInfo &pInfo, const char *etxt)
    if (myerrno) Log.Emsg("Poll", myerrno, "disable link", pInfo.Link.ID);
       else {mySem.Wait();
             if (etxt && Finish(pInfo, etxt))
-               Sched.Schedule((XrdJob *)&pInfo.Link);
+               Sched.Schedule(XrdPollDispatchJob::Alloc(&pInfo));
            }
 }
   
@@ -322,14 +322,21 @@ void XrdPollPoll::Start(XrdSysSemaphore *syncsem, int &retcode)
                   if (plp) nlp = plp->Next = pInfo->Next;
                      else  nlp =     PollQ = pInfo->Next;
                   numpolled--; pInfo->inQ = false;
+                  // Finish locks the link; never call it under PollMutex.
                   if (!(pollevents & pollOK))
-                     Finish(*pInfo, Poll2Text(pollevents));
+                     {pInfo->isEnabled = false;
+                      char *reason = Poll2Text(pollevents);
+                      Sched.Schedule(new XrdPollFinishJob(pInfo, reason));
+                      free(reason);
+                      continue;
+                     }
                   lp = &(pInfo->Link);
                   if (!(pInfo->isEnabled))
                      Log.Emsg("Poll", "Disabled event occurred for", lp->ID);
                      else {pInfo->isEnabled = false;
-                           lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
-                           if (!jlast) jlast=(XrdJob *)lp;
+                           XrdJob *job = XrdPollDispatchJob::Alloc(pInfo);
+                           job->NextJob = jfirst; jfirst = job;
+                           if (!jlast) jlast = job;
                            num2sched++;
                            continue;
                           }
@@ -529,8 +536,8 @@ void XrdPollPoll::Restart(int ecode)
    while((pInfo = PollQ))
         {PollQ = pInfo->Next;
          pInfo->PollEnt->fd = -1;
-         Finish(*pInfo, "Unexpected polling error");
-         Sched.Schedule((XrdJob *)&(pInfo->Link));
+         pInfo->inQ = pInfo->isEnabled = false;
+         Sched.Schedule(new XrdPollFinishJob(pInfo, "Unexpected polling error"));
         }
    PollMutex.UnLock();
 }
