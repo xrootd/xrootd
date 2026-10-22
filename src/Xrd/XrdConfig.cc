@@ -1370,7 +1370,9 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
                        if (!theNet) return 1;
                        if (!(cp->portVec[i])) arbNet = theNet;
                       }
-              if (i == 0) XrdNetTCP = theNet; // Avoid race condition!!!
+              // The default network is the one of the first protocol; set it
+              // before any protocol loads, which may use it
+              if (i == 0 && !XrdNetTCP) XrdNetTCP = theNet;
               ProtInfo.Port   = theNet->Port();
               ProtInfo.NetTCP = theNet;
               ProtInfo.WSize  = theNet->WSize();
@@ -1399,6 +1401,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 //
    PortTCP = ProtInfo.Port = XrdNetTCP->Port();
    XrdOucEnv::Export("XRDPORT", PortTCP);
+   ProtInfo.Stats->SetPort(PortTCP);
 
 // Now check if we have to setup automatic reporting
 //

@@ -84,6 +84,31 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                    const char *hname, int port,
                    const char *iname, const char *pname, const char *site)
 {
+   XrdLog   = eP;
+   XrdSched = sP;
+   BuffPool = bP;
+
+   myHost = hname;
+   myName = iname;
+   myProg = pname;
+   mySite = (site ? site : "");
+   Head   = Jead = 0;
+   SetPort(port);
+
+// Allocate a shared buffer. Buffer use is serialized via the statsMutex.
+//
+   blen = 64*1024; // 64K which is the largest allowed UDP packet
+   if (posix_memalign((void **)&buff, getpagesize(), blen)) buff = 0;
+
+   theMon = new XrdMonitor;
+}
+
+/******************************************************************************/
+/*                               S e t P o r t                                */
+/******************************************************************************/
+
+void XrdStats::SetPort(int port)
+{
    const char *head =
           "<statistics tod=\"%%ld\" ver=\"" XrdVERSION "\" src=\"%s:%d\" "
                       "tos=\"%ld\" pgm=\"%s\" ins=\"%s\" pid=\"%d\" "
@@ -100,28 +125,17 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
 
    char myBuff[1024];
 
-   XrdLog   = eP;
-   XrdSched = sP;
-   BuffPool = bP;
-
-   sprintf(myBuff, head, hname, port, tBoot, pname, iname,
-                   static_cast<int>(getpid()), (site ? site : ""));
-   Head = strdup(myBuff);
-
-   sprintf(myBuff, jead, hname, port, tBoot, pname, iname,
-                   static_cast<int>(getpid()), (site ? site : ""));
-   Jead = strdup(myBuff);
-
-// Allocate a shared buffer. Buffer use is serialized via the statsMutex.
-//
-   blen = 64*1024; // 64K which is the largest allowed UDP packet
-   if (posix_memalign((void **)&buff, getpagesize(), blen)) buff = 0;
-
-   myHost = hname;
-   myName = iname;
    myPort = port;
 
-   theMon = new XrdMonitor;
+   sprintf(myBuff, head, myHost, port, tBoot, myProg, myName,
+                   static_cast<int>(getpid()), mySite);
+   if (Head) free(Head);
+   Head = strdup(myBuff);
+
+   sprintf(myBuff, jead, myHost, port, tBoot, myProg, myName,
+                   static_cast<int>(getpid()), mySite);
+   if (Jead) free(Jead);
+   Jead = strdup(myBuff);
 }
 
 /******************************************************************************/

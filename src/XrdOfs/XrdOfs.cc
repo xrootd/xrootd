@@ -296,8 +296,8 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 //
    std::string eText;
    const char* etP = 0;
-   if (dp && XrdOfsFS->tryXERT)
-      {if (dp->getErrMsg(eText)) etP = eText.c_str();
+   if (dp)
+      {if (XrdOfsFS->tryXERT && dp->getErrMsg(eText)) etP = eText.c_str();
        delete dp; dp = 0;
       }
 
