@@ -1545,9 +1545,11 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
   }
   ss << crlf;
 
+  // A keepalive 100 carries no Connection header. Close there makes
+  // the client drop the socket after the final response.
   if (keepalive && (code != 100))
     ss << "Connection: Keep-Alive" << crlf;
-  else
+  else if (!keepalive)
     ss << "Connection: Close" << crlf;
 
   ss << "Server: XRootD" << crlf;
