@@ -539,6 +539,8 @@ fi
 %{_libdir}/libXrdSecsss-6.so
 %{_libdir}/libXrdSecunix-6.so
 %{_libdir}/libXrdSecztn-6.so
+%{_libdir}/libXrdSecjwt-6.so
+%{_libdir}/libXrdSecjwtCore-6.so
 %license COPYING* LICENSE
 
 %files devel
