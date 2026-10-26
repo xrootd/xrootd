@@ -426,7 +426,7 @@ void Info::WriteIOStatAttach()
    m_astats.push_back(as);
 }
 
-void Info::WriteIOStat(Stats& s)
+void Info::WriteIOStat(FileStats& s)
 {
    m_astats.back().NumIos        = s.m_NumIos;
    m_astats.back().Duration      = s.m_Duration;
@@ -435,7 +435,7 @@ void Info::WriteIOStat(Stats& s)
    m_astats.back().BytesBypassed = s.m_BytesBypassed;
 }
 
-void Info::WriteIOStatDetach(Stats& s)
+void Info::WriteIOStatDetach(FileStats& s)
 {
    m_astats.back().DetachTime  = time(0);
    WriteIOStat(s);

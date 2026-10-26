@@ -59,7 +59,7 @@ class ResourceMonitor
 
       // Writer / producer access
       void push(ID id, RECORD stat) { m_write_queue.push_back({ id, stat }); }
-      // Existing entry access for updating Stats
+      // Existing entry access for updating FileStats
       RECORD& write_record(int pos) { return m_write_queue[pos].record; }
 
       // Reader / consumer access
@@ -99,8 +99,8 @@ class ResourceMonitor
    };
 
    struct CloseRecord {
-      time_t m_close_time;
-      Stats  m_full_stats;
+      time_t    m_close_time;
+      FileStats m_full_stats;
    };
 
    struct PurgeRecord {
@@ -109,7 +109,7 @@ class ResourceMonitor
    };
 
    Queue<int, OpenRecord>          m_file_open_q;
-   Queue<int, Stats>               m_file_update_stats_q;
+   Queue<int, FileStats>           m_file_update_stats_q;
    Queue<int, CloseRecord>         m_file_close_q;
    Queue<DirState*,   PurgeRecord> m_file_purge_q1;
    Queue<std::string, PurgeRecord> m_file_purge_q2;
@@ -190,7 +190,7 @@ public:
       return token_id;
    }
 
-   void register_file_update_stats(int token_id, const Stats& stats) {
+   void register_file_update_stats(int token_id, const FileStats& stats) {
       if (token_id < 0) return;   // register_file_open() could not get a token
       XrdSysMutexHelper _lock(&m_queue_mutex);
       AccessToken &at = token(token_id);
@@ -200,7 +200,7 @@ public:
          at.m_last_queue_swap_u1 = m_queue_swap_u1;
          at.m_last_write_queue_pos = m_file_update_stats_q.write_queue_size() - 1;
       } else {
-         Stats &existing_stats = m_file_update_stats_q.write_record(at.m_last_write_queue_pos);
+         FileStats &existing_stats = m_file_update_stats_q.write_record(at.m_last_write_queue_pos);
          existing_stats.AddUp(stats);
       }
       // Optionally, one could return "scaler" to moodify stat-reporting
@@ -209,7 +209,7 @@ public:
       // in File::Open().
    }
 
-   void register_file_close(int token_id, time_t close_timestamp, const Stats& full_stats) {
+   void register_file_close(int token_id, time_t close_timestamp, const FileStats& full_stats) {
       if (token_id < 0) return;   // register_file_open() could not get a token
       XrdSysMutexHelper _lock(&m_queue_mutex);
       m_file_close_q.push(token_id, {close_timestamp, full_stats});

@@ -9,7 +9,7 @@ namespace XrdPfc
 {
 
 //==============================================================================
-// Data-holding struct DirUsage -- complementary to Stats.
+// Data-holding struct DirUsage -- complementary to DirStats.
 //==============================================================================
 
 struct DirUsage

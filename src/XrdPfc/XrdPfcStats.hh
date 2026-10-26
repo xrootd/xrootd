@@ -31,7 +31,7 @@ namespace XrdPfc
 //  For running averages / deltas, one might need a version with doubles, so
 //  it might make sense to template this. And add some timestamp.
 //----------------------------------------------------------------------------
-class Stats
+class FileStats
 {
 public:
    int       m_NumIos = 0;          //!< number of IO objects attached during this access
@@ -45,13 +45,13 @@ public:
 
    //----------------------------------------------------------------------
 
-   Stats() = default;
+   FileStats() = default;
 
-   Stats(const Stats& s) = default;
+   FileStats(const FileStats& s) = default;
 
-   Stats& operator=(const Stats&) = default;
+   FileStats& operator=(const FileStats&) = default;
 
-   Stats(const Stats& a, const Stats& b) :
+   FileStats(const FileStats& a, const FileStats& b) :
       m_NumIos        (a.m_NumIos       + b.m_NumIos),
       m_Duration      (a.m_Duration      + b.m_Duration),
       m_BytesHit      (a.m_BytesHit      + b.m_BytesHit),
@@ -64,7 +64,7 @@ public:
 
    //----------------------------------------------------------------------
 
-   void AddReadStats(const Stats &s)
+   void AddReadStats(const FileStats &s)
    {
       m_BytesHit      += s.m_BytesHit;
       m_BytesMissed   += s.m_BytesMissed;
@@ -104,7 +104,7 @@ public:
       return BytesRead() + m_BytesWritten;
    }
 
-   void DeltaToReference(const Stats& ref)
+   void DeltaToReference(const FileStats& ref)
    {
       m_NumIos        = ref.m_NumIos        - m_NumIos;
       m_Duration      = ref.m_Duration      - m_Duration;
@@ -116,7 +116,7 @@ public:
       m_NCksumErrors  = ref.m_NCksumErrors  - m_NCksumErrors;
    }
 
-   void AddUp(const Stats& s)
+   void AddUp(const FileStats& s)
    {
       m_NumIos        += s.m_NumIos;
       m_Duration      += s.m_Duration;
@@ -143,7 +143,7 @@ public:
 
 //==============================================================================
 
-class DirStats : public Stats
+class DirStats : public FileStats
 {
 public:
    long long m_StBlocksRemoved = 0; // number of 512-byte blocks removed from the directory
@@ -163,7 +163,7 @@ public:
    DirStats& operator=(const DirStats&) = default;
 
    DirStats(const DirStats& a, const DirStats& b) :
-      Stats(a, b),
+      FileStats(a, b),
       m_StBlocksRemoved     (a.m_StBlocksRemoved     + b.m_StBlocksRemoved),
       m_NFilesOpened        (a.m_NFilesOpened        + b.m_NFilesOpened),
       m_NFilesClosed        (a.m_NFilesClosed        + b.m_NFilesClosed),
@@ -175,10 +175,10 @@ public:
 
    //----------------------------------------------------------------------
 
-   using Stats::DeltaToReference; // activate overload based on arg
+   using FileStats::DeltaToReference; // activate overload based on arg
    void DeltaToReference(const DirStats& ref)
    {
-      Stats::DeltaToReference(ref);
+      FileStats::DeltaToReference(ref);
       m_StBlocksRemoved     = ref.m_StBlocksRemoved     - m_StBlocksRemoved;
       m_NFilesOpened        = ref.m_NFilesOpened        - m_NFilesOpened;
       m_NFilesClosed        = ref.m_NFilesClosed        - m_NFilesClosed;
@@ -188,10 +188,10 @@ public:
       m_NDirectoriesRemoved = ref.m_NDirectoriesRemoved - m_NDirectoriesRemoved;
    }
 
-   using Stats::AddUp; // activate overload based on arg
+   using FileStats::AddUp; // activate overload based on arg
    void AddUp(const DirStats& s)
    {
-      Stats::AddUp(s);
+      FileStats::AddUp(s);
       m_StBlocksRemoved     += s.m_StBlocksRemoved;
       m_NFilesOpened        += s.m_NFilesOpened;
       m_NFilesClosed        += s.m_NFilesClosed;
@@ -201,10 +201,10 @@ public:
       m_NDirectoriesRemoved += s.m_NDirectoriesRemoved;
    }
 
-   using Stats::Reset; // activate overload based on arg
+   using FileStats::Reset; // activate overload based on arg
    void Reset()
    {
-      Stats::Reset();
+      FileStats::Reset();
       m_StBlocksRemoved     = 0;
       m_NFilesOpened        = 0;
       m_NFilesClosed        = 0;

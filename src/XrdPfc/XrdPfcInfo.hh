@@ -31,7 +31,7 @@ class XrdSysTrace;
 
 namespace XrdPfc
 {
-class Stats;
+class FileStats;
 
 //----------------------------------------------------------------------------
 //! Status of cached file. Can be read from and written into a binary file.
@@ -173,12 +173,12 @@ public:
    //---------------------------------------------------------------------
    //! Write bytes missed, hits, and disk
    //---------------------------------------------------------------------
-   void WriteIOStat(Stats& s);
+   void WriteIOStat(FileStats& s);
 
   //---------------------------------------------------------------------
    //! Write close time together with bytes missed, hits, and disk
    //---------------------------------------------------------------------
-   void WriteIOStatDetach(Stats& s);
+   void WriteIOStatDetach(FileStats& s);
 
    //---------------------------------------------------------------------
    //! Write single open/close time for given bytes read from disk.

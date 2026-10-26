@@ -75,7 +75,7 @@ struct ReadRequest
    long long   m_bytes_read = 0;
    int         m_error_cond = 0; // to be set to -errno
    int         m_error_count = 0;
-   Stats       m_stats;
+   FileStats   m_stats;
 
    int         m_n_chunk_reqs = 0;
    bool        m_sync_done    = false;
@@ -285,7 +285,7 @@ public:
    int                GetNBlocks()           const { return m_cfi.GetNBlocks(); }
    int                GetNDownloadedBlocks() const { return m_cfi.GetNDownloadedBlocks(); }
    long long          GetPrefetchedBytes()   const { return m_prefetch_bytes; }
-   const Stats&       RefStats()             const { return m_stats; }
+   const FileStats&   RefStats()             const { return m_stats; }
 
    int Fstat(struct stat &sbuff);
 
@@ -353,10 +353,10 @@ private:
    long long     m_block_size;
    int           m_num_blocks;
 
-   // Stats and ResourceMonitor interface
+   // FileStats and ResourceMonitor interface
 
-   Stats         m_stats;              //!< cache statistics for this instance
-   Stats         m_delta_stats;        //!< accumulated since the last register_file_update_stats(), reset after it
+   FileStats     m_stats;              //!< cache statistics for this instance
+   FileStats     m_delta_stats;        //!< accumulated since the last register_file_update_stats(), reset after it
    long long     m_st_blocks;          //!< last reported st_blocks
    long long     m_resmon_report_threshold;
    int           m_resmon_token;       //!< token used in communication with the ResourceMonitor
