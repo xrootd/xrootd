@@ -23,13 +23,8 @@ namespace XrdPfc
 {
 
 //----------------------------------------------------------------------------
-//! Statistics of cache utilisation by a File object.
-//  Used both as aggregation of usage by a single file as well as for
-//  collecting per-directory statistics on time-interval basis. In this second
-//  case they are used as "deltas" ... differences in respect to a previous
-//  reference value.
-//  For running averages / deltas, one might need a version with doubles, so
-//  it might make sense to template this. And add some timestamp.
+//! Statistics of cache utilisation by a File object: its access record, and
+//! the delta it reports to the ResourceMonitor.
 //----------------------------------------------------------------------------
 class FileStats
 {
@@ -42,25 +37,6 @@ public:
    long long m_BytesWritten = 0;    //!< number of bytes written to disk
    long long m_StBlocksAdded = 0;   //!< number of 512-byte blocks the file has grown by
    int       m_NCksumErrors = 0;    //!< number of checksum errors while getting data from remote
-
-   //----------------------------------------------------------------------
-
-   FileStats() = default;
-
-   FileStats(const FileStats& s) = default;
-
-   FileStats& operator=(const FileStats&) = default;
-
-   FileStats(const FileStats& a, const FileStats& b) :
-      m_NumIos        (a.m_NumIos       + b.m_NumIos),
-      m_Duration      (a.m_Duration      + b.m_Duration),
-      m_BytesHit      (a.m_BytesHit      + b.m_BytesHit),
-      m_BytesMissed   (a.m_BytesMissed   + b.m_BytesMissed),
-      m_BytesBypassed (a.m_BytesBypassed + b.m_BytesBypassed),
-      m_BytesWritten  (a.m_BytesWritten  + b.m_BytesWritten),
-      m_StBlocksAdded (a.m_StBlocksAdded + b.m_StBlocksAdded),
-      m_NCksumErrors  (a.m_NCksumErrors  + b.m_NCksumErrors)
-   {}
 
    //----------------------------------------------------------------------
 
@@ -104,18 +80,6 @@ public:
       return BytesRead() + m_BytesWritten;
    }
 
-   void DeltaToReference(const FileStats& ref)
-   {
-      m_NumIos        = ref.m_NumIos        - m_NumIos;
-      m_Duration      = ref.m_Duration      - m_Duration;
-      m_BytesHit      = ref.m_BytesHit      - m_BytesHit;
-      m_BytesMissed   = ref.m_BytesMissed   - m_BytesMissed;
-      m_BytesBypassed = ref.m_BytesBypassed - m_BytesBypassed;
-      m_BytesWritten  = ref.m_BytesWritten  - m_BytesWritten;
-      m_StBlocksAdded = ref.m_StBlocksAdded - m_StBlocksAdded;
-      m_NCksumErrors  = ref.m_NCksumErrors  - m_NCksumErrors;
-   }
-
    void AddUp(const FileStats& s)
    {
       m_NumIos        += s.m_NumIos;
@@ -130,68 +94,58 @@ public:
 
    void Reset()
    {
-      m_NumIos        = 0;
-      m_Duration      = 0;
-      m_BytesHit      = 0;
-      m_BytesMissed   = 0;
-      m_BytesBypassed = 0;
-      m_BytesWritten  = 0;
-      m_StBlocksAdded = 0;
-      m_NCksumErrors  = 0;
+      *this = FileStats();
    }
 };
 
-//==============================================================================
-
-class DirStats : public FileStats
+//----------------------------------------------------------------------------
+//! Statistics of a directory: the FileStats of its files, summed, and the
+//! changes to its files and subdirectories. 64-bit throughout, as they are
+//! summed over subtrees and reporting intervals.
+//----------------------------------------------------------------------------
+class DirStats
 {
 public:
-   long long m_StBlocksRemoved = 0; // number of 512-byte blocks removed from the directory
-   int       m_NFilesOpened = 0;
-   int       m_NFilesClosed = 0;
-   int       m_NFilesCreated = 0;
-   int       m_NFilesRemoved = 0; // purged or otherwise (error, direct requests)
-   int       m_NDirectoriesCreated = 0;
-   int       m_NDirectoriesRemoved = 0;
+   long long m_NumIos = 0;
+   long long m_Duration = 0;
+   long long m_BytesHit = 0;
+   long long m_BytesMissed = 0;
+   long long m_BytesBypassed = 0;
+   long long m_BytesWritten = 0;
+   long long m_StBlocksAdded = 0;
+   long long m_NCksumErrors = 0;
+   long long m_StBlocksRemoved = 0;     //!< number of 512-byte blocks removed from the directory
+   long long m_NFilesOpened = 0;
+   long long m_NFilesClosed = 0;
+   long long m_NFilesCreated = 0;
+   long long m_NFilesRemoved = 0;       //!< purged or otherwise (error, direct requests)
+   long long m_NDirectoriesCreated = 0;
+   long long m_NDirectoriesRemoved = 0;
 
    //----------------------------------------------------------------------
 
-   DirStats() = default;
-
-   DirStats(const DirStats& s) = default;
-
-   DirStats& operator=(const DirStats&) = default;
-
-   DirStats(const DirStats& a, const DirStats& b) :
-      FileStats(a, b),
-      m_StBlocksRemoved     (a.m_StBlocksRemoved     + b.m_StBlocksRemoved),
-      m_NFilesOpened        (a.m_NFilesOpened        + b.m_NFilesOpened),
-      m_NFilesClosed        (a.m_NFilesClosed        + b.m_NFilesClosed),
-      m_NFilesCreated       (a.m_NFilesCreated       + b.m_NFilesCreated),
-      m_NFilesRemoved       (a.m_NFilesRemoved       + b.m_NFilesRemoved),
-      m_NDirectoriesCreated (a.m_NDirectoriesCreated + b.m_NDirectoriesCreated),
-      m_NDirectoriesRemoved (a.m_NDirectoriesRemoved + b.m_NDirectoriesRemoved)
-   {}
-
-   //----------------------------------------------------------------------
-
-   using FileStats::DeltaToReference; // activate overload based on arg
-   void DeltaToReference(const DirStats& ref)
+   void AddUp(const FileStats& s)
    {
-      FileStats::DeltaToReference(ref);
-      m_StBlocksRemoved     = ref.m_StBlocksRemoved     - m_StBlocksRemoved;
-      m_NFilesOpened        = ref.m_NFilesOpened        - m_NFilesOpened;
-      m_NFilesClosed        = ref.m_NFilesClosed        - m_NFilesClosed;
-      m_NFilesCreated       = ref.m_NFilesCreated       - m_NFilesCreated;
-      m_NFilesRemoved       = ref.m_NFilesRemoved       - m_NFilesRemoved;
-      m_NDirectoriesCreated = ref.m_NDirectoriesCreated - m_NDirectoriesCreated;
-      m_NDirectoriesRemoved = ref.m_NDirectoriesRemoved - m_NDirectoriesRemoved;
+      m_NumIos        += s.m_NumIos;
+      m_Duration      += s.m_Duration;
+      m_BytesHit      += s.m_BytesHit;
+      m_BytesMissed   += s.m_BytesMissed;
+      m_BytesBypassed += s.m_BytesBypassed;
+      m_BytesWritten  += s.m_BytesWritten;
+      m_StBlocksAdded += s.m_StBlocksAdded;
+      m_NCksumErrors  += s.m_NCksumErrors;
    }
 
-   using FileStats::AddUp; // activate overload based on arg
    void AddUp(const DirStats& s)
    {
-      FileStats::AddUp(s);
+      m_NumIos              += s.m_NumIos;
+      m_Duration            += s.m_Duration;
+      m_BytesHit            += s.m_BytesHit;
+      m_BytesMissed         += s.m_BytesMissed;
+      m_BytesBypassed       += s.m_BytesBypassed;
+      m_BytesWritten        += s.m_BytesWritten;
+      m_StBlocksAdded       += s.m_StBlocksAdded;
+      m_NCksumErrors        += s.m_NCksumErrors;
       m_StBlocksRemoved     += s.m_StBlocksRemoved;
       m_NFilesOpened        += s.m_NFilesOpened;
       m_NFilesClosed        += s.m_NFilesClosed;
@@ -201,17 +155,9 @@ public:
       m_NDirectoriesRemoved += s.m_NDirectoriesRemoved;
    }
 
-   using FileStats::Reset; // activate overload based on arg
    void Reset()
    {
-      FileStats::Reset();
-      m_StBlocksRemoved     = 0;
-      m_NFilesOpened        = 0;
-      m_NFilesClosed        = 0;
-      m_NFilesCreated       = 0;
-      m_NFilesRemoved       = 0;
-      m_NDirectoriesCreated = 0;
-      m_NDirectoriesRemoved = 0;
+      *this = DirStats();
    }
 };
 
