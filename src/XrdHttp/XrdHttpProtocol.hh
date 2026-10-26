@@ -170,6 +170,15 @@ private:
   /// @return 0 if successful, otherwise error
   int HandleAuthentication(XrdLink* lp);
 
+  /// Validate a Bearer JWT token and populate SecEntity.
+  /// @return 0 if successful or not applicable, otherwise error
+  int HandleJwtAuthentication();
+
+  /// Tear down any bearer-derived identity on this connection (Bridge login
+  /// and SecEntity name/attributes) so a new identity can be installed.
+  /// @return true if the identity was dropped, false if the Bridge is busy.
+  bool DropJwtIdentity();
+
   /// After the SSL handshake, retrieve the VOMS info and the various stuff
   /// that is needed for autorization
   int GetVOMSData(XrdLink *lp);
@@ -229,7 +238,18 @@ private:
   static int xtlsreuse(XrdOucStream &Config);
   static int xauth(XrdOucStream &Config);
   static int xtlsclientauth(XrdOucStream &Config);
+  static int xjwt(XrdOucStream &Config);
   static int xmaxdelay(XrdOucStream &Config);
+
+  /// 0=disabled, 1=optional bearer JWT, 2=require bearer JWT
+  static int jwtHttpMode;
+
+  /// Config file path used to load the security framework for http.jwt.
+  static const char *jwtConfigFN;
+
+  /// Shared xrd environment; used to pick up the xrootd protocol's security
+  /// service ("XrdSecService*") instead of instantiating a second one.
+  static XrdOucEnv *jwtSharedEnv;
 
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
@@ -376,7 +396,9 @@ protected:
   /// The Bridge that we use to exercise the xrootd internals
   XrdXrootd::Bridge *Bridge;
 
-  
+  /// SHA-256 fingerprint of the validated JWT bearer token on this connection.
+  std::string jwtBearerTokKey;
+
   /// Area for coordinating request and responses to/from the bridge
   /// This also can process HTTP/DAV stuff
   XrdHttpReq CurrentReq;

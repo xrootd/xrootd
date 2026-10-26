@@ -2819,6 +2819,7 @@ void XrdHttpReq::reset() {
 
   /// State machine to talk to the bridge
   reqstate = 0;
+  jwtChecked = false;
 
   memset(&xrdreq, 0, sizeof (xrdreq));
   memset(&xrdresp, 0, sizeof (xrdresp));
