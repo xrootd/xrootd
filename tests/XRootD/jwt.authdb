@@ -1,0 +1,3 @@
+# Identity is the token "sub" (map_subject in the generated SciTokens INI).
+# Scope is not consulted: this test uses acc.authdb, not XrdAccjwt.
+u alice /protected a
