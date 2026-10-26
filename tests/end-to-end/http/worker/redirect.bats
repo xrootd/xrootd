@@ -1,36 +1,66 @@
 #!/usr/bin/env bash
 
-load ../../helper/common.bash
+# xrdfs stat over HTTP, with the XrdClHttp plugin, through a redirect: the
+# server "origin" redirects stat to the server "target". The client has one
+# worker thread, which must find the capabilities of the target after the
+# redirect. Each test starts its own servers, as the tests read the server
+# logs.
 
-export XRD_PLUGINCONFDIR="$BATS_TEST_DIRNAME"
-export XRD_REQUESTTIMEOUT=15
-export XRD_HTTPNUMTHREADS=1 XRD_HTTPDISABLEX509=1
-export X509_USER_PROXY=/dev/null/x509
-export no_proxy=127.0.0.1
-export NO_PROXY=127.0.0.1
-unset BEARER_TOKEN BEARER_TOKEN_FILE XrdSecPROTOCOL XRD_PLUGIN
-unset XRD_HTTPHEADERS XRD_HTTPCLIENTCERTFILE XRD_HTTPCLIENTKEYFILE
+load ../../setup/server.bash
+
+# BATS stops a test and its processes after this time, thus a client which
+# hangs after the redirect fails its test
+# shellcheck disable=SC2034 # BATS reads it
+BATS_TEST_TIMEOUT=60
+
+export XRD_PLUGINCONFDIR="$SETUP_DIR/client-plugins"
+export XRD_HTTPNUMTHREADS=1
+
+# The client uses no proxy, token or certificate of the user
+export XRD_HTTPDISABLEX509=1 X509_USER_PROXY=/dev/null/x509
+export no_proxy=localhost,127.0.0.1 NO_PROXY=localhost,127.0.0.1
+unset BEARER_TOKEN BEARER_TOKEN_FILE XRD_HTTPHEADERS
+unset XRD_HTTPCLIENTCERTFILE XRD_HTTPCLIENTKEYFILE
 
 setup() {
-    cd "$BATS_TEST_TMPDIR" || return
-
-    PORT=8397 launch_xrootd server.cfg target
-    PORT=8396 launch_xrootd origin.cfg origin
-    printf 'redirected file!\n' > target/file
+    require_plugin libXrdHttp
+    require_plugin libXrdClHttp
+    start_server target server http
+    printf 'redirected file!\n' > "$TARGET_DATA/file"
+    printf 'xrootd.redirect localhost:%s stat\n' "$TARGET_PORT" > "$BATS_TEST_TMPDIR/redirect.cfg"
+    start_server origin server http "$BATS_TEST_TMPDIR/redirect.cfg"
 }
 
 teardown() {
-    kill_pid_files
+    stop_servers
 }
 
-@test "stat discovers the new endpoint's capabilities after a redirect" {
-    run -0 xrdfs http://127.0.0.1:8396 stat /file
+@test "stat over HTTP gets the size of a file through a redirect" {
+    run -0 xrdfs "$ORIGIN_HTTP" stat /file
     assert_output --partial 'Size:   17'
+}
 
-    # XrdHttp advertises PROPFIND, so stat uses it after discovering OPTIONS.
-    run -0 grep -F 'got hdr line: OPTIONS / HTTP/1.1' origin.log
-    run -0 grep -F 'got hdr line: PROPFIND /file HTTP/1.1' origin.log
-    run -0 grep -F 'XrdHttpReq::Redir Redirecting to Location: http://127.0.0.1:8397/file' origin.log
-    run -0 grep -F 'got hdr line: OPTIONS / HTTP/1.1' target.log
-    run -0 grep -F 'got hdr line: PROPFIND /file HTTP/1.1' target.log
+@test "stat sends OPTIONS to the origin" {
+    xrdfs "$ORIGIN_HTTP" stat /file
+    run -0 grep -F 'got hdr line: OPTIONS / HTTP/1.1' "$ORIGIN_LOG"
+}
+
+@test "stat sends PROPFIND to the origin" {
+    xrdfs "$ORIGIN_HTTP" stat /file
+    run -0 grep -F 'got hdr line: PROPFIND /file HTTP/1.1' "$ORIGIN_LOG"
+}
+
+@test "the origin redirects stat to the target" {
+    xrdfs "$ORIGIN_HTTP" stat /file
+    run -0 grep -F "Redirecting to Location: http://localhost:$TARGET_PORT/file" "$ORIGIN_LOG"
+}
+
+@test "stat sends OPTIONS to the target after the redirect" {
+    xrdfs "$ORIGIN_HTTP" stat /file
+    run -0 grep -F 'got hdr line: OPTIONS / HTTP/1.1' "$TARGET_LOG"
+}
+
+@test "stat sends PROPFIND to the target after the redirect" {
+    xrdfs "$ORIGIN_HTTP" stat /file
+    run -0 grep -F 'got hdr line: PROPFIND /file HTTP/1.1' "$TARGET_LOG"
 }
