@@ -315,8 +315,12 @@ jobs:
     - name: Install dependencies with Homebrew
       run: brew install googletest libzip nlohmann-json python-setuptools
 
+    # CMake probes `${Python_EXECUTABLE} -m pytest`. On the macOS runner that
+    # interpreter is Homebrew's python3, which is PEP 668 managed, and the
+    # unversioned `pip` on PATH is not necessarily the same interpreter.
+    # `--user` therefore installs pytest where this python3 cannot import it.
     - name: Install Python dependencies with pip
-      run: pip install --user pytest
+      run: python3 -m pip install --break-system-packages pytest
 
     - name: Clone repository
       uses: actions/checkout@v6
