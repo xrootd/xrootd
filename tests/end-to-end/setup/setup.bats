@@ -281,3 +281,20 @@ _stopped() {
     _setup_run xrootd named any -n inst
     run -0 test -s "$BATS_TEST_TMPDIR/named/inst/xrootd.log"
 }
+
+# A service manager like systemd runs xrootd in the foreground, without -b
+@test "a server in the foreground answers on its port" {
+    _setup_compose foreground server
+    _setup_run --foreground xrootd foreground any
+    _setup_export foreground
+    run -0 server_is_up "$FOREGROUND_URL"
+}
+
+@test "stop_servers stops a server in the foreground" {
+    _setup_compose foreground server
+    _setup_run --foreground xrootd foreground any
+    local pid
+    pid=$(<"$BATS_TEST_TMPDIR/foreground/xrootd.pid")
+    stop_servers
+    run ! is_running "$pid"
+}
