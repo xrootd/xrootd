@@ -198,9 +198,12 @@ _setup_snippet() {
 # start_server [name] [role] [snippet.cfg...]
 #
 # Start a server with the configuration base.cfg + <role>.cfg + snippets. The
-# name and the role are "server" by default. An argument which ends in .cfg
-# is a snippet (see _setup_snippet), for example http.cfg, tls.cfg or a file
-# of the test. Export, with <NAME> the server name in upper case:
+# name and the role are "server" by default. The roles are server (a data
+# server with unix authentication), server-nosec (a data server without the
+# security library) and cache (a caching proxy in front of the server at
+# $ORIGIN, see cache/cache.bash). An argument which ends in .cfg is a snippet
+# (see _setup_snippet), for example http.cfg, tls.cfg or a file of the test.
+# Export, with <NAME> the server name in upper case:
 #
 #   <NAME>_URL   root://localhost:<port>
 #   <NAME>_URL4  root://127.0.0.1:<port>, for tests of the IPv4 stack
