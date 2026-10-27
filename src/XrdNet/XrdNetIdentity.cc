@@ -38,18 +38,22 @@
 #include "XrdSys/XrdSysE2T.hh"
 
 /******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+
+char XrdNetIdentity::DNS_FQN[256];       // Fully qualified hostname
+const char *XrdNetIdentity::DNS_Domain;  // Starts with leading dot, points into DNS_FQN!
+const char *XrdNetIdentity::DNS_Error;   // Error indicator for debugging only
+
+/******************************************************************************/
 /*        O n e   T i m e   S t a t i c   I n i t i a l i z a t i o n         */
 /******************************************************************************/
 
-// Note that we are gauranteed that this will be fully initialzed prior
-// to any method called that uses these values irrespective of static
-// initialization order, even though statically initialized.
+// This method is called as one of the first function upon the start of main()
+// The values here must be be defined prior to any other method that may
+// use the values initialized here.
 
-static char DNS_FQN[256];       // Fully qualified hostname
-static const char *DNS_Domain;  // Starts with leading dot, points into DNS_FQN!
-static const char *DNS_Error;   // Error indicator for debugging only
-
-static bool getMyFQN()
+bool XrdNetIdentity::GetMyFQN()
 {
 // Initialize name, domain, and error to empty strings
 //
@@ -175,9 +179,6 @@ done:
    return true;
 }
 
-// True if the FQN is configured for this host
-static bool FQN_DNS = getMyFQN();
-
 /******************************************************************************/
 /*                                D o m a i n                                 */
 /******************************************************************************/
@@ -206,5 +207,4 @@ void XrdNetIdentity::SetFQN(const char *fqn)
 {
    strlcpy(DNS_FQN, fqn, sizeof(DNS_FQN));
    if (!(DNS_Domain = index(DNS_FQN, '.'))) DNS_Domain = "";
-   FQN_DNS = false;
 }

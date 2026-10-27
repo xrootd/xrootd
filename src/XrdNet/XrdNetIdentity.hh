@@ -35,11 +35,21 @@ public:
 
 static const char *Domain(const char **eText=0);
 
+static const char *eInfo() {return (DNS_Error ? DNS_Error : "no error info");}
+
 static const char *FQN(const char **etext=0);
+
+static bool        GetMyFQN();  // Must be called once when main() starts
 
 static void        SetFQN(const char* fqn);
 
                    XrdNetIdentity() {}
                   ~XrdNetIdentity() {}
+
+private:
+
+static char DNS_FQN[256];       // Fully qualified hostname
+static const char *DNS_Domain;  // Starts with leading dot, points into DNS_FQN!
+static const char *DNS_Error;   // Error indicator for debugging only
 };
 #endif

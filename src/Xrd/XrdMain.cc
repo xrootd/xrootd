@@ -57,7 +57,7 @@ Where:
 /******************************************************************************/
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
-  
+
 #include <unistd.h>
 #include <cctype>
 #include <cerrno>
@@ -75,6 +75,8 @@ Where:
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 
+#include "XrdNet/XrdNetIdentity.hh"
+
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -83,7 +85,7 @@ Where:
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
-  
+
 class XrdMain : XrdJob
 {
 public:
@@ -111,7 +113,7 @@ XrdConfig XrdMain::Config;
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
-  
+
 void *mainAccept(void *parg)
 {  XrdMain        *Parms   = (XrdMain *)parg;
    XrdScheduler   *mySched =  Parms->Config.ProtInfo.Sched;
@@ -135,7 +137,7 @@ void *mainAccept(void *parg)
 /******************************************************************************/
 /*                             m a i n A d m i n                              */
 /******************************************************************************/
-  
+
 void *mainAdmin(void *parg)
 {  XrdMain      *Parms   = (XrdMain *)parg;
    XrdInet      *NetADM  =  Parms->theNet;
@@ -157,7 +159,7 @@ void *mainAdmin(void *parg)
 /******************************************************************************/
 /*                                  m a i n                                   */
 /******************************************************************************/
-  
+
 int main(int argc, char *argv[])
 {
    XrdMain   Main;
@@ -175,6 +177,10 @@ int main(int argc, char *argv[])
 // Call tzset() early to ensure thread-safety of localtime_r() and mktime().
    tzset();
 
+// Make sure outidentity is defined beore we configure anything
+//
+   bool myidOK = XrdNetIdentity::GetMyFQN();
+
 // Turn off sigpipe and host a variety of others before we start any threads
 //
    XrdSysUtils::SigBlock();
@@ -189,6 +195,12 @@ int main(int argc, char *argv[])
 // Process configuration file
 //
    if (Main.Config.Configure(argc, argv)) _exit(1);
+
+// We can't display error messages until now, so indicate if there was a
+// failure is setting up our identity. We plow on in any case.
+//
+   if (!myidOK) Main.Config.ProtInfo.eDest->Emsg("main",
+                "Warning! Identity setup failed;",  XrdNetIdentity::eInfo());
 
 // Start the admin thread if an admin network is defined
 //
