@@ -26,7 +26,7 @@ setup_file() {
     start_server src "${snippets[@]}"
     start_server dst "${snippets[@]}"
     start_collector firefly
-    preload start_server pmark "${snippets[@]}" pmark.cfg
+    SETUP_PRELOAD=$(checkclose) start_server pmark "${snippets[@]}" pmark.cfg
 }
 
 teardown_file() {
@@ -40,19 +40,19 @@ setup() {
     make_random_file "$SRC_DATA$F" 100003
 }
 
-# Run the command with libcheckclose preloaded, if the build has it
-preload() {
+# The path of libcheckclose: CHECKCLOSE, which CTest sets, or the library in
+# the build directory. A missing library fails the setup, as the tests of
+# issue #2889 would pass without it.
+checkclose() {
     local lib
-    for lib in "$BINARY_DIR"/lib/libcheckclose.{so,dylib}; do
-        [[ -e "$lib" ]] || continue
-        if [[ "$lib" == *.so ]]; then
-            LD_PRELOAD="$lib" "$@"
-        else
-            DYLD_INSERT_LIBRARIES="$lib" "$@"
+    for lib in "${CHECKCLOSE:-}" "${BINARY_DIR:-}"/lib/libcheckclose.{so,dylib}; do
+        if [[ -n "$lib" && -e "$lib" ]]; then
+            echo "$lib"
+            return 0
         fi
-        return
     done
-    "$@"
+    echo "libcheckclose not found; set CHECKCLOSE to its path" >&2
+    return 1
 }
 
 # copy <pull|push> <source URL> <destination URL> [curl argument...]

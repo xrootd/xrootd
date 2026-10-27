@@ -228,6 +228,40 @@ teardown() {
     assert_not_equal "$MINE_PORT" "$BUSY_PORT"
 }
 
+# A fake daemon in <dir>, as "xrootd -b": the program waits, its child forks
+# the daemon and exits, and the daemon never reports a configuration. Each
+# writes its pid to <dir>.
+_fake_hanging_daemon() {
+    mkdir -p "$BATS_TEST_TMPDIR/bin" "$1"
+    cat > "$BATS_TEST_TMPDIR/bin/hang" <<EOF
+#!/bin/sh
+case "\$1" in
+    --daemon) echo \$\$ > "$1/daemon.pid"; while :; do sleep 1; done ;;
+    --child) shift; "\$0" --daemon "\$@" & exit 0 ;;
+    *) echo \$\$ > "$1/program.pid"; "\$0" --child "\$@"; while :; do sleep 1; done ;;
+esac
+EOF
+    chmod +x "$BATS_TEST_TMPDIR/bin/hang"
+}
+
+@test "a daemon which reports no configuration fails to start after the time limit" {
+    local dir=$BATS_TEST_TMPDIR/hang
+    _fake_hanging_daemon "$dir"
+    PATH="$BATS_TEST_TMPDIR/bin:$PATH" SETUP_START_TIMEOUT=1 run ! _setup_daemon -b hang hang 1 "$dir" "$dir"
+    assert_output "hang 'hang' reports no configuration after 1 s"
+    run ! is_running "$(<"$dir/program.pid")"
+    run ! is_running "$(<"$dir/daemon.pid")"
+}
+
+@test "a daemon in the foreground which logs no configuration fails to start after the time limit" {
+    local dir=$BATS_TEST_TMPDIR/hang
+    _fake_hanging_daemon "$dir"
+    PATH="$BATS_TEST_TMPDIR/bin:$PATH" SETUP_START_TIMEOUT=1 run ! _setup_daemon hang hang 1 "$dir" "$dir"
+    assert_output "hang 'hang' reports no configuration after 1 s"
+    run ! is_running "$(<"$dir/program.pid")"
+    run ! is_running "$(<"$dir/daemon.pid")"
+}
+
 # After a crash, the system can give the pid of the server to another process
 @test "stop_servers spares a process which has the pid of a stopped server" {
     start_server mine
@@ -362,4 +396,35 @@ _stopped() {
 @test "restart_server in a test restarts a server of the test file" {
     restart_server other
     run -0 server_is_up "$OTHER_URL"
+}
+
+# A service manager like systemd runs xrootd in the foreground, without -b
+@test "a server in the foreground answers on its port" {
+    _setup_compose foreground
+    _setup_run --foreground xrootd foreground any
+    _setup_export foreground
+    run -0 server_is_up "$FOREGROUND_URL"
+}
+
+@test "stop_servers stops a server in the foreground" {
+    _setup_compose foreground
+    _setup_run --foreground xrootd foreground any
+    local pid
+    pid=$(<"$BATS_TEST_TMPDIR/foreground/xrootd.pid")
+    stop_servers
+    run ! is_running "$pid"
+}
+
+# With the same seed, the first try uses the port of the server busy; the
+# wait of the second try must not read the failure of the first one
+@test "a server in the foreground takes another port when its port is in use" {
+    RANDOM=42
+    start_server busy
+    RANDOM=42
+    _setup_compose foreground
+    _setup_run --foreground xrootd foreground any
+    run -0 grep -E 'Unable to (bind socket to port|listen on stream)' \
+        "$BATS_TEST_TMPDIR/foreground/xrootd.log"
+    run -0 pgrep -f -- "$BATS_TEST_TMPDIR/foreground/"
+    assert_equal "${#lines[@]}" 1
 }
