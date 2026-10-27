@@ -105,10 +105,14 @@ TEST_F(FileClone, FileCloneTest)
 
   // the files should be on the same fs
   // (we just check they are at the same server)
+  // The opens with a template go to the data server directly, which tells
+  // the managers about the new files later. Until then, the managers keep
+  // the "no server" entries of the removals above, thus refresh them.
+  const auto locFlags = XrdCl::OpenFlags::Read | XrdCl::OpenFlags::Refresh;
   XrdCl::LocationInfo *l1=0,*l2=0,*l3=0;
-  EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc1.dat", XrdCl::OpenFlags::Read, l1, 0) );
-  EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc2.dat", XrdCl::OpenFlags::Read, l2, 0) );
-  EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc3.dat", XrdCl::OpenFlags::Read, l3, 0) );
+  EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc1.dat", locFlags, l1, 0) );
+  EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc2.dat", locFlags, l2, 0) );
+  EXPECT_XRDST_OK( fs.Locate( "/" + dataPath + "/clonesrc3.dat", locFlags, l3, 0) );
 
   ASSERT_TRUE( l1 && l1->GetSize() );
   ASSERT_TRUE( l2 && l2->GetSize() );
@@ -151,8 +155,9 @@ TEST_F(FileClone, FileCloneTest)
   EXPECT_XRDST_OK( file1.Close() );
 
   XrdCl::File rf1, rf2;
-  EXPECT_XRDST_OK( rf1.Open( fileCloneDst1, XrdCl::OpenFlags::Read ) );
-  EXPECT_XRDST_OK( rf2.Open( fileCloneDst2, XrdCl::OpenFlags::Read ) );
+  // the copies are new files of the data server too, see above
+  EXPECT_XRDST_OK( rf1.Open( fileCloneDst1, locFlags ) );
+  EXPECT_XRDST_OK( rf2.Open( fileCloneDst2, locFlags ) );
 
   std::array<char, 24576> rbuf1;
   std::array<char, 32768> rbuf2;
