@@ -435,8 +435,6 @@ char           ifAvail;
 
 static
 XrdSysError   *eDest;
-static
-const char    *myDomain;
 static char   *ifCfg[2];
 static
 const char    *ifTName[ifMax];

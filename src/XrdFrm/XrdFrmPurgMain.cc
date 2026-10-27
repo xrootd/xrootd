@@ -74,7 +74,7 @@ Where:
 /******************************************************************************/
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
-  
+
 #include <unistd.h>
 #include <cctype>
 #include <cerrno>
@@ -87,6 +87,7 @@ Where:
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmPurge.hh"
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -99,7 +100,7 @@ Where:
 
 using namespace XrdFrc;
 using namespace XrdFrm;
-  
+
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
@@ -115,7 +116,7 @@ using namespace XrdFrm;
 /******************************************************************************/
 /*                     T h r e a d   I n t e r f a c e s                      */
 /******************************************************************************/
-  
+
 void *mainServer(void *parg)
 {
 //  int udpFD = *static_cast<int *>(parg);
@@ -126,7 +127,7 @@ void *mainServer(void *parg)
 /******************************************************************************/
 /*                                  m a i n                                   */
 /******************************************************************************/
-  
+
 int main(int argc, char *argv[])
 {
    XrdSysLogger Logger;
@@ -140,6 +141,10 @@ int main(int argc, char *argv[])
 //
    if (sizeof(long) > 4) XrdSysThread::setStackSize((size_t)1048576);
       else               XrdSysThread::setStackSize((size_t)786432);
+
+// Initialize our identity
+//
+   XrdNetIdentity::GetMyFQN();
 
 // Perform configuration
 //
@@ -176,7 +181,7 @@ int main(int argc, char *argv[])
 /******************************************************************************/
 /*                            m a i n C o n f i g                             */
 /******************************************************************************/
-  
+
 int mainConfig()
 {
    XrdFrmConfig::Policy *pP = Config.dfltPolicy.Next;

@@ -69,7 +69,7 @@ Where:
 /******************************************************************************/
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
-  
+
 #include <unistd.h>
 #include <cctype>
 #include <cerrno>
@@ -83,6 +83,7 @@ Where:
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmXfrAgent.hh"
 #include "XrdFrm/XrdFrmXfrDaemon.hh"
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -91,7 +92,7 @@ Where:
 
 using namespace XrdFrc;
 using namespace XrdFrm;
-  
+
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
@@ -107,7 +108,7 @@ using namespace XrdFrm;
 /******************************************************************************/
 /*                                  m a i n                                   */
 /******************************************************************************/
-  
+
 int main(int argc, char *argv[])
 {
    XrdSysLogger Logger;
@@ -122,6 +123,10 @@ int main(int argc, char *argv[])
 //
    if (sizeof(long) > 4) XrdSysThread::setStackSize((size_t)1048576);
       else               XrdSysThread::setStackSize((size_t)786432);
+
+// Initialize our identity
+//
+   XrdNetIdentity::GetMyFQN();
 
 // If we are named frm_pstg then we are runnng in agent-mode
 //
@@ -144,7 +149,7 @@ int main(int argc, char *argv[])
 /******************************************************************************/
 /*                            m a i n C o n f i g                             */
 /******************************************************************************/
-  
+
 int mainConfig()
 {
 // Initialize the daemon, depending on who we are to be

@@ -177,9 +177,10 @@ int main(int argc, char *argv[])
 // Call tzset() early to ensure thread-safety of localtime_r() and mktime().
    tzset();
 
-// Make sure outidentity is defined beore we configure anything
+// Make sure our identity is defined beore we configure anything. We ignore
+// the return value as it does not always imply failure.
 //
-   bool myidOK = XrdNetIdentity::GetMyFQN();
+   XrdNetIdentity::GetMyFQN();
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
@@ -195,12 +196,6 @@ int main(int argc, char *argv[])
 // Process configuration file
 //
    if (Main.Config.Configure(argc, argv)) _exit(1);
-
-// We can't display error messages until now, so indicate if there was a
-// failure is setting up our identity. We plow on in any case.
-//
-   if (!myidOK) Main.Config.ProtInfo.eDest->Emsg("main",
-                "Warning! Identity setup failed;",  XrdNetIdentity::eInfo());
 
 // Start the admin thread if an admin network is defined
 //

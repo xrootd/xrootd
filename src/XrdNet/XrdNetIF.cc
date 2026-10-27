@@ -47,11 +47,11 @@
 #include "XrdSys/XrdSysError.hh"
 
 #include <iostream>
-  
+
 /******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
 /******************************************************************************/
-  
+
 namespace
 {
 // Selection mask values
@@ -107,8 +107,6 @@ const char *sName[hasNum] = {"pub4 ",  "prv4 ",   "pub6 ",  "prv6"};
 
 XrdSysError      *XrdNetIF::eDest     = 0;
 
-const char       *XrdNetIF::myDomain  = XrdNetIF::GetDomain();
-
 char             *XrdNetIF::ifCfg[2]  = {0,0}; // public, private
 
 const char       *XrdNetIF::ifTName[ifMax] = {"public IPv4",   // 01
@@ -138,7 +136,7 @@ bool              XrdNetIF::rPIPA = false;
 /******************************************************************************/
 /*                               D i s p l a y                                */
 /******************************************************************************/
-  
+
 void XrdNetIF::Display(const char *pfx)
 {
    static const char *ifN[] = {"pub4", "prv4", "pub6", "prv6"};
@@ -186,7 +184,7 @@ void XrdNetIF::Display(const char *pfx)
 /******************************************************************************/
 /* Private:                     G e n A d d r s                               */
 /******************************************************************************/
-  
+
 bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src)
 {
    static const int noPort  = XrdNetAddr::noPort;
@@ -260,7 +258,7 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, const char *hName, bool wantV6)
 /******************************************************************************/
 /* Private:                        G e n I F                                  */
 /******************************************************************************/
-  
+
 #define ADDSLOT(xdst, xstr, xlen) {strcpy(ifBP->iVal,xstr);ifBP->iLen=xlen; \
                xdst=ifBP; bP += (6 + xlen + (xlen & 0x01));ifBP = (ifData *)bP;}
 
@@ -403,7 +401,7 @@ int XrdNetIF::GetDest(char *dest, int dlen, ifType ifT, bool prefn)
    strcpy(dest +ifP->iLen, portSfx.val);
    return n;
 }
-  
+
 /******************************************************************************/
 /*                                 G e t I F                                  */
 /******************************************************************************/
@@ -589,12 +587,12 @@ int XrdNetIF::GetIF(char *&ifline, const char **eText, bool show)
 /******************************************************************************/
 /* Private:                    G e t D o m a i n                              */
 /******************************************************************************/
-  
+
 const char *XrdNetIF::GetDomain()
 {
    const char *dnP = XrdNetIdentity::Domain();
 
-// Get our fully resilved name (this doesn't always work)
+// Get our fully resolved name (this doesn't always work)
 //
    return (dnP ? dnP+1 : 0);
 }
@@ -602,9 +600,10 @@ const char *XrdNetIF::GetDomain()
 /******************************************************************************/
 /*                              I n D o m a i n                               */
 /******************************************************************************/
-  
+
 bool XrdNetIF::InDomain(XrdNetAddrInfo *epaddr)
 {
+   static const char* myDomain = XrdNetIF::GetDomain();
    const char *hnP;
 
 // Do not attempt to resolve private addresses as they are always in the domain.
@@ -633,7 +632,7 @@ bool XrdNetIF::IsOkName(const char *ifn, short &ifIdx)
    else return false;
    return true;
 }
-  
+
 /******************************************************************************/
 /*                                  P o r t                                   */
 /******************************************************************************/
@@ -656,17 +655,17 @@ int XrdNetIF::Port(int pnum)
 //
    return prevport;
 }
-  
+
 /******************************************************************************/
 /*                           P o r t D e f a u l t                            */
 /******************************************************************************/
 
 void XrdNetIF::PortDefault(int pnum) {dfPort = pnum;}
-  
+
 /******************************************************************************/
 /*                               R o u t i n g                                */
 /******************************************************************************/
-  
+
 void XrdNetIF::Routing(XrdNetIF::netType nettype)
 {
 
@@ -684,7 +683,7 @@ void XrdNetIF::Routing(XrdNetIF::netType nettype)
 /******************************************************************************/
 /*                                 S e t I F                                  */
 /******************************************************************************/
-  
+
 bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, int port,
                      netType nettype, const char *xName)
 {
@@ -792,7 +791,7 @@ bool XrdNetIF::SetIFNames(char *ifnames)
 /******************************************************************************/
 /* Private:                      S e t I F P P                                */
 /******************************************************************************/
-  
+
 void XrdNetIF::SetIFPP()
 {
    int i, j;
@@ -827,7 +826,7 @@ void XrdNetIF::SetIFPP()
 /******************************************************************************/
 /* Private:                      S e t I F 6 4                                */
 /******************************************************************************/
-  
+
 bool XrdNetIF::SetIF64(bool retVal)
 {
    static const  int ifN46= 4;
@@ -868,17 +867,17 @@ bool XrdNetIF::SetIF64(bool retVal)
 /******************************************************************************/
 
 void XrdNetIF::SetMsgs(XrdSysError *erp) {eDest = erp;}
-  
+
 /******************************************************************************/
 /*                              S e t R P I P A                               */
 /******************************************************************************/
 
 void XrdNetIF::SetRPIPA(bool rval) {rPIPA = rval;}
-  
+
 /******************************************************************************/
 /* Private:                  V 4 L i n k L o c a l                            */
 /******************************************************************************/
-  
+
 bool XrdNetIF::V4LinkLocal(struct sockaddr *saP)
 {
    unsigned char *ipV4;

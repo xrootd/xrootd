@@ -53,7 +53,7 @@ Where:
 /******************************************************************************/
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
-  
+
 #include <unistd.h>
 #include <cctype>
 #include <cerrno>
@@ -72,6 +72,7 @@ Where:
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -81,7 +82,7 @@ Where:
 
 using namespace XrdFrc;
 using namespace XrdFrm;
-  
+
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
@@ -107,7 +108,7 @@ using namespace XrdFrm;
 char *readline(const char *prompt)
 {
    char buff[4096];
-  
+
    std::cout << prompt;
    if (!fgets(buff, 4096, stdin) || *buff == '\n' || !strlen(buff)) return 0;
    return strdup(buff);
@@ -120,7 +121,7 @@ void stifle_history(int hnum) {}
 /******************************************************************************/
 /*                                  m a i n                                   */
 /******************************************************************************/
-  
+
 int main(int argc, char *argv[])
 {
    XrdSysLogger Logger;
@@ -136,6 +137,10 @@ int main(int argc, char *argv[])
    sigaddset(&myset, SIGPIPE);
    sigaddset(&myset, SIGCHLD);
    pthread_sigmask(SIG_BLOCK, &myset, NULL);
+
+// Initialize our identity
+//
+   XrdNetIdentity::GetMyFQN();
 
 // Perform configuration
 //
