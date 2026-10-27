@@ -107,15 +107,21 @@ _setup_admin_dir() {
     echo "$dir"
 }
 
-# _setup_run <program> <name> <port> [argument...]
+# _setup_run [--foreground] <program> <name> <port> [argument...]
 #
 # Start the program, xrootd or cmsd, with the configuration in the run
 # directory, on the given port, or on a random port for "any", and with the
 # extra arguments. The options are those of the systemd units: the instance
 # name is the server name, thus the program has its home in the run
 # directory, and logs to <program>.log there. For xrootd, write the port to
-# the run directory.
+# the run directory. The daemon runs in the background (-b), or with
+# --foreground as a job of the shell, as a service manager runs it.
 _setup_run() {
+    local daemon=-b
+    if [[ "$1" == --foreground ]]; then
+        daemon=
+        shift
+    fi
     local prog=$1 name=$2 port=$3
     shift 3
     local rundir admin log offset bind=$port
@@ -142,32 +148,10 @@ _setup_run() {
             offset=$(wc -c < "$log" | tr -d ' ')
         fi
 
-        # The program with -b exits when the daemon reports the result of its
-        # configuration, with a nonzero status on failure. The daemon must not
-        # keep the descriptors 3 and 4, on which BATS reads the output of the
-        # test until all holders close them.
-        if (
-            SETUP_NAME=$name SETUP_RUNDIR=$rundir SETUP_PORT=$bind \
-            SETUP_BINDIR=$(dirname "$(command -v xrootd)") \
-            SETUP_CREDENTIALS=${CREDENTIALS:-} SETUP_TESTDIR=${BATS_TEST_DIRNAME:-} \
-            SETUP_SETUPDIR=$SETUP_DIR \
-                XDG_CACHE_HOME="$rundir/cache" $prog -b -k fifo -n "$name" -a "$admin" -w "${rundir%/*}" \
-                    -c "$rundir/$name.cfg" -l "${rundir%/*}/$prog.log" \
-                    -s "$rundir/$prog.pid" "$@" \
-                    < /dev/null > "$rundir/$prog.out" 2>&1 3>&- 4>&-
-        ); then
-            # The daemon logs the result just after it reports it.
-            # Without the line, the start failed.
-            for _ in {1..100}; do
-                if tail -c +$(( offset + 1 )) "$log" 2>/dev/null |
-                    grep -aqE '^------ [a-z]+ .*:[0-9]+ initialization completed'; then
-                    [[ "$prog" == xrootd ]] && echo "$bind" > "$rundir/port"
-                    [[ "$prog" == cmsd ]] && echo "$bind" > "$rundir/cmsd.port"
-                    return 0
-                fi
-                sleep 0.05
-            done
-            break
+        if _setup_daemon $daemon "$prog" "$name" "$bind" "$rundir" "$admin" "$@"; then
+            [[ "$prog" == xrootd ]] && echo "$bind" > "$rundir/port"
+            [[ "$prog" == cmsd ]] && echo "$bind" > "$rundir/cmsd.port"
+            return 0
         fi
 
         # The daemon reports the failure before it logs it, and then exits.
@@ -192,6 +176,96 @@ _setup_run() {
     [[ -f "$log" ]] && sed "s|^|[$name] |" "$log" >&2
     stop_pid_file "$rundir/$prog.pid"
     return 1
+}
+
+# _setup_daemon [-b] <program> <name> <port> <rundir> <admin> [argument...]
+#
+# Run the program once. With -b, the program exits when the daemon reports
+# the result of its configuration, with a nonzero status on failure. In the
+# foreground, wait for the line which the daemon logs at the end of its
+# configuration. A configuration which hangs, for example on a lookup on the
+# network, fails after SETUP_START_TIMEOUT seconds (30 by default), and the
+# daemon stops. With SETUP_PRELOAD, the daemon runs with that library
+# preloaded, and the other programs of the setup do not. The daemon must not
+# keep the descriptors 3 and 4, on which BATS reads the output of the test
+# until all holders close them.
+_setup_daemon() {
+    local daemon=
+    if [[ "$1" == -b ]]; then
+        daemon=-b
+        shift
+    fi
+    local prog=$1 name=$2 port=$3 rundir=$4 admin=$5 line offset=0 pid i
+    local preload=()
+    shift 5
+
+    if [[ -n "${SETUP_PRELOAD:-}" && "$(uname)" == Darwin ]]; then
+        preload=(env "DYLD_INSERT_LIBRARIES=$SETUP_PRELOAD")
+    elif [[ -n "${SETUP_PRELOAD:-}" ]]; then
+        preload=(env "LD_PRELOAD=$SETUP_PRELOAD")
+    fi
+
+    # an earlier try or start of the daemon logged to the same file
+    if [[ -f "$rundir/$prog.log" ]]; then
+        offset=$(wc -c < "$rundir/$prog.log" | tr -d ' ')
+    fi
+    # the pid file of a try which failed names a process which is gone
+    rm -f "$rundir/$prog.pid"
+
+    (
+        SETUP_NAME=$name SETUP_RUNDIR=$rundir SETUP_PORT=$port \
+        SETUP_BINDIR=$(dirname "$(command -v xrootd)") \
+        SETUP_CREDENTIALS=${CREDENTIALS:-} SETUP_TESTDIR=${BATS_TEST_DIRNAME:-} \
+        SETUP_SETUPDIR=$SETUP_DIR \
+            XDG_CACHE_HOME="$rundir/cache" ${preload[@]+"${preload[@]}"} "$prog" $daemon -k fifo -n "$name" \
+                -a "$admin" -w "${rundir%/*}" -c "$rundir/$name.cfg" \
+                -l "${rundir%/*}/$prog.log" -s "$rundir/$prog.pid" "$@" \
+                < /dev/null > "$rundir/$prog.out" 2>&1 3>&- 4>&- &
+        if [[ -n "$daemon" ]]; then
+            pid=$!
+            for (( i = 0; i < ${SETUP_START_TIMEOUT:-30} * 20; i++ )); do
+                is_running "$pid" || break
+                sleep 0.05
+            done
+            if is_running "$pid"; then
+                echo "$prog '$name' reports no configuration after ${SETUP_START_TIMEOUT:-30} s" >&2
+                # Before 5.3, bash reports on stderr a job which a signal
+                # killed, if it reaps the job before wait, here at pkill
+                { _setup_kill_daemon "$rundir" "$prog"; wait "$pid"; } 2>/dev/null
+                exit 1
+            fi
+            wait "$pid" 2>/dev/null
+        fi
+    ) || return 1
+
+    # The program with -b exits when the daemon reports the result of its
+    # configuration, just before the daemon logs it. The components log
+    # similar lines before it, thus match the whole line.
+    for (( i = 0; i < ${SETUP_START_TIMEOUT:-30} * 20; i++ )); do
+        line=$(tail -c +$(( offset + 1 )) "$rundir/$prog.log" 2>/dev/null |
+               grep -asE "^------ $prog .*:[0-9]+ initialization (completed|failed)" || true)
+        [[ "$line" == *completed* ]] && return 0
+        [[ "$line" == *failed* ]] && return 1
+        # the pid file exists but the daemon is gone
+        if [[ -s "$rundir/$prog.pid" ]] && ! is_running "$(<"$rundir/$prog.pid")"; then
+            return 1
+        fi
+        sleep 0.05
+    done
+    echo "$prog '$name' reports no configuration after ${SETUP_START_TIMEOUT:-30} s" >&2
+    _setup_kill_daemon "$rundir" "$prog"
+    return 1
+}
+
+# _setup_kill_daemon <rundir> <program>
+#
+# Stop the program and its daemon, which has no pid file yet. Each copy has the
+# path of the pid file on its command line. The daemon of "xrootd -b" is a
+# grandchild of the program, as XrdOucUtils::Undercover forks two times, and
+# cmsd and xrootd of a server have one configuration file, but two pid files.
+_setup_kill_daemon() {
+    pkill -9 -f -- "-s $1/$2.pid" 2>/dev/null
+    return 0
 }
 
 _setup_run_xrootd() {
