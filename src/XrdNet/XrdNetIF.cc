@@ -594,7 +594,7 @@ const char *XrdNetIF::GetDomain()
 
 // Get our fully resolved name (this doesn't always work)
 //
-   return (dnP ? dnP+1 : 0);
+   return (dnP && *dnP ? dnP+1 : 0);
 }
 
 /******************************************************************************/
