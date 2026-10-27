@@ -12,7 +12,7 @@ if (BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
   list(APPEND XRDENV "BINARY_DIR=${CMAKE_BINARY_DIR}")
   list(APPEND XRDENV "XDG_CACHE_HOME=${CMAKE_CURRENT_BINARY_DIR}/.cache")
 
-  foreach(config srv1 srv2 srv3 common)
+  foreach(config srv1 srv2 srv3 srv4 common)
     configure_file(${config}.cfg ${CMAKE_CURRENT_BINARY_DIR}/${config}.cfg @ONLY)
   endforeach()
 
