@@ -1,4 +1,5 @@
 add_bats_test(XrdCl::tpc-http-bigfiles bigfiles.bats)
+add_bats_test(XrdCl::tpc-http-connections connections.bats)
 add_bats_test(XrdCl::tpc-http-https https.bats)
 add_bats_test(XrdCl::tpc-http-plain plain.bats)
 add_bats_test(XrdCl::tpc-http-protocol protocol.bats)
