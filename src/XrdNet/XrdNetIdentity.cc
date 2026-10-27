@@ -181,7 +181,7 @@ static bool FQN_DNS = getMyFQN();
 /******************************************************************************/
 /*                                D o m a i n                                 */
 /******************************************************************************/
-  
+
 const char *XrdNetIdentity::Domain(const char **eText)
 {
    if (eText) *eText = DNS_Error;
@@ -191,7 +191,7 @@ const char *XrdNetIdentity::Domain(const char **eText)
 /******************************************************************************/
 /*                                   F Q N                                    */
 /******************************************************************************/
-  
+
 const char *XrdNetIdentity::FQN(const char **eText)
 {
    if (eText) *eText = DNS_Error;
@@ -201,7 +201,7 @@ const char *XrdNetIdentity::FQN(const char **eText)
 /******************************************************************************/
 /*                                s e t F Q N                                 */
 /******************************************************************************/
-  
+
 void XrdNetIdentity::SetFQN(const char *fqn)
 {
    strlcpy(DNS_FQN, fqn, sizeof(DNS_FQN));
