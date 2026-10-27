@@ -31,61 +31,21 @@ endif()
 configure_file(setup.py setup.py)
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/VERSION "${XRootD_VERSION_STRING}")
 
-# On macOS, the name of the wheel depends on the deployment target: the wheel
-# builder inspects the compiled module and raises the platform tag to match
-# its minimum OS version. When a deployment target is set, pass it on to the
-# tag prediction below and to the wheel build, so that the two agree.
+# On macOS the wheel filename includes the minimum OS version of the compiled
+# module. That is only known once the module exists, and it can be higher than
+# the tag reported by Python's own deployment target (often 10.9). The wheel
+# is therefore taken from dist/ after it has been built, instead of from a
+# name predicted at configure time.
 
 if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
   set(PYXROOTD_ENV ${CMAKE_COMMAND} -E env
     "MACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
 
-# Determine the name of the wheel in advance, so that it can be used as the
-# output of the command which builds it. Ask setup.py for the version in order
-# to keep a single implementation of the conversion to a PEP 440 version, and
-# ask the wheel builder itself for the platform tag.
-
-execute_process(COMMAND ${Python_EXECUTABLE} setup.py --version
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  OUTPUT_VARIABLE PYXROOTD_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE
-  ERROR_VARIABLE PYXROOTD_ERROR RESULT_VARIABLE PYXROOTD_STATUS)
-
-if(NOT PYXROOTD_STATUS EQUAL 0)
-  message(FATAL_ERROR "Failed to determine version of the Python bindings\n"
-                      "${PYXROOTD_ERROR}")
-endif()
-
-execute_process(COMMAND ${PYXROOTD_ENV} ${Python_EXECUTABLE} -c "
-from setuptools.dist import Distribution
-
-try:
-    from setuptools.command.bdist_wheel import bdist_wheel
-except ImportError:
-    from wheel.bdist_wheel import bdist_wheel
-
-distribution = Distribution({'name': 'xrootd', 'version': '0'})
-distribution.has_ext_modules = lambda: True
-
-command = bdist_wheel(distribution)
-command.ensure_finalized()
-
-print('-'.join(command.get_tag()))
-"
-  OUTPUT_VARIABLE PYXROOTD_TAG OUTPUT_STRIP_TRAILING_WHITESPACE
-  ERROR_VARIABLE PYXROOTD_ERROR RESULT_VARIABLE PYXROOTD_STATUS)
-
-if(NOT PYXROOTD_STATUS EQUAL 0)
-  message(FATAL_ERROR "Failed to determine tag for the Python bindings wheel. "
-                      "Please install setuptools 70.1 or later, or the wheel "
-                      "package.\n${PYXROOTD_ERROR}")
-endif()
-
-set(PYXROOTD_WHEEL
-  ${CMAKE_CURRENT_BINARY_DIR}/dist/xrootd-${PYXROOTD_VERSION}-${PYXROOTD_TAG}.whl)
+set(PYXROOTD_WHEEL_RECORD ${CMAKE_CURRENT_BINARY_DIR}/dist/wheel-path.txt)
 set(PYXROOTD_SITEDIR ${CMAKE_CURRENT_BINARY_DIR}/site-packages)
 
-message(STATUS "Python bindings wheel: ${PYXROOTD_WHEEL}")
+message(STATUS "Python bindings wheel directory: ${CMAKE_CURRENT_BINARY_DIR}/dist")
 
 # The C++ dependencies of the wheel are tracked via the module built above.
 # The remaining files it packages have to be listed here, though. README.md
@@ -111,18 +71,27 @@ set(PYXROOTD_SOURCES
 
 list(TRANSFORM PYXROOTD_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 
-# Building the wheel without isolation avoids creating a virtual environment
-# and fetching setuptools from PyPI, but old versions of pip, like the one on
-# RHEL 8, do not know the option. There, pip predates build isolation
-# entirely, so nothing needs to be turned off.
+# The extension module is already compiled. Packaging it must not download
+# build dependencies: an isolated pip build fails when the package index is
+# unreachable. --no-build-isolation uses the setuptools already installed for
+# this interpreter. Old pip, such as on RHEL 8, has no such option because it
+# has no build isolation either.
 
 execute_process(COMMAND ${Python_EXECUTABLE} -m pip wheel --help
   OUTPUT_VARIABLE PIP_HELP ERROR_QUIET RESULT_VARIABLE PYXROOTD_STATUS)
 
+set(PYXROOTD_PIP_OPTIONS)
 if(PYXROOTD_STATUS EQUAL 0 AND PIP_HELP MATCHES "--no-build-isolation")
+  execute_process(COMMAND ${Python_EXECUTABLE} -c "import setuptools"
+    RESULT_VARIABLE PYXROOTD_SETUPTOOLS)
+  if(NOT PYXROOTD_SETUPTOOLS EQUAL 0)
+    message(FATAL_ERROR
+      "The Python bindings need setuptools for:\n"
+      "  ${Python_EXECUTABLE}\n"
+      "Install it, then reconfigure:\n"
+      "  ${Python_EXECUTABLE} -m pip install --user --break-system-packages setuptools wheel")
+  endif()
   set(PYXROOTD_PIP_OPTIONS --no-build-isolation)
-else()
-  set(PYXROOTD_PIP_OPTIONS)
 endif()
 
 # Stage exactly the module built above for setup.py to package, recreating
@@ -131,11 +100,10 @@ endif()
 # Clear the wheel directory as well, so that it holds exactly one wheel,
 # which allows it to be referred to with a wildcard when building packages.
 # The wheel is then unpacked so that the bindings can be imported from the
-# build directory, both by the tests below and for manual testing. Note that
-# this last step also verifies that the wheel has the predicted name.
+# build directory, both by the tests below and for manual testing.
 
 add_custom_command(
-  OUTPUT ${PYXROOTD_WHEEL} ${PYXROOTD_SITEDIR}/pyxrootd/__init__.py
+  OUTPUT ${PYXROOTD_WHEEL_RECORD} ${PYXROOTD_SITEDIR}/pyxrootd/__init__.py
   COMMAND ${CMAKE_COMMAND} -E rm -rf
           ${CMAKE_CURRENT_BINARY_DIR}/extension ${CMAKE_CURRENT_BINARY_DIR}/dist
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/extension
@@ -143,14 +111,15 @@ add_custom_command(
           $<TARGET_FILE:client> ${CMAKE_CURRENT_BINARY_DIR}/extension
   COMMAND ${PYXROOTD_ENV} ${Python_EXECUTABLE} -m pip wheel --no-deps --no-index
           ${PYXROOTD_PIP_OPTIONS} --disable-pip-version-check --wheel-dir ${CMAKE_CURRENT_BINARY_DIR}/dist .
-  COMMAND ${Python_EXECUTABLE} -m pip install --no-deps --no-index --upgrade
-          --disable-pip-version-check --target ${PYXROOTD_SITEDIR} ${PYXROOTD_WHEEL}
+  COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/install_built_wheel.py
+          ${CMAKE_CURRENT_BINARY_DIR} ${PYXROOTD_SITEDIR}
   DEPENDS client $<TARGET_FILE:client> ${PYXROOTD_SOURCES}
+          ${CMAKE_CURRENT_SOURCE_DIR}/install_built_wheel.py
           ${CMAKE_CURRENT_BINARY_DIR}/setup.py
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Building Python bindings wheel")
 
-add_custom_target(PyXRootD ALL DEPENDS ${PYXROOTD_WHEEL})
+add_custom_target(PyXRootD ALL DEPENDS ${PYXROOTD_WHEEL_RECORD})
 
 # None of what pip leaves behind in the build directory is known to CMake.
 
@@ -167,8 +136,15 @@ if(INSTALL_PYTHON_BINDINGS)
   set(PIP_OPTIONS "" CACHE STRING "Install options for pip")
 
   install(CODE "
-    if(NOT EXISTS \"${PYXROOTD_WHEEL}\")
-      message(FATAL_ERROR \"Python bindings wheel not found: ${PYXROOTD_WHEEL}\n\"
+    set(_pyxrootd_wheel_record \"${PYXROOTD_WHEEL_RECORD}\")
+    if(NOT EXISTS \"\${_pyxrootd_wheel_record}\")
+      message(FATAL_ERROR \"Python bindings wheel not found.\\n\"
+                          \"Please build the project before installing it.\")
+    endif()
+    file(READ \"\${_pyxrootd_wheel_record}\" _pyxrootd_wheel)
+    string(STRIP \"\${_pyxrootd_wheel}\" _pyxrootd_wheel)
+    if(NOT EXISTS \"\${_pyxrootd_wheel}\")
+      message(FATAL_ERROR \"Python bindings wheel not found: \${_pyxrootd_wheel}\\n\"
                           \"Please build the project before installing it.\")
     endif()
 
@@ -178,7 +154,7 @@ if(INSTALL_PYTHON_BINDINGS)
 
     execute_process(COMMAND ${Python_EXECUTABLE} -m pip install ${PIP_OPTIONS}
       --no-deps --ignore-installed
-      --prefix \$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX} ${PYXROOTD_WHEEL}
+      --prefix \$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX} \${_pyxrootd_wheel}
       RESULT_VARIABLE INSTALL_STATUS COMMAND_ECHO STDOUT)
     if(NOT INSTALL_STATUS EQUAL 0)
       message(FATAL_ERROR \"Failed to install Python bindings\")
