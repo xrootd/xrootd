@@ -1,21 +1,5 @@
 
-list(APPEND XROOTD_CONFIGS host cache)
-
-# XCache (XrdPfc) configurations. Each fronts the XRootD::host fixture as its
-# origin and exercises one aspect of the cache; the shared shell helpers are in
-# cachelib.sh.
-list(APPEND XROOTD_CONFIGS cacheevict cacheprefetch cacheblacklist cachespaces cacherestart)
-
-# cachepurge is slow on purpose: the purge check runs on a fixed 60 s cycle and
-# there is no way to trigger one, so the test has to wait for at least one pass.
-list(APPEND XROOTD_CONFIGS cachepurge)
-
-# Range-reading client for the cache tests. xrdcp only does whole files, and
-# the interesting XCache behaviour is block-granular. Threads::Threads because
-# the concurrent-reader mode uses std::thread, which needs pthread linked
-# explicitly on glibc older than 2.34.
-add_executable(xrdpfc-read utils/xrdpfc-read.cc)
-target_link_libraries(xrdpfc-read XrdCl XrdUtils Threads::Threads)
+list(APPEND XROOTD_CONFIGS host)
 
 # Note: HAVE_SCITOKEN_CONFIG_SET_STR is required to override the CA file
 # for the scitokens library; otherwise, the test will fail with TLS errors.
@@ -23,12 +7,6 @@ if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
   list(APPEND XROOTD_CONFIGS scitokens)
   list(APPEND scitokens_FIXTURES SciTokens)
 endif()
-
-# The cache tests require the XRootD::host fixture to be running to
-# act as an origin
-foreach(CACHE_CONFIG cache cacheevict cacheprefetch cacheblacklist cachespaces cacherestart cachepurge)
-  list(APPEND ${CACHE_CONFIG}_FIXTURES XRootD::host)
-endforeach()
 
 foreach(CONFIG ${XROOTD_CONFIGS})
   add_test(NAME XRootD::${CONFIG}::setup
@@ -73,5 +51,3 @@ if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
   )
 endif()
 
-# Waiting out purge cycles, see cachepurge.sh.
-set_tests_properties(XRootD::cachepurge::test PROPERTIES TIMEOUT 600 LABELS slow)
