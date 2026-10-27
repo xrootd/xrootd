@@ -1,6 +1,4 @@
 
-list(APPEND XROOTD_CONFIGS host)
-
 # Note: HAVE_SCITOKEN_CONFIG_SET_STR is required to override the CA file
 # for the scitokens library; otherwise, the test will fail with TLS errors.
 if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
