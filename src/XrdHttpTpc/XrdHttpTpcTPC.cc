@@ -631,6 +631,8 @@ int TPCHandler::PerformHEADRequest(CURL *curl, XrdHttpExtReq &req, State &state,
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
     // Set a custom timeout of 60 seconds (= CONNECT_TIMEOUT for convenience) for the HEAD request
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, CONNECT_TIMEOUT);
+    // The transfer cannot reuse the HEAD connections, close them once done
+    curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
     CURLcode res;
     res = curl_easy_perform(curl);
     //Immediately set the CURLOPT_NOBODY flag to 0 as we anyway
@@ -638,6 +640,8 @@ int TPCHandler::PerformHEADRequest(CURL *curl, XrdHttpExtReq &req, State &state,
     curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
     // Reset the CURLOPT_TIMEOUT to no timeout (default)
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
+    // Multi-stream transfers duplicate this handle and rely on connection reuse
+    curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 0L);
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, true);
 
     std::stringstream ss;
@@ -1307,6 +1311,9 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     if (streams > 1) {
         return RunCurlWithStreams(req, state, streams, rec);
     } else {
+        // Single request: close each connection once done so the redirector
+        // connection does not stay idle for the whole transfer
+        curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
         return RunCurlWithUpdates(curl, req, state, rec);
     }
 }
