@@ -319,7 +319,9 @@ void XrdPosixObject::Shutdown()
    XrdPosixObject *oP;
    int i;
 
-// Destroy all files and static data
+// Destroy all files. The table itself stays: while the process exits, the
+// threads of the client can still write their log through the preload
+// library, which calls Valid() without the lock.
 //
    fdMutex.Lock();
    if (myFiles)
@@ -330,7 +332,6 @@ void XrdPosixObject::Shutdown()
                oP->fdNum = -1;
                delete oP;
               };
-       free(myFiles); myFiles = 0;
       }
    fdMutex.UnLock();
 }
