@@ -263,12 +263,19 @@ static uint32_t crc32c_hw(uint32_t crc, void const *buf, size_t len) {
         (have) = (ecx >> 20) & 1; \
     } while (0)
 
-/* Compute a CRC-32C.  If the crc32 instruction is available, use the hardware
-   version.  Otherwise, use the software version. */
-uint32_t crc32c(uint32_t crc, void const *buf, size_t len) {
+static int crc32c_have_sse42(void) {
     int sse42;
 
     SSE42(sse42);
+    return sse42;
+}
+
+/* Compute a CRC-32C.  If the crc32 instruction is available, use the hardware
+   version.  Otherwise, use the software version.  The cpuid check is done only
+   once, since cpuid is slow and traps to the hypervisor in virtual machines. */
+uint32_t crc32c(uint32_t crc, void const *buf, size_t len) {
+    static const int sse42 = crc32c_have_sse42();
+
     return sse42 ? crc32c_hw(crc, buf, len) : crc32c_sw(crc, buf, len);
 }
 
