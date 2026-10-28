@@ -618,7 +618,7 @@ namespace XrdCl
       {
         NewFile &nf = p.second;
         if( !nf.overwrt ) continue;
-        uint32_t lfhlen = lfh->lfhSize;
+        uint32_t lfhlen = nf.lfh->lfhSize;
         auto lfhbuf = std::make_shared<buffer_t>();
         lfhbuf->reserve( lfhlen );
         nf.lfh->Serialize( *lfhbuf );
@@ -867,6 +867,7 @@ namespace XrdCl
     if( itr2 == newfiles.end() )
       return XRootDStatus( stError, errInvalidOp );
     itr2->second.lfh->ZCRC32 = crc32;
+    itr2->second.overwrt = true;
 
     return XRootDStatus();
   }
