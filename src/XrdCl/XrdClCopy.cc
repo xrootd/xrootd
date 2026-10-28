@@ -747,12 +747,23 @@ int main( int argc, char **argv )
   if( config.dstFile->Protocol == XrdCpFile::isDir )
     targetIsDir = true;
   else if( config.dstFile->Protocol == XrdCpFile::isXroot ||
-           config.dstFile->Protocol == XrdCpFile::isXroots )
+           config.dstFile->Protocol == XrdCpFile::isXroots ||
+           config.dstFile->Protocol == XrdCpFile::isHttp ||
+           config.dstFile->Protocol == XrdCpFile::isHttps ||
+           config.dstFile->Protocol == XrdCpFile::isS3 )
   {
     URL target( dest );
     FileSystem fs( target );
+    // A single trailing slash marks a directory. Stat the name itself;
+    // scheme://host/ has no path left, and that name is the root.
+    std::string statPath = target.GetPath();
+    if( !statPath.empty() && statPath.back() == '/' )
+      statPath.pop_back();
+    if( statPath.empty() )
+      statPath = "/";
+    statPath += target.GetParamsAsString();
     StatInfo *statInfo = 0;
-    XRootDStatus st = fs.Stat( target.GetPathWithParams(), statInfo );
+    XRootDStatus st = fs.Stat( statPath, statInfo );
     if( st.IsOK() )
     {
       if( statInfo->TestFlags( StatInfo::IsDir ) )

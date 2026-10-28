@@ -23,6 +23,8 @@
 
 #include <XrdCl/XrdClLog.hh>
 
+#include <ctime>
+
 #include <tinyxml.h>
 
 using namespace XrdClHttp;
@@ -135,6 +137,14 @@ CurlStatOp::ParseProp(TiXmlElement *prop) {
             }
         } else if (!strcasecmp(child->Value(), "D:resourcetype") || !strcasecmp(child->Value(), "lp1:resourcetype")) {
             m_is_dir = child->FirstChildElement("D:collection") != nullptr;
+        } else if (!strcasecmp(child->Value(), "D:getlastmodified") || !strcasecmp(child->Value(), "lp1:getlastmodified")) {
+            auto lastmod = child->GetText();
+            if (lastmod) {
+                struct tm tm;
+                if (strptime(lastmod, "%a, %d %b %Y %H:%M:%S", &tm) != nullptr) {
+                    m_modtime = timegm(&tm);
+                }
+            }
         }
     }
     if (m_length < 0 && m_is_dir) {
@@ -224,15 +234,21 @@ CurlStatOp::SuccessImpl(bool returnObj)
             m_logger->Debug(kLogXrdClHttp, "Successful stat operation on %s (size %lld)", m_url.c_str(), static_cast<long long>(size));
         }
 
+        time_t mtime = m_is_propfind ? m_modtime : m_headers.GetModTime();
+        if (mtime < 0) {
+            mtime = time(NULL);
+        }
+        // A directory has no read bit. HTTP has no mode for a file, so a
+        // successful file stat is readable.
+        uint32_t flags = isdir ? XrdCl::StatInfo::Flags::IsDir
+                               : XrdCl::StatInfo::Flags::IsReadable;
         XrdCl::StatInfo *stat_info;
         if (m_response_info){
-            auto info = new XrdClHttp::StatResponse("nobody", size,
-            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), time(NULL));
+            auto info = new XrdClHttp::StatResponse("nobody", size, flags, mtime);
             info->SetResponseInfo(MoveResponseInfo());
             stat_info = info;
         } else {
-            stat_info = new XrdCl::StatInfo("nobody", size,
-            XrdCl::StatInfo::Flags::IsReadable | (isdir ? XrdCl::StatInfo::Flags::IsDir : 0), time(NULL));
+            stat_info = new XrdCl::StatInfo("nobody", size, flags, mtime);
         }
         obj = new XrdCl::AnyObject();
         obj->Set(stat_info);
