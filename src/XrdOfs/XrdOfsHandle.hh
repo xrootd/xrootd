@@ -70,8 +70,7 @@ inline int           operator!=(const XrdOfsHanKey &oth)
 
                     XrdOfsHanKey(const char *key=0, int kln=0)
                                 : Val(key), Links(0), Len(kln)
-                    {Hash = (key && kln ?
-                          XrdOucCRC::CRC32((const unsigned char *)key,kln) : 0);
+                    {Hash = (key && kln ? XrdOucCRC::Calc32C(key, kln) : 0);
                     }
 
 		    XrdOfsHanKey(const XrdOfsHanKey&) = default;
