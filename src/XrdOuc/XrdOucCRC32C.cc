@@ -45,17 +45,30 @@
                      XrdOucCRC32C.hh with corresponding change to include
                      statement herein. Add required casts to allow C++
                      compilation.
+        28 Oct 2026  Add a hardware version for ARMv8 processors.
  */
 
 #include <pthread.h>
 #include "XrdOuc/XrdOucCRC32C.hh"
 
+/* Little-endian 64-bit ARM processors may provide the ARMv8 crc32c
+   instructions, mandatory since ARMv8.1 and optional in ARMv8.0. */
+#if defined(__aarch64__) && !defined(__AARCH64EB__)
+#define CRC32C_HW_ARM
+#include <arm_acle.h>
+#include <cstring>
+#if !defined(__ARM_FEATURE_CRC32) && defined(__linux__)
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
+#endif
+#endif
+
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY 0x82f63b78
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(CRC32C_HW_ARM)
 
-/* Hardware CRC-32C for Intel and compatible processors. */
+/* Shift tables shared by the hardware CRC-32C implementations. */
 
 /* Multiply a matrix times a vector over the Galois field of two elements,
    GF(2).  Each element is a bit in an unsigned integer.  mat must have at
@@ -158,6 +171,10 @@ static void crc32c_init_hw(void) {
     crc32c_zeros(crc32c_long, LONG);
     crc32c_zeros(crc32c_short, SHORT);
 }
+
+#endif /* __x86_64__ || CRC32C_HW_ARM */
+
+#ifdef __x86_64__
 
 /* Compute CRC-32C using the Intel hardware instruction. */
 static uint32_t crc32c_hw(uint32_t crc, void const *buf, size_t len) {
@@ -285,7 +302,121 @@ uint32_t crc32c(uint32_t crc, void const *buf, size_t len) {
     return sse42 ? crc32c_hw(crc, buf, len) : crc32c_sw(crc, buf, len);
 }
 
-#else /* !__x86_64__ */
+#elif defined(CRC32C_HW_ARM)
+
+/* The crc32c intrinsics need the crc extension: enable it for the functions
+   using them when it is not enabled for the whole compilation unit. */
+#ifdef __ARM_FEATURE_CRC32
+#define CRC32C_TARGET_CRC
+#else
+#define CRC32C_TARGET_CRC __attribute__((target("+crc")))
+#endif
+
+/* Load eight bytes from a possibly unaligned address. */
+static inline uint64_t crc32c_load64(unsigned char const *next) {
+    uint64_t word;
+    memcpy(&word, next, sizeof(word));
+    return word;
+}
+
+/* Compute CRC-32C using the ARMv8 hardware instructions, with the same
+   three-way parallel scheme as on x86 to hide the latency of the crc32cx
+   instruction. */
+CRC32C_TARGET_CRC
+static uint32_t crc32c_hw(uint32_t crc, void const *buf, size_t len) {
+    /* populate shift tables the first time through */
+    pthread_once(&crc32c_once_hw, crc32c_init_hw);
+
+    uint32_t crc0 = ~crc;
+    unsigned char const *next = (unsigned char const *)buf;
+
+    /* compute the crc on sets of LONG*3 bytes, three independent crc
+       instructions at a time, each on LONG bytes */
+    while (len >= LONG*3) {
+        uint32_t crc1 = 0;
+        uint32_t crc2 = 0;
+        unsigned char const * const end = next + LONG;
+        do {
+            crc0 = __crc32cd(crc0, crc32c_load64(next));
+            crc1 = __crc32cd(crc1, crc32c_load64(next + LONG));
+            crc2 = __crc32cd(crc2, crc32c_load64(next + LONG*2));
+            next += 8;
+        } while (next < end);
+        crc0 = crc32c_shift(crc32c_long, crc0) ^ crc1;
+        crc0 = crc32c_shift(crc32c_long, crc0) ^ crc2;
+        next += LONG*2;
+        len -= LONG*3;
+    }
+
+    /* do the same thing, but now on SHORT*3 blocks for the remaining data less
+       than a LONG*3 block */
+    while (len >= SHORT*3) {
+        uint32_t crc1 = 0;
+        uint32_t crc2 = 0;
+        unsigned char const * const end = next + SHORT;
+        do {
+            crc0 = __crc32cd(crc0, crc32c_load64(next));
+            crc1 = __crc32cd(crc1, crc32c_load64(next + SHORT));
+            crc2 = __crc32cd(crc2, crc32c_load64(next + SHORT*2));
+            next += 8;
+        } while (next < end);
+        crc0 = crc32c_shift(crc32c_short, crc0) ^ crc1;
+        crc0 = crc32c_shift(crc32c_short, crc0) ^ crc2;
+        next += SHORT*2;
+        len -= SHORT*3;
+    }
+
+    /* compute the crc on the remaining eight-byte units less than a SHORT*3
+       block */
+    while (len >= 8) {
+        crc0 = __crc32cd(crc0, crc32c_load64(next));
+        next += 8;
+        len -= 8;
+    }
+
+    /* compute the crc for up to seven trailing bytes, four, two and one byte at
+       a time */
+    if (len & 4) {
+        uint32_t word;
+        memcpy(&word, next, sizeof(word));
+        crc0 = __crc32cw(crc0, word);
+        next += 4;
+    }
+    if (len & 2) {
+        uint16_t half;
+        memcpy(&half, next, sizeof(half));
+        crc0 = __crc32ch(crc0, half);
+        next += 2;
+    }
+    if (len & 1)
+        crc0 = __crc32cb(crc0, *next);
+
+    /* return a post-processed crc */
+    return ~crc0;
+}
+
+/* Check for the crc32c instructions: known at compile time when the crc
+   extension is enabled, otherwise asked from the kernel on Linux. */
+static int crc32c_have_crc(void) {
+#if defined(__ARM_FEATURE_CRC32)
+    return 1;
+#elif defined(__linux__) && defined(HWCAP_CRC32)
+    return (getauxval(AT_HWCAP) & HWCAP_CRC32) != 0;
+#else
+    return 0;
+#endif
+}
+
+/* Compute a CRC-32C.  If the crc32c instructions are available, use the
+   hardware version.  Otherwise, use the software version.  The check is done
+   only once. */
+uint32_t crc32c(uint32_t crc, void const *buf, size_t len) {
+    static const int hw = crc32c_have_crc();
+
+    return hw ? crc32c_hw(crc, buf, len) : crc32c_sw(crc, buf, len);
+}
+
+#else /* !__x86_64__ && !CRC32C_HW_ARM */
 
 uint32_t crc32c(uint32_t crc, void const *buf, size_t len) {
     return crc32c_sw(crc, buf, len);
