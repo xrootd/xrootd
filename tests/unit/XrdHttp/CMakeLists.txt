@@ -1,4 +1,5 @@
-if(NOT BUILD_HTTP)
+# The tested code links XrdHttpUtils, which a client-only build does not have
+if(NOT BUILD_HTTP OR NOT TARGET XrdHttpUtils)
     return()
 endif()
 

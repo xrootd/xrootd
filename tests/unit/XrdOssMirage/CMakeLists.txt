@@ -1,3 +1,8 @@
+# The tested code links XrdServer, which a client-only build does not have
+if(NOT TARGET XrdServer)
+  return()
+endif()
+
 add_executable(xrdossmirage-unit-tests XrdOssMirageTests.cc
         XrdOssMirageFileTests.cc
         XrdOssMirageXAttrTests.cc
