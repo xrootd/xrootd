@@ -2344,7 +2344,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         // However, we decide to send a response anyway before we close the connection
         // We are not sure if sending a final response before reading the entire request
         if (xrdresp == kXR_error) {
-          prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), keepalive);
+          prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), false);
           return -1;
         }
 
@@ -2371,7 +2371,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             prot->SendSimpleResp(201, NULL, NULL, (char *)":-)", 0, keepalive);
             return keepalive ? 1 : -1;
           } else {
-            prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), keepalive);
+            prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), false);
             return -1;
           }
         }
