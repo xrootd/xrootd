@@ -7,6 +7,10 @@ load server.bash
 setup_file() {
     start_server shared
     start_server other
+    # A request before the first test, which the log of no test may have. The
+    # server logs the disconnect of xrdfs after xrdfs exits.
+    xrdfs "$SHARED_URL" stat /a-path-of-setup-file > /dev/null 2>&1 || true
+    wait_for 10 grep -qF ' disc ' "$SHARED_LOG"
 }
 
 teardown_file() {
@@ -99,8 +103,54 @@ teardown() {
 }
 
 @test "the tpc snippet runs the xrdcp of the build" {
-    start_server mine "$SETUP_DIR/tpc.cfg"
+    start_server mine tpc.cfg
     run -0 grep -F "ofs.tpc pgm $(dirname "$(command -v xrootd)")/xrdcp --server" "$MINE_LOG"
+}
+
+@test "a snippet name selects a snippet of the setup" {
+    require_plugin libXrdHttp
+    start_server mine http.cfg
+    run -0 grep -F 'xrd.protocol XrdHttp libXrdHttp.so' "$MINE_LOG"
+}
+
+@test "a snippet in the test and in the setup directory is an error" {
+    local BATS_TEST_DIRNAME=$BATS_TEST_TMPDIR
+    cp "$SETUP_DIR/http.cfg" "$BATS_TEST_TMPDIR/http.cfg"
+    run ! start_server mine http.cfg
+    assert_output --partial "snippet 'http.cfg' is in the test and in the setup directory"
+}
+
+@test "the http snippet serves http URLs on the port of the server" {
+    require_plugin libXrdHttp
+    start_server mine http.cfg
+    echo 'seed' > "$MINE_DATA/file"
+    run -0 curl -sf "$MINE_HTTP/file"
+    assert_output 'seed'
+}
+
+@test "the tls snippet serves https URLs with the shared host certificate" {
+    require_plugin libXrdHttp
+    start_server mine http.cfg tls.cfg
+    echo 'seed' > "$MINE_DATA/file"
+    run -0 curl -sf --cacert "$CREDENTIALS/ca.pem" "$MINE_HTTPS/file"
+    assert_output 'seed'
+}
+
+@test "server_log of a server of the test file has the requests of the test" {
+    xrdfs "$SHARED_URL" stat "/t${BATS_TEST_NUMBER}" || true
+    run -0 grep -F "/t${BATS_TEST_NUMBER}" <(server_log shared)
+}
+
+@test "server_log of a server of the test file has no request of an earlier test" {
+    xrdfs "$SHARED_URL" stat /a-path-of-this-test || true
+    run -0 server_log shared
+    assert_output --partial /a-path-of-this-test
+    refute_output --partial /a-path-of-setup-file
+}
+
+@test "server_log of a server of the test has its whole log" {
+    start_server mine
+    run -0 grep -F 'initialization completed' <(server_log mine)
 }
 
 @test "restart_server keeps the port" {

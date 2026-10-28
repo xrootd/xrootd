@@ -129,7 +129,9 @@ _setup_run_xrootd() {
         if (
             SETUP_NAME=$name SETUP_RUNDIR=$rundir SETUP_PORT=$bind \
             SETUP_BINDIR=$(dirname "$(command -v xrootd)") \
-                xrootd -b -k fifo -n "$name" -a "$admin" -w "${rundir%/*}" \
+            SETUP_CREDENTIALS=${CREDENTIALS:-} SETUP_TESTDIR=${BATS_TEST_DIRNAME:-} \
+            SETUP_SETUPDIR=$SETUP_DIR \
+                XDG_CACHE_HOME="$rundir/cache" xrootd -b -k fifo -n "$name" -a "$admin" -w "${rundir%/*}" \
                     -c "$rundir/$name.cfg" -l "${rundir%/*}/xrootd.log" \
                     -s "$rundir/xrootd.pid" \
                     < /dev/null > "$rundir/xrootd.out" 2>&1 3>&- 4>&-
@@ -197,12 +199,14 @@ _setup_snippet() {
 #
 # Start a server with the configuration base.cfg + <role>.cfg + snippets. The
 # name and the role are "server" by default. An argument which ends in .cfg
-# is a snippet (see _setup_snippet), for example checksum.cfg or a file of
-# the test. Export, with <NAME> the server name in upper case:
+# is a snippet (see _setup_snippet), for example http.cfg, tls.cfg or a file
+# of the test. Export, with <NAME> the server name in upper case:
 #
 #   <NAME>_URL   root://localhost:<port>
 #   <NAME>_URL4  root://127.0.0.1:<port>, for tests of the IPv4 stack
 #   <NAME>_URL6  root://[::1]:<port>, for tests of the IPv6 stack
+#   <NAME>_HTTP  http://localhost:<port>, with the snippet http.cfg
+#   <NAME>_HTTPS https://localhost:<port>, with http.cfg and tls.cfg
 #   <NAME>_PORT  the port of the server
 #   <NAME>_DATA  the data directory of the server (oss.localroot)
 #   <NAME>_LOG   the server log
@@ -256,6 +260,8 @@ start_server() {
     export "${var}_URL=root://localhost:$port"
     export "${var}_URL4=root://127.0.0.1:$port"
     export "${var}_URL6=root://[::1]:$port"
+    export "${var}_HTTP=http://localhost:$port"
+    export "${var}_HTTPS=https://localhost:$port"
     export "${var}_DATA=$rundir/data"
     export "${var}_LOG=$rundir/xrootd.log"
 }
@@ -281,6 +287,61 @@ restart_server() {
 
     stop_pid_file "$rundir/xrootd.pid" || return 1
     _setup_run_xrootd "$name" "$(<"$rundir/port")"
+}
+
+# start_issuer
+#
+# Start the token issuer "issuer", an HTTPS server which publishes the key of
+# the shared credentials (issuer.jwks), and write the configuration of the
+# snippet scitokens.cfg, which accepts the tokens of the issuer. Export ISSUER,
+# the URL of the issuer, which make_token puts into the tokens.
+start_issuer() {
+    start_server issuer http.cfg tls.cfg || return 1
+
+    mkdir -p "$ISSUER_DATA/.well-known"
+    cp "$CREDENTIALS/issuer.jwks" "$ISSUER_DATA/issuer.jwks"
+    printf '{ "issuer": "%s", "jwks_uri": "%s/issuer.jwks" }\n' "$ISSUER_HTTPS" "$ISSUER_HTTPS" \
+        > "$ISSUER_DATA/.well-known/openid-configuration"
+
+    export ISSUER=$ISSUER_HTTPS
+
+    cat > "$(_setup_tmpdir)/scitokens.conf" <<EOF
+[Global]
+onmissing = passthrough
+audience = https://xrootd.test
+
+[Issuer test]
+issuer = $ISSUER
+base_path = /
+default_user = nobody
+authorization_strategy = capability
+EOF
+}
+
+# make_token <scope> [lifetime]
+#
+# Print a token of the issuer (see start_issuer) with the scope, for example
+# "storage.read:/ storage.create:/", valid for the lifetime in seconds.
+make_token() {
+    xrdscitokens-create-token "$CREDENTIALS/issuer.pub" "$CREDENTIALS/issuer.key" \
+        test "$ISSUER" "$1" ${2:+"$2"}
+}
+
+# server_log <name>
+#
+# Print the lines which the server logged during the current test.
+server_log() {
+    local log
+
+    for log in "${BATS_TEST_TMPDIR:-/nonexistent}/$1/xrootd.log" "$BATS_FILE_TMPDIR/$1/xrootd.log"; do
+        if [[ -f "$log" ]]; then
+            cat "$log"
+            return
+        fi
+    done
+
+    echo "server_log: no server '$1'" >&2
+    return 1
 }
 
 # server_is_up <url>
