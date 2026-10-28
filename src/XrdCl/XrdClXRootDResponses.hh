@@ -558,8 +558,10 @@ namespace XrdCl
         char ts[256];
         time_t modTime = time;
         tm t;
-        localtime_r( &modTime, &t );
-        strftime( ts, sizeof( ts ), "%F %T %z", &t );
+        // gmtime_r() fails for a time whose year does not fit in an int
+        if( !gmtime_r( &modTime, &t ) )
+          return std::to_string( time );
+        strftime( ts, sizeof( ts ), "%F %T", &t );
         return ts;
       }
 
