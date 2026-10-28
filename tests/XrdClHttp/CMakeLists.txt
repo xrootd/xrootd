@@ -27,6 +27,7 @@ find_program(OPENSSL_BIN openssl REQUIRED)
 # have no linkage against XrdClHttp
 add_executable(xrdcl-test
   ChecksumTest.cc
+  CloseDuringPrefetchTest.cc
   DeleteTest.cc
   MkcolTest.cc
   ReadTest.cc
