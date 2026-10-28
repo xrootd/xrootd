@@ -1,3 +1,8 @@
+# The tested code links XrdServer, which a client-only build does not have
+if(NOT TARGET XrdServer)
+  return()
+endif()
+
 # Create a static library for testing (since MODULE libraries can't be linked)
 add_library(XrdThrottleTestLib STATIC
   ${PROJECT_SOURCE_DIR}/src/XrdThrottle/XrdThrottleManager.cc

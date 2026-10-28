@@ -1,3 +1,8 @@
+# The tested code links XrdServer, which a client-only build does not have
+if(NOT TARGET XrdServer)
+  return()
+endif()
+
 # XrdPfcInfo.cc and XrdPfcDirState.cc are compiled in rather than linked from
 # the plugin, as neither needs the Cache singleton.
 add_executable(xrdpfc-unit-tests
