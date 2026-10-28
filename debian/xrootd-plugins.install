@@ -12,3 +12,4 @@
 /usr/lib/*/libXrdSecztn-6.so
 /usr/lib/*/libXrdSecjwt-6.so
 /usr/lib/*/libXrdSecjwtCore-6.so
+/usr/lib/*/libXrdAccjwt-6.so
