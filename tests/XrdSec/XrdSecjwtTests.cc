@@ -1213,17 +1213,120 @@ TEST(XrdSecJWTTest, EntityClaimsSkipMissingOrUnsafeValues)
   const std::string payload = "{" + IssuerClaim() +
       R"(,"aud":"xrootd","exp":)" +
       std::to_string(static_cast<long long>(NowSeconds() + 600)) +
-      R"(,"sub":"bad\nvalue","azp":"client-app"})";
+      R"(,"preferred_username":"alice","sub":"bad\nvalue","azp":"client-app"})";
   const std::string token = MakeJWT(km.pkey, hdr, payload);
 
   std::string identity;
   std::map<std::string, std::string> entityAttrs;
   ASSERT_TRUE(validateToken(token.c_str(), identity, emsg, nullptr, &entityAttrs)) << emsg;
+  EXPECT_EQ(identity, "alice");
+  EXPECT_EQ(entityAttrs["request.name"], "alice");
   EXPECT_EQ(entityAttrs.count("token.sub"), 0u);
+  EXPECT_EQ(entityAttrs.count("token.subject"), 0u);
   EXPECT_EQ(entityAttrs["token.azp"], "client-app");
 
   EVP_PKEY_free(km.pkey);
   freeKeys(IssuerPolicies[0]->jwksKeys);
+}
+
+TEST(XrdSecJWTTest, DefaultUserIsIdentityWhenSubjectIsNotMapped)
+{
+  ResetGlobalsForTest();
+  IssuerPolicies[0]->forcedIdentityClaim.clear();
+  IssuerPolicies[0]->defaultUser = "cmsprod";
+
+  KeyMaterial km = MakeKeyAndJWKS();
+  ASSERT_NE(km.pkey, nullptr);
+  InstallTestKey(km);
+
+  const std::string hdr = R"({"alg":"RS256","kid":"k1","typ":"JWT"})";
+  const std::string payload = "{" + IssuerClaim() +
+      R"(,"aud":"xrootd","exp":)" +
+      std::to_string(static_cast<long long>(NowSeconds() + 600)) +
+      R"(,"sub":"alice","preferred_username":"alice","wlcg.groups":["/cms","/cms/prod"]})";
+  const std::string token = MakeJWT(km.pkey, hdr, payload);
+
+  std::string identity, emsg;
+  std::map<std::string, std::string> entityAttrs;
+  ASSERT_TRUE(validateToken(token.c_str(), identity, emsg, nullptr, &entityAttrs)) << emsg;
+  EXPECT_EQ(identity, "cmsprod");
+  EXPECT_EQ(entityAttrs["request.name"], "cmsprod");
+  EXPECT_EQ(entityAttrs["token.subject"], "alice");
+  EXPECT_EQ(entityAttrs["jwt.grps"], "/cms /cms/prod");
+  EXPECT_EQ(entityAttrs["jwt.vorg"], "https://issuer.example");
+  EXPECT_EQ(entityAttrs.count("jwt.strategy"), 0u);
+
+  EVP_PKEY_free(km.pkey);
+  freeKeys(IssuerPolicies[0]->jwksKeys);
+}
+
+TEST(XrdSecJWTTest, IssuerStrategyIsExported)
+{
+  ResetGlobalsForTest();
+  IssuerPolicies[0]->forcedIdentityClaim.clear();
+  IssuerPolicies[0]->defaultUser = "cmsprod";
+  IssuerPolicies[0]->authzStrategy = "group";
+  IssuerPolicies[0]->onmissing = "deny";
+  IssuerPolicies[0]->nameMapFile = "/etc/xrootd/map.json";
+
+  KeyMaterial km = MakeKeyAndJWKS();
+  ASSERT_NE(km.pkey, nullptr);
+  InstallTestKey(km);
+
+  const std::string hdr = R"({"alg":"RS256","kid":"k1","typ":"JWT"})";
+  const std::string payload = "{" + IssuerClaim() +
+      R"(,"aud":"xrootd","exp":)" +
+      std::to_string(static_cast<long long>(NowSeconds() + 600)) +
+      R"(,"sub":"alice"})";
+  const std::string token = MakeJWT(km.pkey, hdr, payload);
+
+  std::string identity, emsg;
+  std::map<std::string, std::string> entityAttrs;
+  ASSERT_TRUE(validateToken(token.c_str(), identity, emsg, nullptr, &entityAttrs)) << emsg;
+  EXPECT_EQ(entityAttrs["jwt.vorg"], "https://issuer.example");
+  EXPECT_EQ(entityAttrs["jwt.strategy"], "group");
+  EXPECT_EQ(entityAttrs["jwt.onmissing"], "deny");
+  EXPECT_EQ(entityAttrs["jwt.mapfile"], "/etc/xrootd/map.json");
+  EXPECT_EQ(entityAttrs["jwt.typ"], "JWT");
+
+  EVP_PKEY_free(km.pkey);
+  freeKeys(IssuerPolicies[0]->jwksKeys);
+}
+
+TEST(XrdSecJWTTest, UnsafeAccountNameIsRejected)
+{
+  ResetGlobalsForTest();
+  KeyMaterial km = MakeKeyAndJWKS();
+  ASSERT_NE(km.pkey, nullptr);
+  InstallTestKey(km);
+
+  const std::string hdr = R"({"alg":"RS256","kid":"k1","typ":"JWT"})";
+  const std::string payload = "{" + IssuerClaim() +
+      R"(,"aud":"xrootd","exp":)" +
+      std::to_string(static_cast<long long>(NowSeconds() + 600)) +
+      R"(,"sub":"alice/prod"})";
+  const std::string token = MakeJWT(km.pkey, hdr, payload);
+
+  std::string identity, emsg;
+  EXPECT_FALSE(validateToken(token.c_str(), identity, emsg, nullptr, nullptr));
+  EXPECT_NE(emsg.find("safe account name"), std::string::npos);
+
+  EVP_PKEY_free(km.pkey);
+  freeKeys(IssuerPolicies[0]->jwksKeys);
+}
+
+TEST(XrdSecJWTTest, SciTokensDefaultUserMustBeASafeAccountName)
+{
+  std::vector<std::shared_ptr<IssuerPolicy>> pols;
+  std::unordered_map<std::string, std::shared_ptr<IssuerPolicy>> byIss;
+  std::string emsg;
+  const std::string cfg =
+      "[Issuer bad]\n"
+      "issuer = https://scitokens.example/bad\n"
+      "base_path = /data\n"
+      "default_user = alice/prod\n";
+  EXPECT_FALSE(parseSciTokensConfig("scitokens.cfg", cfg, pols, byIss, emsg));
+  EXPECT_NE(emsg.find("default_user"), std::string::npos);
 }
 
 // --- Strip(): Bearer-prefix and whitespace handling --------------------------
@@ -1424,6 +1527,34 @@ TEST(XrdSecJWTTest, ReloadKeepsIssuerDeclaredOutsideASection)
   EXPECT_NE(emsg.find("issuer value is empty"), std::string::npos);
 }
 
+TEST(XrdSecJWTTest, InlineIssuerOptionsSurviveAFileReload)
+{
+  const std::string cfg =
+      "[issuer \"https://issuer-a.example\"]\n"
+      "[email-map]\n"
+      "Alice@Example.ORG = alice\n";
+  std::vector<std::shared_ptr<IssuerPolicy>> pols;
+  std::unordered_map<std::string, std::shared_ptr<IssuerPolicy>> byIss;
+  std::unordered_map<std::string, std::string> emap;
+  std::string emsg;
+  ASSERT_TRUE(parseReloadableIniSections("test.cfg", cfg, pols, byIss, emap, emsg)) << emsg;
+  const int expiryBefore = expiry.load();
+  ASSERT_TRUE(overlayInlineIssuerParms(
+      "-expiry required -issuer https://issuer-a.example -audience extra "
+      "-issuer https://only.example -jwks-url https://only.example/jwks "
+      "-email-map Bob@Example.org=bob",
+      pols, byIss, emap, emsg)) << emsg;
+  EXPECT_EQ(expiry.load(), expiryBefore);
+  ASSERT_EQ(pols.size(), 2u);
+  ASSERT_EQ(byIss.count("https://issuer-a.example"), 1u);
+  ASSERT_EQ(byIss["https://issuer-a.example"]->audiences.size(), 1u);
+  EXPECT_EQ(byIss["https://issuer-a.example"]->audiences[0], "extra");
+  ASSERT_EQ(byIss.count("https://only.example"), 1u);
+  EXPECT_EQ(byIss["https://only.example"]->jwksURL, "https://only.example/jwks");
+  EXPECT_EQ(emap["alice@example.org"], "alice");
+  EXPECT_EQ(emap["bob@example.org"], "bob");
+}
+
 TEST(XrdSecJWTTest, ParseReloadableIniSectionsRejectsUnknownSection)
 {
   const std::string cfg = "[bogus]\nfoo = bar\n";
@@ -1507,7 +1638,7 @@ TEST(XrdSecJWTTest, PrescanInitParmsMultiLineProtparm)
   EXPECT_EQ(inlineParms.find("-config-file"), std::string::npos);
 }
 
-TEST(XrdSecJWTTest, SciTokensConfigMapsIssuersForAccToken)
+TEST(XrdSecJWTTest, SciTokensConfigMapsIssuersForAccjwt)
 {
   std::vector<std::shared_ptr<IssuerPolicy>> pols;
   std::unordered_map<std::string, std::shared_ptr<IssuerPolicy>> byIss;
@@ -1522,6 +1653,10 @@ TEST(XrdSecJWTTest, SciTokensConfigMapsIssuersForAccToken)
       "issuer = https://scitokens.example/osg\n"
       "base_path = /stash\n"
       "map_subject = True\n"
+      "default_user = osg\n"
+      "groups_claim = memberOf\n"
+      "authorization_strategy = capability group\n"
+      "onmissing = Deny\n"
       "name_mapfile = /etc/xrootd/map.json\n"
       "\n"
       "[Issuer CMS]\n"
@@ -1547,6 +1682,11 @@ TEST(XrdSecJWTTest, SciTokensConfigMapsIssuersForAccToken)
   EXPECT_EQ(pols[0]->issuer, "https://scitokens.example/osg");
   EXPECT_EQ(pols[0]->basePath, "/stash");
   EXPECT_EQ(pols[0]->forcedIdentityClaim, "sub");
+  EXPECT_EQ(pols[0]->defaultUser, "osg");
+  EXPECT_EQ(pols[0]->groupsClaim, "memberOf");
+  EXPECT_EQ(pols[0]->authzStrategy, "capability+group");
+  EXPECT_EQ(pols[0]->onmissing, "deny");
+  EXPECT_EQ(pols[0]->nameMapFile, "/etc/xrootd/map.json");
   ASSERT_EQ(pols[0]->audiences.size(), 4u);
   EXPECT_EQ(pols[0]->audiences[0], "https://localhost:7095");
   EXPECT_EQ(pols[0]->audiences[1], "site");
@@ -1558,6 +1698,11 @@ TEST(XrdSecJWTTest, SciTokensConfigMapsIssuersForAccToken)
   // falls back to the plugin default instead of "uid".
   EXPECT_EQ(byIss["https://scitokens.example/cms"]->basePath, "/cms");
   EXPECT_TRUE(byIss["https://scitokens.example/cms"]->forcedIdentityClaim.empty());
+  EXPECT_TRUE(byIss["https://scitokens.example/cms"]->defaultUser.empty());
+  EXPECT_EQ(byIss["https://scitokens.example/cms"]->groupsClaim, "wlcg.groups");
+  EXPECT_TRUE(byIss["https://scitokens.example/cms"]->authzStrategy.empty());
+  EXPECT_TRUE(byIss["https://scitokens.example/cms"]->onmissing.empty());
+  EXPECT_TRUE(byIss["https://scitokens.example/cms"]->nameMapFile.empty());
   EXPECT_TRUE(byIss["https://scitokens.example/cms"]->restrictedPaths.empty());
   EXPECT_EQ(byIss["https://scitokens.example/cms"]->audiences, pols[0]->audiences);
   EXPECT_EQ(byIss["https://scitokens.example/multi"]->basePath, "[\"/data\",\"/data2\"]");
@@ -1567,6 +1712,30 @@ TEST(XrdSecJWTTest, SciTokensConfigMapsIssuersForAccToken)
       "issuer = https://scitokens.example/broken\n";
   EXPECT_FALSE(parseSciTokensConfig("scitokens.cfg", bad, pols, byIss, emsg));
   EXPECT_NE(emsg.find("base_path"), std::string::npos);
+
+  const std::string badStrategy =
+      "[Issuer broken]\n"
+      "issuer = https://scitokens.example/broken\n"
+      "base_path = /data\n"
+      "authorization_strategy = capability nope\n";
+  EXPECT_FALSE(parseSciTokensConfig("scitokens.cfg", badStrategy, pols, byIss, emsg));
+  EXPECT_NE(emsg.find("nope"), std::string::npos);
+
+  const std::string badOnMissing =
+      "[Issuer broken]\n"
+      "issuer = https://scitokens.example/broken\n"
+      "base_path = /data\n"
+      "onmissing = sometimes\n";
+  EXPECT_FALSE(parseSciTokensConfig("scitokens.cfg", badOnMissing, pols, byIss, emsg));
+  EXPECT_NE(emsg.find("onmissing"), std::string::npos);
+
+  const std::string relativeMap =
+      "[Issuer broken]\n"
+      "issuer = https://scitokens.example/broken\n"
+      "base_path = /data\n"
+      "name_mapfile = relative.json\n";
+  EXPECT_FALSE(parseSciTokensConfig("scitokens.cfg", relativeMap, pols, byIss, emsg));
+  EXPECT_NE(emsg.find("name_mapfile"), std::string::npos);
 
   std::string sciPath;
   bool sci = false;

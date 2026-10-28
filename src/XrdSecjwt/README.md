@@ -149,16 +149,29 @@ accjwt.onmissing deny
 | `restricted_path` | Entity attribute `restricted_path` (JSON array). |
 | `username_claim` | Identity is taken from that claim. |
 | `map_subject = true` | Identity is taken from `sub`, unless `username_claim` is set. |
+| `default_user` | Identity when `username_claim` is unset and `map_subject` is not true. The value must be a safe account name. |
+| `groups_claim` | Claim copied onto `XrdSecEntity.grps` (default `wlcg.groups`). A string or a JSON array of strings. This does not authorize the request. |
+| `authorization_strategy` | `capability`, `group`, and `mapping`, space-separated. Exported as `jwt.strategy` for `libXrdAccjwt`. Only `capability` grants. The default, when this key is absent, is all three. |
+| `onmissing` | `passthrough`, `allow`, or `deny`. Exported as `jwt.onmissing` and used for this issuer. When the key is absent, `libXrdAccjwt` uses `accjwt.onmissing`. A `[Global]` `onmissing` is ignored. |
+| `name_mapfile` | Absolute path of a JSON rule list. Exported as `jwt.mapfile`. `libXrdAccjwt` writes a matching `result` to `request.name` only after the operation is granted. Lookups use the handshake account. `Entity.name` stays that account. A miss, or a request that is not granted, leaves the handshake `request.name`. |
 
-Every accepted token also exports `scope` as `token.scope` and, when present,
-`wlcg.ver` as `token.wlcg.ver`. `name_mapfile`, `default_user`, `groups_claim`,
-`authorization_strategy`, and `onmissing` are ignored. Missing-token behavior
-stays `accjwt.onmissing`.
+Every accepted token also exports `scope` as `token.scope`, `sub` as
+`token.subject` when that claim is present, `wlcg.ver` as
+`token.wlcg.ver` when present, and the JOSE `typ` as `jwt.typ` when present.
+`typ` is not an authentication check. A login token whose `typ` is `eos+jwt`
+is still validated here. `libXrdAccjwt` does not authorize that type.
+The account name is also stored as
+`request.name`. The matched issuer is copied onto `XrdSecEntity.vorg`.
+`name_mapfile` is exported as `jwt.mapfile` for `libXrdAccjwt`. An issuer
+`onmissing` is exported as `jwt.onmissing` and overrides `accjwt.onmissing`
+for that issuer. A `[Global]` `onmissing` is ignored. `accjwt.strategy` overrides
+`authorization_strategy` when it is set.
 
 The file is watched the same way as `jwt.cfg`. On each authentication the
 plugin stats it, and a change of inode, mtime, ctime, or size re-reads the
 issuers: issuer URL, audience, `base_path`, `restricted_path`,
-`username_claim`, and `map_subject`. The new policies replace the old ones
+`username_claim`, `map_subject`, `default_user`, `groups_claim`,
+`authorization_strategy`, `onmissing`, and `name_mapfile`. The new policies replace the old ones
 and the validated-token cache is dropped. Inline `-issuer` options and
 `-email-map` entries from startup are applied again on top of the file, so an
 issuer or audience that exists only on the command line is not dropped.
@@ -170,7 +183,7 @@ connection that keeps sending the same token text keeps the entity already
 installed on that connection.
 
 In the `jwt.cfg` dialect, `-issuer` starts a new issuer policy block. `-audience`, `-jwt-config-url`,
-`-jwks-url`, `-forced-identity-claim`, `-base-path`, and `-restricted-path`
+`-jwks-url`, `-forced-identity-claim`, `-authorization-strategy`, `-name-mapfile`, `-base-path`, and `-restricted-path`
 apply to the current issuer and are rejected if they appear before the first
 `-issuer` (`requires a prior -issuer`). Repeat `-restricted-path` (or
 `restricted_path` lines in an `[issuer ...]` INI section) to configure
@@ -263,8 +276,20 @@ claims in this default order:
 
 Use repeated `-identity-claim` options to override this order.
 
+The value copied to `XrdSecEntity.name` must be a safe account name: non-empty,
+not starting with `-`, and containing only letters, digits, `_`, `.`, `@`,
+and `-`. The same string is stored as the `request.name` attribute. When the
+token has a `sub` claim, it is exported as `token.subject` even if the
+account name came from a different claim. `wlcg.groups` (or `groups_claim`)
+is copied onto `XrdSecEntity.grps` as a space-separated list when that claim
+is present. Groups are not an access decision. The issuer URL that matched
+the token is copied onto `XrdSecEntity.vorg`. That is the virtual
+organization, and it is what `TokenInfo` reports as `o`.
+
 Per-issuer override: use `-forced-identity-claim <claim>` after a specific
-`-issuer` to force a single claim for that issuer.
+`-issuer` to force a single claim for that issuer. In `-scitokens-config`,
+`default_user` is the account when `username_claim` is unset and
+`map_subject` is not true.
 If `forced-identity-claim = email` is used, authentication fails unless the
 token has an `email` claim and that email is present in `[email-map]`.
 
@@ -475,8 +500,7 @@ reloaded and remain fixed from startup. A reload that parses and validates
 replaces the issuer policies and the email map, then applies inline `-issuer`
 options and inline `-email-map` entries from startup on top of that file.
 It drops the validated-token cache, so the next authentication recomputes
-identity, audience, and
-`base_path` / `restricted_path`. It does not disconnect an existing xroot
+identity, audience, and `base_path` / `restricted_path`. It does not disconnect an existing xroot
 session. On HTTP, the next request revalidates as described above: failure
 drops the bearer identity, while the same still-valid token keeps the entity
 already installed on that connection.

@@ -291,6 +291,18 @@ bool isSafeEntityAttrValue(const std::string &val)
    return true;
 }
 
+// A name copied onto XrdSecEntity.name. Rejects an empty value, a leading
+// '-', and anything outside [A-Za-z0-9._@-], so a claim cannot carry a path
+// separator or shell metacharacter into the account name.
+bool isSafeAccountName(const std::string &name)
+{
+   if (name.empty() || name[0] == '-') return false;
+   for (unsigned char c : name)
+      if (!isalnum(c) && c != '_' && c != '.' && c != '@' && c != '-')
+         return false;
+   return true;
+}
+
 bool parseEntityClaimSpec(const std::string &specIn, EntityClaimMapping &out,
                           std::string &emsg)
 {
@@ -472,6 +484,21 @@ struct IssuerPolicy {
    std::string jwtConfigURL;
    std::string jwksURL;
    std::string forcedIdentityClaim;
+   // SciTokens default_user. Used only when this issuer has no username_claim
+   // and map_subject is not set. Empty means the usual identity-claim order.
+   std::string defaultUser;
+   // Claim copied onto XrdSecEntity.grps. SciTokens' groups_claim overrides
+   // the default. The group list is not an access decision.
+   std::string groupsClaim{"wlcg.groups"};
+   // SciTokens authorization_strategy, canonical form capability+group+mapping.
+   // Empty means the access plugin default, which is all three.
+   std::string authzStrategy;
+   // Per-issuer onmissing: passthrough, allow, or deny. Empty means the
+   // access plugin's accjwt.onmissing.
+   std::string onmissing;
+   // Absolute name_mapfile path. The access plugin reads it and may set
+   // request.name. Empty means there is no map.
+   std::string nameMapFile;
    std::string basePath;
    std::vector<std::string> restrictedPaths;
 
@@ -524,8 +551,37 @@ void populateEntityAttrs(const std::string &payloadJSON,
    out.clear();
    collectEntityClaims(payloadJSON, out);
    std::shared_ptr<IssuerPolicy> policy;
+   nlohmann::json payloadObj;
+   const bool havePayload = parseJsonObject(payloadJSON, payloadObj);
+   if (havePayload)
+      {std::string sub;
+       if (!out.count("token.subject")
+       &&  getStringClaim(payloadObj, "sub", sub)
+       &&  isSafeEntityAttrValue(sub))
+          out["token.subject"] = sub;
+      }
    if (lookupIssuerPolicyFromPayload(payloadJSON, policy))
-      addIssuerPolicyEntityAttrs(policy, out);
+      {addIssuerPolicyEntityAttrs(policy, out);
+       if (havePayload && !policy->groupsClaim.empty())
+          {std::string groups;
+           if (getEntityClaimValue(payloadObj, policy->groupsClaim.c_str(), groups)
+           &&  isSafeEntityAttrValue(groups))
+              out["jwt.grps"] = groups;
+          }
+       // The matched issuer is the virtual organization. The protocol copies
+       // this onto Entity.vorg and does not publish it as an attribute.
+       if (!policy->issuer.empty() && isSafeEntityAttrValue(policy->issuer))
+          out["jwt.vorg"] = policy->issuer;
+       if (!policy->authzStrategy.empty()
+       &&  isSafeEntityAttrValue(policy->authzStrategy))
+          out["jwt.strategy"] = policy->authzStrategy;
+       if (!policy->onmissing.empty()
+       &&  isSafeEntityAttrValue(policy->onmissing))
+          out["jwt.onmissing"] = policy->onmissing;
+       if (!policy->nameMapFile.empty()
+       &&  isSafeEntityAttrValue(policy->nameMapFile))
+          out["jwt.mapfile"] = policy->nameMapFile;
+      }
 }
 
 const char *const kDefaultJWTConfigPath = "/etc/xrootd/jwt.cfg";
@@ -673,6 +729,78 @@ bool storeEmailMapEntry(const std::string &spec, std::string &emsg)
    return addEmailMapEntry(spec, EmailIdentityMap, emsg);
 }
 
+// SciTokens authorization_strategy. Canonical form uses '+' so the value is
+// one token on a sec.protparm line. Empty input is rejected.
+bool normalizeAuthzStrategy(const std::string &raw, std::string &canonical,
+                            std::string &emsg)
+{
+   canonical.clear();
+   emsg.clear();
+   unsigned bits = 0;
+   bool any = false;
+   size_t pos = 0;
+   while (pos < raw.size())
+      {
+       while (pos < raw.size()
+           && (raw[pos] == ' ' || raw[pos] == ',' || raw[pos] == '+'
+            || raw[pos] == '|' || raw[pos] == '\t'))
+          ++pos;
+       if (pos >= raw.size()) break;
+       size_t end = pos;
+       while (end < raw.size()
+           && raw[end] != ' ' && raw[end] != ',' && raw[end] != '+'
+           && raw[end] != '|' && raw[end] != '\t')
+          ++end;
+       std::string word = raw.substr(pos, end - pos);
+       pos = end;
+       for (char &c : word)
+          c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+       any = true;
+       if (word == "capability") bits |= 1u;
+       else if (word == "group") bits |= 2u;
+       else if (word == "mapping") bits |= 4u;
+       else
+          {emsg = "unknown authorization_strategy value: " + word;
+           return false;
+          }
+      }
+   if (!any)
+      {emsg = "authorization_strategy has no value";
+       return false;
+      }
+   if (bits & 1u) canonical += "capability";
+   if (bits & 2u)
+      {if (!canonical.empty()) canonical += "+";
+       canonical += "group";
+      }
+   if (bits & 4u)
+      {if (!canonical.empty()) canonical += "+";
+       canonical += "mapping";
+      }
+   return true;
+}
+
+// Per-issuer onmissing. Canonical form is lowercase. Empty input is rejected.
+bool normalizeOnMissing(const std::string &raw, std::string &canonical,
+                        std::string &emsg)
+{
+   canonical.clear();
+   emsg.clear();
+   std::string word = XrdOucUtils::trimCopy(raw);
+   for (char &c : word)
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+   if (word == "passthrough" || word == "allow" || word == "deny")
+      {canonical = word;
+       return true;
+      }
+   if (word.empty())
+      {emsg = "onmissing has no value";
+       return false;
+      }
+   emsg = "unknown onmissing value: " + word;
+   return false;
+}
+
 bool addIniKV(const std::string &keyIn, const std::string &valIn, bool inIssuer,
               std::string &opts, std::string &emsg)
 {
@@ -708,6 +836,48 @@ bool addIniKV(const std::string &keyIn, const std::string &valIn, bool inIssuer,
    if (key == "jwt-config-url")      {appendCliOpt(opts, "-jwt-config-url", &val); return true;}
    if (key == "jwks-url")             {appendCliOpt(opts, "-jwks-url", &val); return true;}
    if (key == "forced-identity-claim"){appendCliOpt(opts, "-forced-identity-claim", &val); return true;}
+   if (key == "authorization-strategy" || key == "authorization_strategy")
+      {
+       if (!inIssuer)
+          {emsg = "authorization_strategy requires an [issuer ...] section or issuer=...";
+           return false;
+          }
+       std::string canonical, localErr;
+       if (!normalizeAuthzStrategy(val, canonical, localErr))
+          {emsg = localErr;
+           return false;
+          }
+       appendCliOpt(opts, "-authorization-strategy", &canonical);
+       return true;
+      }
+   if (key == "onmissing")
+      {
+       if (!inIssuer)
+          {emsg = "onmissing requires an [issuer ...] section or issuer=...";
+           return false;
+          }
+       std::string canonical, localErr;
+       if (!normalizeOnMissing(val, canonical, localErr))
+          {emsg = localErr;
+           return false;
+          }
+       appendCliOpt(opts, "-onmissing", &canonical);
+       return true;
+      }
+   if (key == "name-mapfile" || key == "name_mapfile")
+      {
+       if (!inIssuer)
+          {emsg = "name_mapfile requires an [issuer ...] section or issuer=...";
+           return false;
+          }
+       std::string canonical;
+       if (!canonicalAbsolutePath(val, canonical))
+          {emsg = "name_mapfile is not an absolute path: " + val;
+           return false;
+          }
+       appendCliOpt(opts, "-name-mapfile", &canonical);
+       return true;
+      }
    if (key == "base-path" || key == "base_path")
       {
        if (!inIssuer) {emsg = "base_path requires an [issuer ...] section or issuer=..."; return false;}
@@ -1102,6 +1272,39 @@ bool parseReloadableIniSections(const char *path,
           {curPolicy->jwksURL = val; continue;}
        if (key == "forced-identity-claim")
           {curPolicy->forcedIdentityClaim = val; continue;}
+       if (key == "authorization-strategy" || key == "authorization_strategy")
+          {
+           std::string canonical, localErr;
+           if (!normalizeAuthzStrategy(val, canonical, localErr))
+              {emsg = std::string(path) + ":" + std::to_string(lineNo)
+                    + ": " + localErr;
+               return false;
+              }
+           curPolicy->authzStrategy = canonical;
+           continue;
+          }
+       if (key == "onmissing")
+          {
+           std::string canonical, localErr;
+           if (!normalizeOnMissing(val, canonical, localErr))
+              {emsg = std::string(path) + ":" + std::to_string(lineNo)
+                    + ": " + localErr;
+               return false;
+              }
+           curPolicy->onmissing = canonical;
+           continue;
+          }
+       if (key == "name-mapfile" || key == "name_mapfile")
+          {
+           std::string canonical;
+           if (!canonicalAbsolutePath(val, canonical))
+              {emsg = std::string(path) + ":" + std::to_string(lineNo)
+                    + ": name_mapfile is not an absolute path: " + val;
+               return false;
+              }
+           curPolicy->nameMapFile = canonical;
+           continue;
+          }
        if (key == "base-path" || key == "base_path")
           {
            std::string localErr;
@@ -1211,9 +1414,13 @@ bool parseAudienceJson(const std::string &raw, std::vector<std::string> &out, st
    return true;
 }
 
-// Read a SciTokens INI (not the jwt.cfg dialect). Unknown authorization keys
-// (name_mapfile, default_user, groups_claim, authorization_strategy, onmissing)
-// are ignored: XrdAccjwt does not consume them.
+// Read a SciTokens INI (not the jwt.cfg dialect). A [Global] onmissing is
+// ignored: the plugin-wide default stays accjwt.onmissing. An issuer
+// onmissing is copied onto that issuer. authorization_strategy is copied
+// onto the issuer so the access plugin can turn capability grants off.
+// name_mapfile is the absolute path of the JSON rules the access plugin
+// applies to request.name. default_user and groups_claim are identity and
+// are applied here.
 bool parseSciTokensConfig(const char *path,
                           const std::string &fileContents,
                           std::vector<std::shared_ptr<IssuerPolicy>> &outPolicies,
@@ -1233,6 +1440,11 @@ bool parseSciTokensConfig(const char *path,
       std::string restrictedRaw;
       bool mapSubject = false;
       std::string usernameClaim;
+      std::string defaultUser;
+      std::string groupsClaim;
+      std::string authzStrategy;
+      std::string onmissing;
+      std::string nameMapFile;
    } pending;
 
    std::vector<std::string> globalAudiences;
@@ -1266,9 +1478,41 @@ bool parseSciTokensConfig(const char *path,
          }
       policy->basePath = baseAttr;
       policy->restrictedPaths = std::move(restricted);
+      if (!pending.defaultUser.empty() && !isSafeAccountName(pending.defaultUser))
+         return fail(pending.lineNo, "default_user is not a safe account name");
+      if (!pending.groupsClaim.empty() && !isValidJwtClaimName(pending.groupsClaim))
+         return fail(pending.lineNo, "groups_claim is not a valid claim name");
       if (!pending.usernameClaim.empty()) policy->forcedIdentityClaim = pending.usernameClaim;
       else if (pending.mapSubject) policy->forcedIdentityClaim = "sub";
       else policy->forcedIdentityClaim.clear();
+      policy->defaultUser = pending.defaultUser;
+      policy->groupsClaim = pending.groupsClaim.empty() ? std::string("wlcg.groups")
+                                                        : pending.groupsClaim;
+      if (!pending.authzStrategy.empty())
+         {
+          std::string canonical, localErr;
+          if (!normalizeAuthzStrategy(pending.authzStrategy, canonical, localErr))
+             return fail(pending.lineNo, localErr);
+          policy->authzStrategy = canonical;
+         }
+      else policy->authzStrategy.clear();
+      if (!pending.onmissing.empty())
+         {
+          std::string canonical, localErr;
+          if (!normalizeOnMissing(pending.onmissing, canonical, localErr))
+             return fail(pending.lineNo, localErr);
+          policy->onmissing = canonical;
+         }
+      else policy->onmissing.clear();
+      if (!pending.nameMapFile.empty())
+         {
+          std::string canonical;
+          if (!canonicalAbsolutePath(pending.nameMapFile, canonical))
+             return fail(pending.lineNo, "name_mapfile is not an absolute path: "
+                         + pending.nameMapFile);
+          policy->nameMapFile = canonical;
+         }
+      else policy->nameMapFile.clear();
       pending = Pending{};
       return true;
    };
@@ -1339,6 +1583,11 @@ bool parseSciTokensConfig(const char *path,
               return fail(lineNo, "invalid boolean for map_subject: " + val);
           }
        else if (key == "username_claim") pending.usernameClaim = val;
+       else if (key == "default_user") pending.defaultUser = val;
+       else if (key == "groups_claim") pending.groupsClaim = val;
+       else if (key == "authorization_strategy") pending.authzStrategy = val;
+       else if (key == "onmissing") pending.onmissing = val;
+       else if (key == "name_mapfile") pending.nameMapFile = val;
       }
    if (!flush()) return false;
    if (outPolicies.empty())
@@ -2677,6 +2926,11 @@ bool parseAndValidateJWT(std::string_view rawTok, std::string &payloadJSON,
            if (identityMethod)
               *identityMethod = "claim:" + forced;
           }
+      } else if (!policy->defaultUser.empty()) {
+       // SciTokens: no username_claim and map_subject is off, so the issuer's
+       // default_user is the account. A subject claim is not consulted.
+       identity = policy->defaultUser;
+       if (identityMethod) *identityMethod = "default-user";
       } else {
        std::string usedClaim;
        for (const auto &claim : IdentityClaims)
@@ -2691,6 +2945,10 @@ bool parseAndValidateJWT(std::string_view rawTok, std::string &payloadJSON,
           }
        if (identityMethod)
           *identityMethod = "default:" + usedClaim;
+      }
+   if (!isSafeAccountName(identity))
+      {emsg = "token identity is not a safe account name";
+       return false;
       }
    return true;
 }
@@ -2928,6 +3186,31 @@ OptResult applyIssuerInitOpt(const char *val, XrdOucTokenizer &cfg,
       {const char *arg = nextPolicyArg(cfg, erp, "-forced-identity-claim", curPolicy);
        if (!arg) return OptResult::Error;
        curPolicy->forcedIdentityClaim = arg; return OptResult::Ok;
+      }
+   if (!strcmp(val, "-authorization-strategy"))
+      {const char *arg = nextPolicyArg(cfg, erp, "-authorization-strategy", curPolicy);
+       if (!arg) return OptResult::Error;
+       std::string canonical, localErr;
+       if (!normalizeAuthzStrategy(arg, canonical, localErr))
+          {Fatal(erp, localErr.c_str(), EINVAL); return OptResult::Error;}
+       curPolicy->authzStrategy = canonical; return OptResult::Ok;
+      }
+   if (!strcmp(val, "-onmissing"))
+      {const char *arg = nextPolicyArg(cfg, erp, "-onmissing", curPolicy);
+       if (!arg) return OptResult::Error;
+       std::string canonical, localErr;
+       if (!normalizeOnMissing(arg, canonical, localErr))
+          {Fatal(erp, localErr.c_str(), EINVAL); return OptResult::Error;}
+       curPolicy->onmissing = canonical; return OptResult::Ok;
+      }
+   if (!strcmp(val, "-name-mapfile"))
+      {const char *arg = nextPolicyArg(cfg, erp, "-name-mapfile", curPolicy);
+       if (!arg) return OptResult::Error;
+       std::string canonical;
+       if (!canonicalAbsolutePath(arg, canonical))
+          {Fatal(erp, "name_mapfile is not an absolute path.", EINVAL);
+           return OptResult::Error;}
+       curPolicy->nameMapFile = canonical; return OptResult::Ok;
       }
    if (!strcmp(val, "-base-path"))
       {const char *arg = nextPolicyArg(cfg, erp, "-base-path", curPolicy);
@@ -3244,7 +3527,15 @@ bool validateToken(std::string_view rawTok, std::string &identity, std::string &
        TokenCacheHits++;
        identity = cached.identity;
        if (expTime) *expTime = cached.expiresAt;
-       if (entityAttrs) populateEntityAttrs(cached.payloadJSON, *entityAttrs);
+       if (entityAttrs)
+          {populateEntityAttrs(cached.payloadJSON, *entityAttrs);
+           std::string typ;
+           if (getStringClaim(cached.headerJSON, "typ", typ)
+           &&  isSafeEntityAttrValue(typ))
+              (*entityAttrs)["jwt.typ"] = typ;
+           if (isSafeEntityAttrValue(identity))
+              (*entityAttrs)["request.name"] = identity;
+          }
        debugPrintToken("jwt", identity.c_str(), cached.headerJSON,
                        cached.payloadJSON, true, cached.identityMethod);
        return true;
@@ -3276,7 +3567,14 @@ bool validateToken(std::string_view rawTok, std::string &identity, std::string &
       ins.expiresAt = now + static_cast<uint64_t>(TokenCacheNoExpTTL.load());
    tokenCacheStore(tokKey, ins, now);
    if (expTime) *expTime = ins.expiresAt;
-   if (entityAttrs) populateEntityAttrs(payloadJSON, *entityAttrs);
+   if (entityAttrs)
+      {populateEntityAttrs(payloadJSON, *entityAttrs);
+       std::string typ;
+       if (getStringClaim(headerJSON, "typ", typ) && isSafeEntityAttrValue(typ))
+          (*entityAttrs)["jwt.typ"] = typ;
+       if (isSafeEntityAttrValue(identity))
+          (*entityAttrs)["request.name"] = identity;
+      }
    return true;
 }
 

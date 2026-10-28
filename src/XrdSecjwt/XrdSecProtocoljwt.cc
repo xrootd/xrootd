@@ -112,6 +112,8 @@ public:
 
       ~XrdSecProtocoljwt() {if (Entity.host)  free(Entity.host);
                             if (Entity.name)  free(Entity.name);
+                            if (Entity.vorg)  free(Entity.vorg);
+                            if (Entity.grps)  free(Entity.grps);
                             if (Entity.creds) free(Entity.creds);
                            }
 
@@ -342,6 +344,26 @@ int XrdSecProtocoljwt::Authenticate(XrdSecCredentials *cred,
    if (Entity.name) free(Entity.name);
    Entity.name = strdup(identity.c_str());
    strncpy(Entity.prot, "jwt", sizeof(Entity.prot));
+   // Groups travel in the attribute map only so the protocol can install
+   // them on Entity.grps. They are not published as an entity attribute.
+   std::string groups;
+   auto git = entityAttrs.find("jwt.grps");
+   if (git != entityAttrs.end())
+      {groups = std::move(git->second);
+       entityAttrs.erase(git);
+      }
+   if (Entity.grps) free(Entity.grps);
+   Entity.grps = groups.empty() ? nullptr : strdup(groups.c_str());
+   // jwt.vorg is the matched issuer. It is the virtual organization, not an
+   // entity attribute.
+   std::string vorg;
+   auto vit = entityAttrs.find("jwt.vorg");
+   if (vit != entityAttrs.end())
+      {vorg = std::move(vit->second);
+       entityAttrs.erase(vit);
+      }
+   if (Entity.vorg) free(Entity.vorg);
+   Entity.vorg = vorg.empty() ? nullptr : strdup(vorg.c_str());
    for (const auto &attr : entityAttrs)
       Entity.eaAPI->Add(attr.first, attr.second, true);
    return 0;

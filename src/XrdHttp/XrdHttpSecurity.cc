@@ -400,6 +400,10 @@ XrdHttpProtocol::HandleJwtAuthentication()
   // security plugins.
   if (SecEntity.name) free(SecEntity.name);
   SecEntity.name = authProt->Entity.name ? strdup(authProt->Entity.name) : nullptr;
+  if (SecEntity.grps) free(SecEntity.grps);
+  SecEntity.grps = authProt->Entity.grps ? strdup(authProt->Entity.grps) : nullptr;
+  if (SecEntity.vorg) free(SecEntity.vorg);
+  SecEntity.vorg = authProt->Entity.vorg ? strdup(authProt->Entity.vorg) : nullptr;
   strncpy(SecEntity.prot, authProt->Entity.prot, sizeof(SecEntity.prot) - 1);
   SecEntity.prot[sizeof(SecEntity.prot) - 1] = '\0';
   copyEntityAttrs(SecEntity, authProt->Entity);
