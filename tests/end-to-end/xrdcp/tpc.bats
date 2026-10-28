@@ -14,7 +14,7 @@ setup_file() {
 }
 
 setup() {
-    start_server "$SETUP_DIR/tpc.cfg" checksum.cfg
+    start_server tpc.cfg checksum.cfg
 
     cp "$REF" "$SERVER_DATA/ref.dat"
 

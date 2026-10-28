@@ -1,0 +1,2 @@
+# No access without a token, except to the files of an issuer.
+u * /.well-known lr
