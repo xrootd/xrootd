@@ -49,6 +49,7 @@ short             Dlen;         //    Length of directory extension (0 if none)
 PType             Protocol;     //    Protocol type
 char              ProtName[8];  //    Protocol name
 long long         fSize;        //    Size of file
+bool              fromDir;      //    Found by Extend() in a local directory
 
 int               Extend(XrdCpFile **pLast, int &nFile, long long &nBytes);
 
@@ -57,7 +58,8 @@ int               Resolve();
 static void       SetMsgPfx(const char *pfx) {mPfx = pfx;}
 
                   XrdCpFile() : Next(0), Path(0), Doff(0), Dlen(0),
-                                Protocol(isOther), fSize(0) {*ProtName = 0;}
+                                Protocol(isOther), fSize(0), fromDir(false)
+                                {*ProtName = 0;}
 
                   XrdCpFile(const char *FSpec, int &badURL);
 
