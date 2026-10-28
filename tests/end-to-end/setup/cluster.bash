@@ -84,6 +84,16 @@ start_data_server() {
 all.manager localhost:${!var}" "$@"
 }
 
+# stop_node <name>
+#
+# Stop the cmsd and the xrootd of a node.
+stop_node() {
+    local rundir
+    rundir=$(_setup_rundir "$1") || return 1
+
+    stop_pid_file "$rundir/cmsd.pid" && stop_server "$1"
+}
+
 # cluster_servers <manager>
 #
 # Print the number of data servers which the manager knows, as the cluster
