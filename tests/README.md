@@ -320,7 +320,8 @@ bats-assert without a `load` of their own.
   lines which the server logged during the current test.
 - `start_meta_manager`, `start_manager` and `start_data_server` in
   `setup/cluster.bash` start the nodes of a cluster, each an xrootd with a
-  cmsd. `wait_for_cluster` waits until the cluster forms.
+  cmsd. `wait_for_cluster` waits until the cluster forms. `stop_node <name>`
+  stops the cmsd and the xrootd of a node.
 - `start_issuer` and `make_token <scope> [lifetime]` in `setup/server.bash`
   start a token issuer and make its tokens. `start_collector <name>` receives
   monitoring data. `collected <records> <ere>` succeeds when a record matches
