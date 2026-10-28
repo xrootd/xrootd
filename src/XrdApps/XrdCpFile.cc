@@ -72,6 +72,7 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    Dlen  = 0;
    Next  = 0;
    fSize = 0;
+   fromDir = false;
    badURL= 0;
    memset(ProtName, 0, sizeof(ProtName));
 
@@ -121,7 +122,7 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
 
 XrdCpFile::XrdCpFile(char *FSpec, struct stat &Stat, short doff, short dlen)
                     : Next(0), Path(FSpec), Doff(doff), Dlen(dlen),
-                      Protocol(isFile), fSize(Stat.st_size)
+                      Protocol(isFile), fSize(Stat.st_size), fromDir(true)
                     {strcpy(ProtName, "file");}
 
 /******************************************************************************/

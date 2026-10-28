@@ -520,6 +520,7 @@ int main( int argc, char **argv )
   bool         preserveXAttr = false;
   bool         rmOnBadCksum  = false;
   bool         continue_     = false;
+  bool         recurse       = false;
   bool         zipappend     = false;
   bool         doserver      = false;
   std::string thirdParty     = "none"s;
@@ -547,7 +548,11 @@ int main( int argc, char **argv )
   else
     DlgEnv::Instance().Disable();
 
-  if( config.Want( XrdCpConfig::DoRecurse ) )     makedir       = true;
+  if( config.Want( XrdCpConfig::DoRecurse ) )
+  {
+    makedir = true;
+    recurse = true;
+  }
   if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
   if( config.Want( XrdCpConfig::DoXAttr ) )        preserveXAttr = true;
@@ -762,8 +767,7 @@ int main( int argc, char **argv )
   {
     for( XrdCpFile *file = config.srcFile; file; file = file->Next )
     {
-      if( strncmp( file->ProtName, "file", 4 ) == 0 &&
-          std::string( file->Path ).size() == size_t( file->Doff + file->Dlen ) )
+      if( file->fromDir )
       {
         targetIsDir = true;
         break;
@@ -774,6 +778,7 @@ int main( int argc, char **argv )
   // root:// and roots:// may already be a directory even when the path does
   // not end in /. Ask the server, and add the source file name if it is.
   // http://, https://, and s3:// are directories only when the path ends in /.
+  bool targetExists = false;
   if( !targetIsDir &&
       ( config.dstFile->Protocol == XrdCpFile::isXroot ||
         config.dstFile->Protocol == XrdCpFile::isXroots ) )
@@ -782,8 +787,13 @@ int main( int argc, char **argv )
     FileSystem fs( target );
     StatInfo *statInfo = 0;
     XRootDStatus st = fs.Stat( target.GetPathWithParams(), statInfo );
-    if( st.IsOK() && statInfo && statInfo->TestFlags( StatInfo::IsDir ) )
-      targetIsDir = true;
+    if( st.IsOK() && statInfo )
+    {
+      if( statInfo->TestFlags( StatInfo::IsDir ) )
+        targetIsDir = true;
+      else
+        targetExists = true;
+    }
     else if( st.errNo == kXR_NotAuthorized )
     {
       log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
@@ -792,6 +802,17 @@ int main( int argc, char **argv )
       return st.GetShellCode();
     }
     delete statInfo;
+  }
+
+  // --continue resumes a copy to an existing file, at the size of the file
+  if( !targetIsDir && targetExists && !force && !continue_ && !recurse &&
+      !zipappend )
+  {
+    XRootDStatus st( stError, errInvalidOp, EEXIST );
+    // Unable to create /tmp/test.txt; file exists
+    log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
+    std::cerr << "Run: " << st.ToStr() << std::endl;
+    return st.GetShellCode();
   }
 
   //----------------------------------------------------------------------------

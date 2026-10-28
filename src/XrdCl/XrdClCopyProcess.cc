@@ -476,14 +476,16 @@ namespace XrdCl
         return st;
       }
 
+      // A target which is a directory got the name of the source above, thus
+      // an empty path here is a target without a file name.
       if( target.GetProtocol() != "stdio" && target.GetPath().empty() )
       {
-        // root://host/ has no path left after parsing. It is the top of the
-        // server, so put the path back as /.
-        log->Debug( UtilityMsg, "CopyProcess (job #%d): empty target path is the root.",
+        log->Debug( UtilityMsg, "CopyProcess (job #%d): no target specified.",
                     i );
-        target.SetPath( "/" );
-        props.Set( "target", target.GetURL() );
+        CleanUpJobs();
+        XRootDStatus st = XRootDStatus( stError, errInvalidArgs );
+        res->Set( "status", st );
+        return st;
       }
 
       //------------------------------------------------------------------------
