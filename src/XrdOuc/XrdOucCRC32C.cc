@@ -168,16 +168,10 @@ static uint32_t crc32c_hw(uint32_t crc, void const *buf, size_t len) {
     crc = ~crc;
     uint64_t crc0 = crc;            /* 64-bits for crc32q instruction */
 
-    /* compute the crc for up to seven leading bytes to bring the data pointer
-       to an eight-byte boundary */
+    /* the crc32 instructions accept unaligned operands, so the data pointer is
+       not first brought to an eight-byte boundary: doing that a byte at a time
+       costs more than it saves */
     unsigned char const *next = (unsigned char const *)buf;
-    while (len && ((uintptr_t)next & 7) != 0) {
-        __asm__("crc32b\t" "(%1), %0"
-                : "=r"(crc0)
-                : "r"(next), "0"(crc0));
-        next++;
-        len--;
-    }
 
     /* compute the crc on sets of LONG*3 bytes, executing three independent crc
        instructions, each on LONG bytes -- this is optimized for the Nehalem,
@@ -234,17 +228,29 @@ static uint32_t crc32c_hw(uint32_t crc, void const *buf, size_t len) {
         len &= 7;
     }
 
-    /* compute the crc for up to seven trailing bytes */
-    while (len) {
+    /* compute the crc for up to seven trailing bytes, four, two and one byte at
+       a time */
+    crc = crc0;
+    if (len & 4) {
+        __asm__("crc32l\t" "(%1), %0"
+                : "=r"(crc)
+                : "r"(next), "0"(crc));
+        next += 4;
+    }
+    if (len & 2) {
+        __asm__("crc32w\t" "(%1), %0"
+                : "=r"(crc)
+                : "r"(next), "0"(crc));
+        next += 2;
+    }
+    if (len & 1) {
         __asm__("crc32b\t" "(%1), %0"
-                : "=r"(crc0)
-                : "r"(next), "0"(crc0));
-        next++;
-        len--;
+                : "=r"(crc)
+                : "r"(next), "0"(crc));
     }
 
     /* return a post-processed crc */
-    return ~crc0;
+    return ~crc;
 }
 
 /* Check for SSE 4.2.  SSE 4.2 was first supported in Nehalem processors
