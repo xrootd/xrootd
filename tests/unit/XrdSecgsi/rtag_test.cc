@@ -59,6 +59,19 @@ TEST(XrdSecgsiRtag, MalformedTagsAreRejected)
    EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdefghi", 9)); // too long
 }
 
+TEST(XrdSecgsiRtag, DcacheTagIsValid)
+{
+   // dCache (xrootd4j) makes each byte with nextInt(Byte.MAX_VALUE)
+   const char rtag[kXRSrtagLen] = {0x00, 0x01, 0x1f, ' ', '~', 0x7e, 'a', '/'};
+   EXPECT_TRUE(XrdSecgsiRtagIsValid(rtag, kXRSrtagLen));
+}
+
+TEST(XrdSecgsiRtag, HighBitTagIsRejected)
+{
+   EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdef\x80g", kXRSrtagLen));
+   EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdef\xffg", kXRSrtagLen));
+}
+
 TEST(XrdSecgsiRtag, DigestIsContextBoundSha256)
 {
    XrdCryptoFactory *cf = XrdCryptoFactory::GetCryptoFactory("ssl");
