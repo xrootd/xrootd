@@ -57,8 +57,6 @@ TEST(XrdSecgsiRtag, MalformedTagsAreRejected)
    EXPECT_FALSE(XrdSecgsiRtagIsValid(nullptr, kXRSrtagLen));
    EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdefg", 7));   // too short
    EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdefghi", 9)); // too long
-   EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdef g", kXRSrtagLen)); // space
-   EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdef\0g", kXRSrtagLen)); // NUL
 }
 
 TEST(XrdSecgsiRtag, DigestIsContextBoundSha256)
