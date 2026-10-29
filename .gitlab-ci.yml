@@ -64,12 +64,8 @@ AlmaLinux 10:
     - dnf config-manager --set-enabled crb
   <<: *rpm_build_dnf
 
-Fedora 42:
-  image: fedora:42
-  <<: *rpm_build_dnf
-
-Fedora 43:
-  image: fedora:43
+Fedora 45:
+  image: fedora:45
   <<: *rpm_build_dnf
 
 Debian 12:
@@ -80,10 +76,10 @@ Debian 13:
   image: debian:13
   <<: *deb_build
 
-Ubuntu 22.04:
-  image: ubuntu:22.04
-  <<: *deb_build
-
 Ubuntu 24.04:
   image: ubuntu:24.04
+  <<: *deb_build
+
+Ubuntu 26.04:
+  image: ubuntu:26.04
   <<: *deb_build

@@ -6,6 +6,62 @@ Release Notes
 =============
 
 -------------
+Version 6.2.1
+-------------
+
++ **New Features**
+  **[XrdOssMirage]** Add close.return_code extended attribute (#2938)
+  **[XrdClHttp]** Accept base64 CRC32 response digests (#2945)
+
++ **Bugfixes**
+  **[Python]** Check range of timeouts in read and write calls
+  **[Python]** Fix argument parsing on 32bit architectures (#2970)
+  **[Server]** Keep the network of the first protocol (#2990)
+  **[XrdApps]** Fix xrdcp crash on a missing argument (#2989)
+  **[XrdApps]** Return the status of getchksum() as int (#2989)
+  **[XrdClHttp]** Fix curl worker handle lifetimes (#2923, #2978)
+  **[XrdClHttp]** Keep the object modification time on stat (#2984)
+  **[XrdClS3]** Fix inconsistencies when handling directories (#2976, #2984)
+  **[XrdClS3]** Print S3 listing times in local time (#2984)
+  **[XrdCl]** Accept a relative path for xrdfs cat -o (#2989)
+  **[XrdCl]** Append the source name when a destination path ends with a slash (#2984)
+  **[XrdCl]** Print all digits of adler32 and crc32 (#2989)
+  **[XrdCl]** Print stat and listing times in local time (#2984)
+  **[XrdCl]** Set the step of a ZIP listing first (#2989)
+  **[XrdCl]** Unmarshall kXR_protocol response bodies (#2989)
+  **[XrdCl]** Write the CRC in ZIP local file headers (#2988)
+  **[XrdCms]** Select no node when none is eligible (#2990)
+  **[XrdHttpTpc]** Close connections a pull transfer cannot reuse (#2995, #3001)
+  **[XrdNet]** Fit the largest UDP payload in XrdNetMsg (#2950)
+  **[XrdNet]** Lowercase the host name from SetFQN() (#2988)
+  **[XrdNet]** Resolve the host identity on first use (#2988)
+  **[XrdNet]** Return no domain for an unqualified host (#2988)
+  **[XrdNet]** Set the address size from getaddrinfo() (#2950)
+  **[XrdOfs]** Delete the directory of a failed open (#2990)
+  **[XrdOfs]** Hash file handle keys with CRC-32C (#3011)
+  **[XrdOssMirage]** Always store file size in 64 bits (#2972, #2998)
+  **[XrdOuc]** Check for SSE 4.2 only once in crc32c (#3010)
+  **[XrdOuc]** Faster crc32c for unaligned buffers and on ARMv8 (#3012)
+  **[XrdOuc]** Hash keys as little-endian words (#2988)
+  **[XrdOuc]** Walk hash keys with a byte pointer (#2988)
+  **[XrdPfc]** ResourceMonitor: reap after the snapshot, keep leftover st_blocks (#2996)
+  **[XrdPosix]** Keep the file table at shutdown (#2988)
+  **[XrdPss]** Document why the Xroot pointer is kept (#2990)
+  **[XrdSys]** Compute midnight without mktime() (#2988)
+  **[XrdSys]** Make the XrdSysE2T table on first use (#2988)
+  **[XrdXrootd]** Bound the dictionary map record (#2950)
+  **[XrdXrootd]** Bound the lfn in the open record (#2950)
+  **[XrdXrootd]** Emit close records even without xfr enabled (#2950)
+  **[XrdXrootd]** End redirect paths with a null byte (#2950)
+  **[XrdXrootd]** Limit monitor buffers to a UDP payload (#2950)
+  **[XrdXrootd]** Remove unused debug counter (#2990)
+  **[XrdXrootd]** Report xfr for the last map slot (#2950)
+  **[Xrd]** Report the bound port in the summary report (#2990)
+
++ **Miscellaneous**
+  **[Tests]** Expand XrdPfc (XCache) test coverage
+
+-------------
 Version 6.2.0
 -------------
 
