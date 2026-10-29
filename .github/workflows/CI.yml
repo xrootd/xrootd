@@ -247,7 +247,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ '24.04', '24.04-arm' ]
+        os: [ '26.04', '26.04-arm' ]
         compiler: [ 'gcc', 'clang' ]
         config: [ 'Debug', 'Release' ]
       fail-fast: false
