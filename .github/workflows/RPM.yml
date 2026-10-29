@@ -158,9 +158,9 @@ jobs:
         retention-days: 14
 
   fedora:
-    name: Fedora 43
+    name: Fedora 45
     runs-on: ubuntu-latest
-    container: fedora:43
+    container: fedora:45
 
     steps:
     - name: Install git
@@ -197,6 +197,6 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@v7
       with:
-        name: fc43
+        name: fc45
         path: RPMS
         retention-days: 14
