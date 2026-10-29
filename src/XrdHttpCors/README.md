@@ -45,7 +45,6 @@ Example:
 > 
 
 < HTTP/1.1 100 Continue
-< Connection: Close
 < Server: XrootD/v5.7.1-22-g82a3fc0e8
 < Access-Control-Allow-Origin: https://myhttpserver1.cern.ch
 ```
