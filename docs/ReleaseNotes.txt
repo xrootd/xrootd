@@ -221,6 +221,31 @@ Version 6.0.0
   **[XrdXrootd]** Define oss.coloc as URL encoded and provide encode/decode util
 
 -------------
+Version 5.9.9
+-------------
+
++ **Major bug fixes**
+  **[XrdSecgsi]** Accept dCache random tags in GSI (#2992)
+  **[Pfc]** Fix double free in DataFsSnapshot::write_json_file error paths (#2934)
+
++ **Minor bug fixes**
+  **[Pfc]** Count an evicted file as removed exactly when it existed (#2982)
+  **[Pfc]** Do not cache a file when no resource-monitor token is available (#2982)
+  **[Pfc]** Do not reap a DirState a pending close still points at (#2934)
+  **[Pfc]** Fix negative directory count in ResourceMonitor (#2808)
+  **[Pfc]** Give the access-token store stable addresses, with slot recycling (#2982)
+  **[Pfc]** Honour the documented pfc.dirstats maxdepth (#2982)
+  **[Pfc]** Put the dirstats snapshot .cinfo in the meta space (#2982)
+  **[Pfc]** Report FsTraversal StatRet() failure, do not mark unread dirs scanned (#2982)
+  **[Pfc]** Reset a file whose info file cannot be read, clean up failed opens (#2982)
+  **[Python]** Fix argument parsing on 32bit architectures (#2971)
+  **[Server]** Add option to force an fsync() prior to closing a file (#2979)
+  **[Server]** Fix allocation fuzz favouring fuller partitions (#2993)
+  **[XrdPfc]** Don't use -EWOULDBLOCK as the pending-read sentinel (#2974)
+  **[XrdPfc]** Plug the corner cases with orphaned cinfo or data file (#2825)
+  **[Xrd]** Fix lost timer wakeups in XrdScheduler (#2529)
+
+-------------
 Version 5.9.8
 -------------
 

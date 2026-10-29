@@ -39,9 +39,11 @@
 /*  padding and no digest, so the signed value must never be under the        */
 /*  control of the peer. Two rules keep it safe:                              */
 /*                                                                            */
-/*  1. Sign only a well formed random tag. XrdSutRndm::GetRndmTag() always    */
-/*     produces 8 characters in [a-zA-Z0-9./], and every ASN.1 DigestInfo     */
-/*     is at least 34 bytes long, so the length check alone excludes them.    */
+/*  1. Sign only a well formed random tag: exactly 8 bytes of 7-bit ASCII.    */
+/*     Every ASN.1 DigestInfo is at least 34 bytes long, and no hash in use   */
+/*     with RSA has an 8 byte output, so the length check alone excludes      */
+/*     them. The byte range accepts all known generators: XrdSutRndm uses     */
+/*     [a-zA-Z0-9./], and dCache (xrootd4j) uses bytes 0x00 to 0x7e.          */
 /*     This rule applies to every peer, whatever version it claims.           */
 /*                                                                            */
 /*  2. From version XrdSecgsiVersRtagHash on, sign the context bound digest   */
@@ -70,16 +72,13 @@
 inline bool XrdSecgsiRtagIsValid(const char *rtag, int len)
 {
    // Return true if rtag holds a well formed GSI random tag, that is
-   // exactly kXRSrtagLen characters in the set [a-zA-Z0-9./].
+   // exactly kXRSrtagLen bytes of 7-bit ASCII. The length is what keeps
+   // the signature safe; the byte range follows the known generators.
 
    if (!rtag || len != kXRSrtagLen) return false;
 
-   for (int i = 0; i < len; i++) {
-      const char c = rtag[i];
-      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-          (c >= '0' && c <= '9') || c == '.' || c == '/') continue;
-      return false;
-   }
+   for (int i = 0; i < len; i++)
+      if (static_cast<unsigned char>(rtag[i]) > 0x7f) return false;
 
    return true;
 }
