@@ -127,7 +127,12 @@ int XrdOssMirageWrapper::Remdir(const char *path, int Opts, XrdOucEnv *envP)
 
 int XrdOssMirageWrapper::Rename(const char *oPath, const char *nPath, XrdOucEnv *oEnvP, XrdOucEnv *nEnvP)
 {
-    return route(oPath).Rename(oPath, nPath, oEnvP, nEnvP);
+    if (is_mirage_path(oPath) && is_mirage_path(nPath))
+        return mirage.Rename(oPath, nPath, oEnvP, nEnvP);
+    else if (!is_mirage_path(oPath) && !is_mirage_path(nPath))
+        return wrapPI.Rename(oPath, nPath, oEnvP, nEnvP);
+    else
+        return -EXDEV;
 }
 
 int XrdOssMirageWrapper::Stat(const char *path, struct stat *buff, int opts, XrdOucEnv *envP)
