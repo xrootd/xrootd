@@ -1,6 +1,8 @@
 
 #include <string>
 #include <vector>
+#include <memory>
+#include <chrono>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -62,13 +64,17 @@ XrdOucProg      *pgmObj   = 0;
 XrdSysCondVar    qryCond(0, "prepG query");
 int              qryAllow = 8;   // Protected by the condition variable above
 int              qryWait  = 0;   // Ditto
-static const int qryMaxWT = 33;  // Maximum wait time
+static int       qryMaxWT = 33;  // Maximum query admission wait (seconds)
 
 int              maxFiles = 48;
 int              maxResp  = XrdOucEI::Max_Error_Len;
 
 bool             addCGI   = false;
 bool             Debug    = false;
+bool             initialized = false;
+#ifdef XRD_PREP_GPI_TESTING
+void (*BeforeTraceForTest)() = nullptr;
+#endif
 bool             usePFN   = false;
 char             okReq    = 0;
 
@@ -145,12 +151,13 @@ void      Sched(PrepRequest *rP) {reqP = rP;
                                  }
 
           PrepGRun(XrdOucProg &pgm) : prepProg(pgm) {}
+         ~PrepGRun() override = default; // Pooled workers live until process exit;
+                                         // the query owner deletes its runner.
 
        PrepGRun *next;
 static PrepGRun *Q;
 
 private:
-         ~PrepGRun() {}  // Never gets deleted
 
 int       Capture(PrepRequest &req, XrdOucStream &cmd, char *bP, int bL);
 void      makeArgs(PrepRequest &req, const char *argVec[]);
@@ -172,51 +179,94 @@ int PrepGRun::Capture(PrepRequest &req, XrdOucStream &cmd, char *bP, int bL)
 {
    EPNAME("Capture");
    static const int bReserve = 40;
-   char *lp, *bPNow = bP, *bPEnd = bP+bL-bReserve;
-   int len;
-   bool isTrunc = false;
+   int fd = cmd.FDNum();
 
-// Make sure the buffer length is minimum we need
+// Make sure the buffer length is the minimum we need and the stream is valid.
 //
-   if (bL < 256)
+   if (bL < 256 || fd < 0)
       {char ib[512];
        eLog->Emsg("PrepGRun","Prep exec for",req.Info(ib,sizeof(ib)),
-                             "failed; invalid buffer size.");
+                             "failed; invalid buffer size or stream.");
        return -1;
       }
 
-// Place all lines that will fit into the suplied buffer
-//
-   while((lp = cmd.GetLine()))
-        {len = strlen(lp) + 1;
-         if (bPNow + len >= bPEnd) {isTrunc = true; break;}
-         if (len > 1)
-            {strcpy(bPNow, lp);
-             bPNow[len-1] = '\n';
-             bPNow += len;
-             DEBUG(req.tID, " +=> " <<lp);
-            }
-        }
+   char *bPEnd = bP + bL - bReserve;
+   char *bPNow = bP;
+   bool isTrunc = false;
+   char drainBuf[1024];
 
-// Take care of overflow lines
+// Echo captured and discarded lines without modifying the response bytes.
+// Bound partial debug lines so even unbounded output cannot grow this buffer.
 //
-   while(lp)
-        {DEBUG(req.tID, " -=> " <<lp);
-         lp = cmd.GetLine();
-        }
-
-// Change last line to end with a null byte and compute total length
-//
-   if (bPNow == bP) len = snprintf(bP, bL, "No information available.") + 1;
-      else {if (isTrunc) bPNow += snprintf(bPNow, bReserve,
-                                    "***response has been truncated***");
-               else *(bPNow-1) = 0;
-            len = bPNow - bP + 1;
+   std::string traceLine;
+   bool traceDiscarded = false;
+   auto flushTrace = [&]() {
+       DEBUG(req.tID, (traceDiscarded ? " -=> " : " +=> ") << traceLine);
+       traceLine.clear();
+   };
+   auto traceOutput = [&](const char *data, size_t size, bool discarded) {
+       if (!Debug) return;
+       if (discarded != traceDiscarded && !traceLine.empty()) flushTrace();
+       traceDiscarded = discarded;
+       for (size_t i = 0; i < size; ++i) {
+           if (data[i] == '\n') flushTrace();
+           else {
+               traceLine += data[i];
+               if (traceLine.size() == 1024) flushTrace();
            }
+       }
+   };
 
-// Return number of bytes in buffer
+// Place all output bytes that will fit into the supplied buffer, preserving
+// whitespace and the last byte even when there is no final newline.
 //
-   return len;
+   while (true)
+      {if (!isTrunc && bPNow < bPEnd)
+          {ssize_t n = read(fd, bPNow, bPEnd - bPNow);
+           if (n < 0)
+              {if (errno == EINTR) continue;
+               char ib[512];
+               eLog->Emsg("PrepGRun","Prep exec for",req.Info(ib,sizeof(ib)),
+                                     "failed; read error.");
+               return -1;
+              }
+           if (n == 0) break;
+           traceOutput(bPNow, n, false);
+           bPNow += n;
+          }
+// Take care of overflow output: drain it so the child can finish and echo
+// the discarded lines with the original debug marker.
+//
+       else
+          {ssize_t n = read(fd, drainBuf, sizeof(drainBuf));
+           if (n < 0)
+              {if (errno == EINTR) continue;
+               return -1;
+              }
+           if (n == 0) break;
+           traceOutput(drainBuf, n, true);
+           isTrunc = true;
+          }
+      }
+
+   if (!traceLine.empty()) flushTrace();
+
+// Append a null byte after the captured data and compute the wire length.
+// bPNow points one past the payload; unlike GetLine(), raw capture does not
+// insert a newline to replace. The returned length includes the null byte.
+//
+   const int captured = bPNow - bP;
+   if (!captured) bPNow += snprintf(bP, bL, "No information available.");
+      else if (isTrunc) bPNow += snprintf(bPNow, bReserve,
+                                         "***response has been truncated***");
+   *bPNow = 0;
+   const int len = bPNow - bP + 1;
+
+// Return the number of bytes in the buffer, or fail rather than returning a
+// partial response as successful. Keep the output summary as well as its trace.
+//
+   DEBUG(req.tID, "captured " << captured << " bytes of output" << (isTrunc ? " (truncated)" : ""));
+   return isTrunc ? -1 : len;
 }
 }
   
@@ -317,8 +367,8 @@ int PrepGRun::Run(PrepRequest &req, char *bP, int bL)
 
 // Return the error, success or number of bytes
 //
-   if (bP) return bytes;
-   return (rc ? -1 : 0);
+   if (rc) return -1;
+   return (bP ? bytes : 0);
 }
 }
 
@@ -346,11 +396,11 @@ int            query(      XrdSfsPrep      &pargs,
 
                PrepGPI(PrepGRun &gRun) : qryRunner(gRun) {}
 
-virtual       ~PrepGPI() {}
+virtual       ~PrepGPI() {delete &qryRunner;}
 
 private:
 const char  *ApplyN2N(const char *tid, const char *path, char *buff, int blen);
-PrepRequest *Assemble(int &rc, const char *tid, const char *reqName,
+PrepRequest *Assemble(XrdOucErrInfo &eInfo, const char *tid, const char *reqName,
                       XrdSfsPrep &pargs, const char *xOpt);
 bool         reqFind(const char *reqid, PrepRequest *&rPP, PrepRequest *&rP,
                      bool del=false, bool locked=false);
@@ -398,7 +448,7 @@ const char *PrepGPI::ApplyN2N(const char *tid, const char *path, char *buff,
   
 namespace XrdOfsPrepGPIReal
 {
-PrepRequest *PrepGPI::Assemble(int &rc, const char *tid, const char *reqName,
+PrepRequest *PrepGPI::Assemble(XrdOucErrInfo &eInfo, const char *tid, const char *reqName,
                                XrdSfsPrep &pargs, const char *xOpt)
 {
    PrepRequest *rP = new PrepRequest;
@@ -409,12 +459,20 @@ PrepRequest *PrepGPI::Assemble(int &rc, const char *tid, const char *reqName,
 //
    XrdOucTList *pP = pargs.paths;
    n = 0;
-   while(pP) {n++; pP = pP->next;}
+   const char *excessPath = 0;
+   while(pP) {if (++n == maxFiles + 1) excessPath = pP->text;
+              pP = pP->next;
+             }
 
 // Make sure we don't have too many files here
 //
-   if (n > maxFiles) {rc = E2BIG; return 0;}
-   rc = 0;
+   if (n > maxFiles)
+      {snprintf(buff, sizeof(buff), "%d files (limit %d; first excess path %s)",
+                n, maxFiles, excessPath);
+       RetErr(eInfo, E2BIG, reqName, buff);
+       delete rP;
+       return 0;
+      }
 
 // Size the vector to accomodate the file arguments
 //
@@ -495,18 +553,25 @@ PrepRequest *PrepGPI::Assemble(int &rc, const char *tid, const char *reqName,
           {XrdOucTList *cP = pargs.oinfo;
            char pBuff[8192];
            do {path = (usePFN ? ApplyN2N(tid,pP->text,buff,sizeof(buff)):pP->text);
-               if (!path) continue;
-               if (cP->text && *cP->text)
-                  {snprintf(pBuff, sizeof(pBuff), "%s?%s", path, cP->text);
+               if (!path) {RetErr(eInfo, EINVAL, reqName, pP->text);
+                           delete rP; return 0;}
+               if (cP && cP->text && *cP->text)
+                  {if (snprintf(pBuff, sizeof(pBuff), "%s?%s", path, cP->text) >= (int)sizeof(pBuff))
+                      {snprintf(buff, sizeof(buff),
+                                "path %s (path and CGI exceed %zu bytes)",
+                                pP->text, sizeof(pBuff) - 1);
+                       RetErr(eInfo, E2BIG, reqName, buff);
+                       delete rP; return 0;}
                    path = pBuff;
                   }
                rP->argMem.emplace_back(path);
                pP = pP->next;
+               if (cP) cP = cP->next;
               } while(pP);
           } else {
-           while(pP)
            do {path = (usePFN ? ApplyN2N(tid,pP->text,buff,sizeof(buff)):pP->text);
-               if (!path) continue;
+               if (!path) {RetErr(eInfo, EINVAL, reqName, pP->text);
+                           delete rP; return 0;}
                rP->argMem.emplace_back(path);
                pP = pP->next;
               } while(pP);
@@ -530,7 +595,6 @@ int PrepGPI::begin(      XrdSfsPrep      &pargs,
                    const XrdSecEntity    *client)
 {
    const char *reqName, *reqOpts, *tid = (client ? client->tident : "anon");
-   int  rc;
    bool ignore;
 
 // Establish the actual request
@@ -556,12 +620,15 @@ int PrepGPI::begin(      XrdSfsPrep      &pargs,
 
 // Get a request request object
 //
-   PrepRequest *rP = Assemble(rc, tid, reqName, pargs, reqOpts);
+   PrepRequest *rP = Assemble(eInfo, tid, reqName, pargs, reqOpts);
 
 // If we didn't get one or if there are no paths selected, complain
 //
-   if (!rP || rP->argMem.size() == 0)
-      return RetErr(eInfo, (rc ? rc : EINVAL), reqName, "files");
+   if (!rP) return SFS_ERROR;
+   if (rP->argMem.empty())
+      {delete rP;
+       return RetErr(eInfo, EINVAL, reqName, "files");
+      }
 
 // Either run or queue this request and return
 //
@@ -580,7 +647,6 @@ int PrepGPI::cancel(      XrdSfsPrep      &pargs,
                     const XrdSecEntity    *client)
 {
    const char *tid = (client ? client->tident : "anon");
-   int rc;
 
 // If the attached program does no know how to handle cancel, do the minimal
 // thing and remove the request from the waiting queue if it is there.
@@ -600,11 +666,11 @@ int PrepGPI::cancel(      XrdSfsPrep      &pargs,
 
 // Get a request request object
 //
-   PrepRequest *rP = Assemble(rc, tid, "cancel", pargs, "n");
+   PrepRequest *rP = Assemble(eInfo, tid, "cancel", pargs, "n");
 
 // If we didn't get one or if there are no paths selected, complain
 //
-   if (!rP) return RetErr(eInfo, (rc ? rc : EINVAL), "cancel", "files");
+   if (!rP) return SFS_ERROR;
 
 // Either run or queue this request and return
 //
@@ -657,27 +723,41 @@ int PrepGPI::query(      XrdSfsPrep      &pargs,
 
 // Get a request request object
 //
-   PrepRequest *rP = Assemble(rc, tid, "query", pargs, "");
+   std::unique_ptr<PrepRequest> ownedRequest(Assemble(eInfo, tid, "query", pargs, ""));
+   PrepRequest *rP = ownedRequest.get();
 
 // If we didn't get one or if there are no paths selected, complain
 //
-   if (!rP) return RetErr(eInfo, (rc ? rc : EINVAL), "query", "request");
+   if (!rP) return SFS_ERROR;
 
-// Wait for our turn if need be. This is sloppy and spurious wakeups may
-// cause us to exceed the allowed limit.
+// Wait for a slot, rechecking after spurious wakeups. Bound total waiting,
+// rather than granting another full timeout after each wakeup.
 //
+   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(qryMaxWT);
    qryCond.Lock();
-   if (qryAllow) qryAllow--;
-      else {qryWait++;
-            DEBUG(tid, "Waiting to launch query "<<rP->reqID);
-            rc = qryCond.Wait(qryMaxWT);
-            qryWait--;
-            if (!rc) qryAllow--;
-               else  {qryCond.UnLock();
-                      return RetErr(eInfo, ETIMEDOUT, "query", "request");
-                     }
-           }
-    qryCond.UnLock();
+   while (qryAllow <= 0)
+      {const auto now = std::chrono::steady_clock::now();
+       if (now >= deadline)
+          {qryCond.UnLock();
+           return RetErr(eInfo, ETIMEDOUT, "query", "request");
+          }
+       // The remaining duration is positive. Round it up to the timer's
+       // millisecond resolution; never wait again after the deadline.
+       const auto ms = std::chrono::ceil<std::chrono::milliseconds>(deadline - now).count();
+       qryWait++;
+       DEBUG(tid, "Waiting to launch query "<<rP->reqID);
+       qryCond.WaitMS(static_cast<int>(ms));
+       qryWait--;
+       // A slot may become available while we reacquire the mutex after
+       // the deadline. Do not admit an expired request in that case.
+       if (std::chrono::steady_clock::now() >= deadline)
+          {if (qryAllow > 0 && qryWait) qryCond.Signal();
+           qryCond.UnLock();
+           return RetErr(eInfo, ETIMEDOUT, "query", "request");
+          }
+      }
+   qryAllow--;
+   qryCond.UnLock();
 
 // Run the query
 //
@@ -760,7 +840,7 @@ int PrepGPI::RetErr(XrdOucErrInfo &eInfo, int rc, const char *txt1,
 // Format messages
 //
    snprintf(bP, bL, "Unable to %s %s; %s", txt1, txt2, XrdSysE2T(rc));
-   eInfo.setErrCode(bL);
+   eInfo.setErrCode(rc);
    return SFS_ERROR;
 }
 }
@@ -775,7 +855,8 @@ int PrepGPI::Xeq(PrepRequest *rP)
 {
    EPNAME("Xeq");
    PrepGRun *grP;
-   const char *tid = rP->tID, *reqName = rP->reqName;
+   const std::string tid = Debug ? rP->tID : "";
+   const char *reqName = rP->reqName;
    char reqID[64];
 
 // If we are debugging we need to copy some stuff before it escapes
@@ -790,7 +871,7 @@ int PrepGPI::Xeq(PrepRequest *rP)
       {PrepGRun::Q = PrepGRun::Q->next;
        grP->Sched(rP);
       } else {
-       if (PrepRequest::First) rP->next = PrepRequest::Last;
+       if (PrepRequest::First) PrepRequest::Last->next = rP;
           else PrepRequest::First = rP;
        PrepRequest::Last = rP;
      }
@@ -798,7 +879,10 @@ int PrepGPI::Xeq(PrepRequest *rP)
 
 // Do some debugging
 //
-   DEBUG(tid, reqName<<" request "<<reqID<<(grP ? " scheduled" : " queued"));
+#ifdef XRD_PREP_GPI_TESTING
+   if (BeforeTraceForTest) BeforeTraceForTest();
+#endif
+   DEBUG(tid.c_str(), reqName<<" request "<<reqID<<(grP ? " scheduled" : " queued"));
 
 // All Done
 //
@@ -811,7 +895,7 @@ int PrepGPI::Xeq(PrepRequest *rP)
 /******************************************************************************/
 
 // Parameters: -admit <reqlist> [-cgi] [-maxfiles <n> [-maxreq <n>]
-//             [-maxquery <n>] [-maxresp <sz>] [-pfn] -run <pgm>
+//             [-maxquery <n>] [-maxresp <sz>] [-qrywait <seconds>] [-pfn] -run <pgm>
 //
 // <request>: cancel | evict | prep | query | stage
 // <reqlist>: <request>[,<request>]
@@ -825,11 +909,33 @@ XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments)
    char *tokP;
    int maxReq = 4;
 
-// Save some of the arguments that we may need later
+// Asynchronous requests require an environment and a scheduler. Validate each
+// pointer before use, without publishing configuration on a failed load.
 //
-   eLog   = eDest;
-   ossP   = theOss;
-   schedP = (XrdScheduler *)(envP->GetPtr("XrdScheduler*"));
+   if (!envP)
+      {eDest->Emsg("PrepGPI", "Environment not supplied.");
+       return 0;
+      }
+   XrdScheduler *scheduler = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
+   if (!scheduler)
+      {eDest->Emsg("PrepGPI", "XrdScheduler* not supplied in environment.");
+       return 0;
+      }
+
+// This plugin owns process-wide runners. Loading a second instance is not a
+// reload operation: old jobs and queries may still be using those objects.
+// Serialize initialization and publish configuration only after validation.
+//
+   XrdSysMutexHelper initialization(gpiMutex);
+   if (initialized)
+      {eDest->Emsg("PrepGPI", "Already initialized; restart to reconfigure.");
+       return 0;
+      }
+   XrdSysError *eLog = eDest;
+   int qryAllow = 8, qryMaxWT = 33, maxFiles = 48;
+   int maxResp = XrdOucEI::Max_Error_Len;
+   char okReq = 0;
+   bool addCGI = false, usePFN = false, Debug = false;
 
 // If parameters specified on the preplib directive, use them. Otherwise,
 // get them from the config file.
@@ -910,6 +1016,14 @@ XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments)
                                             &rspsz, 2048, 16777216)) return 0;
                   maxResp = static_cast<int>(rspsz);
                  }
+         else if (Token == "-qrywait")
+                 {if (!(tokP = gpiConf.GetToken()) || *tokP == '-')
+                     {eLog->Emsg("PrepGPI", "-qrywait argument not specified.");
+                      return 0;
+                     }
+                  if (XrdOuca2x::a2i(*eLog, "PrepPGI -qrywait", tokP,
+                                            &qryMaxWT, 1, 600)) return 0;
+                 }
          else if (Token == "-pfn")   usePFN = true;
          else if (Token == "-run")
                  {if (!(tokP = gpiConf.GetToken()) || *tokP == '-')
@@ -937,26 +1051,38 @@ XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments)
        return 0;
       }
 
-// Create a buffer pool for query responses if we need to
+// Obtain an instance of the program object for this command. All runners
+// share this program, which is thread safe in this read-only context.
+// Validate it before publishing any configuration.
+//
+   std::unique_ptr<XrdOucProg> program(new XrdOucProg(eLog, 0));
+   if (program->Setup(RunPgm.c_str()))
+      {eLog->Emsg("PrepGPI", "Unable to use prepare program", RunPgm.c_str());
+       return 0;
+      }
+// Save the arguments and validated options that we need later.
+//
+   using namespace XrdOfsPrepGPIReal;
+   XrdOfsPrepGPIReal::eLog = eLog;
+   ossP = theOss;
+   schedP = scheduler;
+   XrdOfsPrepGPIReal::qryAllow = qryAllow;
+   XrdOfsPrepGPIReal::qryMaxWT = qryMaxWT;
+   XrdOfsPrepGPIReal::maxFiles = maxFiles;
+   XrdOfsPrepGPIReal::maxResp = maxResp;
+   XrdOfsPrepGPIReal::okReq = okReq;
+   XrdOfsPrepGPIReal::addCGI = addCGI;
+   XrdOfsPrepGPIReal::usePFN = usePFN;
+// Set final debug flags.
+//
+   XrdOfsPrepGPIReal::Debug = Debug || getenv("XRDDEBUG");
+   SysTrace.SetLogger(eLog->logger());
+   pgmObj = program.release();
+// Create a buffer pool for query responses if we need to.
 //
    if (maxResp > (int)XrdOucEI::Max_Error_Len)
       bPool = new XrdOucBuffPool(maxResp, maxResp);
-
-// Set final debug flags
-//
-   if (!Debug) Debug = getenv("XRDDEBUG") != 0;
-   SysTrace.SetLogger(eLog->logger());
-
-// Obtain an instance of the program object for this command. Note that
-// all grun object will share this program as it's thread safe in the
-// context in which we will use it (i.e. read/only).
-//
-   pgmObj = new XrdOucProg(eLog, 0); // EFD????
-   if (pgmObj->Setup(RunPgm.c_str()))
-      {delete pgmObj;
-       eLog->Emsg("PrepGPI", "Unable to use prepare program", RunPgm.c_str());
-       return 0;
-      }
+   initialized = true;
 
 // Create as many run object as we need
 //
@@ -977,3 +1103,20 @@ XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments)
 }
 }
 XrdVERSIONINFO(XrdOfsgetPrepare,PrepGPI);
+
+#ifdef XRD_PREP_GPI_TESTING
+// Test fixtures join all queries and drain the scheduler before calling this.
+// Production deliberately provides no reload/reset entry point.
+namespace XrdOfsPrepGPIReal {
+void ResetForTest() {
+   while (PrepGRun::Q) {
+      auto *runner = PrepGRun::Q;
+      PrepGRun::Q = runner->next;
+      delete runner;
+   }
+   delete pgmObj; pgmObj = nullptr;
+   delete bPool; bPool = nullptr;
+   initialized = false;
+}
+}
+#endif
