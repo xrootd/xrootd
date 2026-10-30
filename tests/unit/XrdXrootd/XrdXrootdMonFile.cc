@@ -86,11 +86,11 @@ std::vector<std::string> RedirectTexts(const std::vector<std::string> &dgrams)
   return texts;
 }
 
-using MonFileTest = MonTest;
+using MonFile = MonFixture;
 
 // An open record with a path longer than the buffer used to write past the end
 // of the buffer.
-TEST_F(MonFileTest, DatagramsNeverExceedTheBuffer)
+TEST_F(MonFile, DatagramsNeverExceedTheBuffer)
 {
   auto dgrams = FStream(DriveMonitor(longPath, 40));
   ASSERT_FALSE(dgrams.empty()) << "no f-stream datagrams arrived";
@@ -102,7 +102,7 @@ TEST_F(MonFileTest, DatagramsNeverExceedTheBuffer)
 
 // A record size that goes past the end of the datagram makes a collector
 // reject the datagram
-TEST_F(MonFileTest, RecordsTileEachDatagram)
+TEST_F(MonFile, RecordsTileEachDatagram)
 {
   auto dgrams = FStream(DriveMonitor(longPath, 40));
   ASSERT_FALSE(dgrams.empty());
@@ -118,7 +118,7 @@ TEST_F(MonFileTest, RecordsTileEachDatagram)
 // datagram header and the time record), and its size is a multiple of 8, so
 // 984 bytes. Its fixed part is 20 bytes and the lfn needs a null byte, so the
 // longest lfn is 963 bytes.
-TEST_F(MonFileTest, LongLfnIsAPrefixOfThePath)
+TEST_F(MonFile, LongLfnIsAPrefixOfThePath)
 {
   const size_t maxLfn = 963;
   auto lfns = OpenLfns(DriveMonitor(longPath, 40), 'x');
@@ -131,7 +131,7 @@ TEST_F(MonFileTest, LongLfnIsAPrefixOfThePath)
 }
 
 // A path that fits the buffer must not be truncated
-TEST_F(MonFileTest, ShortLfnIsComplete)
+TEST_F(MonFile, ShortLfnIsComplete)
 {
   auto lfns = OpenLfns(DriveMonitor(shortPath, 40), 'y');
   ASSERT_FALSE(lfns.empty()) << "no open records with the short path";
@@ -143,7 +143,7 @@ TEST_F(MonFileTest, ShortLfnIsComplete)
 // Each record is a multiple of 8 bytes long, so that the 64-bit fields of the
 // next record stay aligned. Paths of 8 consecutive lengths give each possible
 // padding of the lfn.
-TEST_F(MonFileTest, RecordSizesAreMultiplesOf8)
+TEST_F(MonFile, RecordSizesAreMultiplesOf8)
 {
   int nOpen = 0, nBad = 0;
   for (int n = 1; n <= 8; n++)
@@ -159,7 +159,7 @@ TEST_F(MonFileTest, RecordSizesAreMultiplesOf8)
 
 // The monitor is configured without "xfr", so no file gets a slot in the
 // transfer map. Close records must still arrive.
-TEST_F(MonFileTest, CloseRecordsAppearWithoutXfr)
+TEST_F(MonFile, CloseRecordsAppearWithoutXfr)
 {
   auto dgrams = DriveMonitor(longPath, 40);
   auto closes = Records(dgrams, XrdXrootdMonFileHdr::isClose);
@@ -169,7 +169,7 @@ TEST_F(MonFileTest, CloseRecordsAppearWithoutXfr)
 // The callers send a close record only when MonEnt is not -1. So Close() must
 // set it to -1 also for a file without a slot, or a second call sends a second
 // close record.
-TEST_F(MonFileTest, CloseMarksTheFileAsClosed)
+TEST_F(MonFile, CloseMarksTheFileAsClosed)
 {
   XrdXrootdFileStats stats;
   stats.Init();
@@ -191,7 +191,7 @@ std::vector<std::string> MapPath(const char *path)
 // The dictionary map record is a fixed-size object. A path longer than the
 // object used to make the record size larger than the object, so the datagram
 // carried stack memory after the record.
-TEST_F(MonFileTest, MapRecordHoldsItsLength)
+TEST_F(MonFile, MapRecordHoldsItsLength)
 {
   auto maps = MapPath(longPath.c_str());
   ASSERT_EQ(maps.size(), 1u);
@@ -202,7 +202,7 @@ TEST_F(MonFileTest, MapRecordHoldsItsLength)
 }
 
 // The map record carries "<user>\n<path>" and nothing after it
-TEST_F(MonFileTest, MapRecordCarriesUserAndPath)
+TEST_F(MonFile, MapRecordCarriesUserAndPath)
 {
   auto maps = MapPath(shortPath.c_str());
   ASSERT_EQ(maps.size(), 1u);
@@ -214,7 +214,7 @@ TEST_F(MonFileTest, MapRecordCarriesUserAndPath)
 // A redirect entry holds "<host>:<path>" in the slots after it. A path longer
 // than 1024 bytes used to fill the slots with no null byte, so a collector
 // read the next entries as part of the path.
-TEST_F(MonFileTest, RedirectPathEndsWithANullByte)
+TEST_F(MonFile, RedirectPathEndsWithANullByte)
 {
   // Each entry takes 66 slots of the 32 KiB buffer, so the buffer is sent
   // after about 30 entries
