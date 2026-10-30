@@ -1,4 +1,4 @@
-add_executable(xrdhttptpc-unit-tests XrdHttpTpcTests.cc)
+add_executable(xrdhttptpc-unit-tests XrdHttpTpc.cc)
 
 add_library(XrdHttpTpcUtils
   ${PROJECT_SOURCE_DIR}/src/XrdHttpTpc/XrdHttpTpcUtils.cc
@@ -18,7 +18,7 @@ gtest_discover_tests(xrdhttptpc-unit-tests TEST_PREFIX unit::XrdHttpTpc:: PROPER
 
 if(TARGET XrdServer)
   add_executable(xrdhttptpc-stream-unit-tests
-          XrdHttpTpcStreamTests.cc
+          XrdHttpTpcStream.cc
           ${PROJECT_SOURCE_DIR}/src/XrdHttpTpc/XrdHttpTpcStream.cc)
 
   target_link_libraries(xrdhttptpc-stream-unit-tests

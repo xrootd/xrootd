@@ -1,6 +1,6 @@
 add_executable(xrdcl-tests-unit
-  XrdClPlugInManagerTests.cc
-  XrdClTPFallBackCopyJobTests.cc
+  XrdClPlugInManager.cc
+  XrdClTPFallBackCopyJob.cc
 )
 
 target_link_libraries(xrdcl-tests-unit GTest::gmock GTest::gtest GTest::gtest_main XrdCl)
@@ -21,9 +21,9 @@ add_executable(xrdcl-unit-tests
   XrdClURL.cc
   XrdClPoller.cc
   XrdClSocket.cc
-  XrdClUtilsTest.cc
-  XrdClProtocolRespTest.cc
-  XrdClLocalFileHandlerTest.cc
+  XrdClUtils.cc
+  XrdClProtocolResp.cc
+  XrdClLocalFileHandler.cc
   )
 
 target_link_libraries(xrdcl-unit-tests

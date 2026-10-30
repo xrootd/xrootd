@@ -23,7 +23,7 @@ target_include_directories(XrdThrottleTestLib
 )
 
 # Create the test executable
-add_executable(xrdthrottle-unit-tests XrdThrottleUserLimitsTests.cc)
+add_executable(xrdthrottle-unit-tests XrdThrottleUserLimits.cc)
 
 target_link_libraries(xrdthrottle-unit-tests
   PRIVATE

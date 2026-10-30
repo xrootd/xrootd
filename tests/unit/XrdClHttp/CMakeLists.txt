@@ -4,12 +4,12 @@ if(NOT TARGET XrdClHttpObj)
 endif()
 
 add_executable(xrdclhttp-tests-unit
-        HeaderBuilderAppendMissingTest.cc
-        HeaderBuilderEntrySeparationTest.cc
-        HeaderBuilderForbiddenEntryTest.cc
-        HeaderBuilderForbiddenHeaderTest.cc
-        HeaderBuilderParsingTest.cc
-        ParseTokenFileTests.cc
+        HeaderBuilderAppendMissing.cc
+        HeaderBuilderEntrySeparation.cc
+        HeaderBuilderForbiddenEntry.cc
+        HeaderBuilderForbiddenHeader.cc
+        HeaderBuilderParsing.cc
+        ParseTokenFile.cc
         )
 
 target_include_directories(xrdclhttp-tests-unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -31,7 +31,7 @@ gtest_discover_tests(xrdclhttp-tests-unit TEST_PREFIX unit::XrdClHttp::
 find_package(CURL REQUIRED)
 
 add_executable(xrdclhttp-tpc-tests-unit
-        XrdClHttpFilesystemTests.cc
+        XrdClHttpFilesystem.cc
         )
 
 file(GLOB_RECURSE XrdClHttpWithoutFilesystemSources
@@ -80,7 +80,7 @@ target_link_libraries(XrdClHttpLifecycle PRIVATE
 target_include_directories(XrdClHttpLifecycle PRIVATE
   "${PROJECT_SOURCE_DIR}/src")
 
-add_executable(xrdcl-http-worker-lifecycle-tests WorkerLifecycleTest.cc)
+add_executable(xrdcl-http-worker-lifecycle-tests WorkerLifecycle.cc)
 target_link_libraries(xrdcl-http-worker-lifecycle-tests PRIVATE
   XrdClHttpLifecycle XrdCl CURL::libcurl GTest::gtest_main)
 target_include_directories(xrdcl-http-worker-lifecycle-tests PRIVATE
@@ -94,9 +94,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
 endif()
 
 add_executable(xrdcl-http-unit-tests
-  HeaderParserTest.cc
-  ParseTimeoutTest.cc
-  TapeTest.cc
+  HeaderParser.cc
+  ParseTimeout.cc
+  Tape.cc
 )
 
 target_link_libraries(xrdcl-http-unit-tests

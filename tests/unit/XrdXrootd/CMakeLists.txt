@@ -5,7 +5,7 @@ if(NOT TARGET XrdServer)
     return()
 endif()
 
-add_executable(xrdxrootd-redir-helper-tests XrdXrootdRedirHelperTests.cc)
+add_executable(xrdxrootd-redir-helper-tests XrdXrootdRedirHelper.cc)
 
 target_link_libraries(xrdxrootd-redir-helper-tests
     XrdServer
@@ -18,7 +18,7 @@ gtest_discover_tests(xrdxrootd-redir-helper-tests TEST_PREFIX unit::XrdXrootd::
 
 # The monitor statics are global to the process and Init() runs only once, so
 # these tests have their own executable. The test file provides main().
-add_executable(xrdxrootd-monfile-unit-tests XrdXrootdMonFileTests.cc)
+add_executable(xrdxrootd-monfile-unit-tests XrdXrootdMonFile.cc)
 
 target_link_libraries(xrdxrootd-monfile-unit-tests
     XrdServer
@@ -30,7 +30,7 @@ gtest_discover_tests(xrdxrootd-monfile-unit-tests TEST_PREFIX unit::XrdXrootd::
 
 # The transfer map tests need the "xfr" option and the largest buffers, which
 # are global to the process, so they have their own executable too.
-add_executable(xrdxrootd-monxfr-unit-tests XrdXrootdMonXfrTests.cc)
+add_executable(xrdxrootd-monxfr-unit-tests XrdXrootdMonXfr.cc)
 
 target_link_libraries(xrdxrootd-monxfr-unit-tests
     XrdServer

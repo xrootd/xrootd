@@ -1,4 +1,4 @@
-add_executable(xrdsecgsi-tests-unit rtag_test.cc)
+add_executable(xrdsecgsi-tests-unit rtag.cc)
 
 target_link_libraries(xrdsecgsi-tests-unit
         XrdCrypto
