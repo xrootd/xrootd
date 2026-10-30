@@ -16,6 +16,12 @@ extern "C"
     }
 }
 
+XrdOssMirage::XrdOssMirage(const std::string path) : 
+    prefix_path(path)
+{
+
+}
+
 XrdOssDF *XrdOssMirage::newDir(const char *tident)
 {
     return new XrdOssMirageDir;
@@ -49,10 +55,10 @@ int XrdOssMirage::Create(const char *tid, const char *path, mode_t mode, XrdOucE
     entries[path]->size = 0;
 
     static std::once_flag xattr_injection_flag;
-    std::call_once(xattr_injection_flag, [this]() noexcept
+    std::call_once(xattr_injection_flag, [this, path]() noexcept
         {
-            if (XrdOssMirageXAttr * const xattr = dynamic_cast<XrdOssMirageXAttr*>(XrdSysFAttr::Xat); xattr != nullptr)
-                xattr->setOss(*this);
+            if (XrdSysXAttr *xat = XrdSysFAttr::Xat; xat != nullptr)
+                xat->Set("", this, 0, path, -1, MIRAGE_MAGIC);
         });
 
     return XrdOssOK;
@@ -135,6 +141,11 @@ int XrdOssMirage::Unlink(const char *path, int Opts, XrdOucEnv *envP)
     entries.erase(path);
 
     return XrdOssOK;
+}
+
+const std::string &XrdOssMirage::get_prefix_path() const
+{
+    return prefix_path;
 }
 
 std::optional<XrdOssMirageEntry> XrdOssMirage::get_entry_read(const char *path)
