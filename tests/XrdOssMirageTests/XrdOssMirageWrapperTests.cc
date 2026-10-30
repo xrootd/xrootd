@@ -195,6 +195,84 @@ TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameOutsidePrefixIsForwardedToSta
     ASSERT_EQ(STACKED_RC, wrapper.Rename("/stacked/from", "/stacked/to"));
 }
 
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameMirageToMiragePathCreatesDestinationFile)
+{
+    wrapper.Create(nullptr, "/mirage/from", {}, env, XRDOSS_new);
+    wrapper.Rename("/mirage/from", "/mirage/to");
+
+    struct stat buff;
+    ASSERT_EQ(XrdOssOK, wrapper.Stat("/mirage/to", &buff));
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameMirageToMiragePathRemovesSourceFile)
+{
+    wrapper.Create(nullptr, "/mirage/from", {}, env, XRDOSS_new);
+    wrapper.Rename("/mirage/from", "/mirage/to");
+
+    struct stat buff;
+    ASSERT_EQ(-ENOENT, wrapper.Stat("/mirage/from", &buff));
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameRealToRealPathReturnsStackedResult)
+{
+    EXPECT_CALL(mock_oss, Rename(StrEq("/stacked/from"), StrEq("/stacked/to"), _, _))
+        .WillOnce(Return(XrdOssOK));
+
+    ASSERT_EQ(XrdOssOK, wrapper.Rename("/stacked/from", "/stacked/to"));
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameRealToRealPathDoesNotCreateMirageFile)
+{
+    wrapper.Rename("/stacked/from", "/stacked/to");
+
+    struct stat buff;
+    ASSERT_EQ(-ENOENT, wrapper.Stat("/mirage/to", &buff));
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameMirageToRealPathFailsWithXDEV)
+{
+    wrapper.Create(nullptr, "/mirage/from", {}, env, XRDOSS_new);
+
+    ASSERT_EQ(-EXDEV, wrapper.Rename("/mirage/from", "/stacked/to"));
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameMirageToRealPathIsNotForwardedToStacked)
+{
+    EXPECT_CALL(mock_oss, Rename).Times(0);
+
+    wrapper.Create(nullptr, "/mirage/from", {}, env, XRDOSS_new);
+    wrapper.Rename("/mirage/from", "/stacked/to");
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameMirageToRealPathKeepsMirageFile)
+{
+    wrapper.Create(nullptr, "/mirage/from", {}, env, XRDOSS_new);
+    wrapper.Rename("/mirage/from", "/stacked/to");
+
+    struct stat buff;
+    ASSERT_EQ(XrdOssOK, wrapper.Stat("/mirage/from", &buff));
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameRealToMiragePathFailsWithXDEV)
+{
+    ASSERT_EQ(-EXDEV, wrapper.Rename("/stacked/from", "/mirage/to"));
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameRealToMiragePathIsNotForwardedToStacked)
+{
+    EXPECT_CALL(mock_oss, Rename).Times(0);
+
+    wrapper.Rename("/stacked/from", "/mirage/to");
+}
+
+TEST_F(XrdOssMirageWrapperFileSystemFixture, RenameRealToMiragePathDoesNotCreateMirageFile)
+{
+    wrapper.Rename("/stacked/from", "/mirage/to");
+
+    struct stat buff;
+    ASSERT_EQ(-ENOENT, wrapper.Stat("/mirage/to", &buff));
+}
+
 TEST_F(XrdOssMirageWrapperFileSystemFixture, ChmodUnderPrefixIsHandledByMirage)
 {
     EXPECT_CALL(mock_oss, Chmod).Times(0);
