@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*              X r d C k s C o m b i n e T e s t s . c c                     */
+/*                      X r d C k s C o m b i n e . c c                       */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */

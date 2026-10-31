@@ -4,8 +4,8 @@ if(NOT TARGET XrdClS3Obj)
 endif()
 
 add_executable(xrdcl-s3-unittest
-  UrlParseTest.cc
-  DownloadHandlerTest.cc
+  XrdClS3Factory.cc
+  XrdClS3DownloadHandler.cc
 )
 
 target_link_libraries(xrdcl-s3-unittest XrdClS3Obj GTest::gtest_main)

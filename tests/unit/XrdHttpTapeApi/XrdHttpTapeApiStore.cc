@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*             X r d H t t p T a p e A p i S t o r e T e s t . c c          */
+/*               X r d H t t p T a p e A p i S t o r e . c c                */
 /*                                                                            */
 /* (c) 2026 by the XRootD Collaboration                                       */
 /*                                                                            */
