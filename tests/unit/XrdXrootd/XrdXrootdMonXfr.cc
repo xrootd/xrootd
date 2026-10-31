@@ -68,12 +68,12 @@ int MapOf(const XrdXrootdFileStats &f)
   return (f.MonEnt & 0xffff) >> XrdXrootdMonFMap::fmShft;
 }
 
-using MonXfrTest = MonTest;
+using MonXfr = MonFixture;
 
 // A cookie of -1 tells the callers that the file is not on the f-stream, so it
 // gets no close record. The cookie of the last slot of the last map is 0xffff,
 // which is -1 as a short. So no file may get it, also when the map is full.
-TEST_F(MonXfrTest, NoFileGetsTheCookieMinusOne)
+TEST_F(MonXfr, NoFileGetsTheCookieMinusOne)
 {
   OpenFiles open(mapFiles + XrdXrootdMonFMap::fmSize);
   auto &f = open.files;
@@ -82,7 +82,7 @@ TEST_F(MonXfrTest, NoFileGetsTheCookieMinusOne)
 }
 
 // The map holds a fixed number of files. They all get a real slot.
-TEST_F(MonXfrTest, FilesUpToTheMapSizeGetASlot)
+TEST_F(MonXfr, FilesUpToTheMapSizeGetASlot)
 {
   const int lastMap = XrdXrootdMonFMap::mapNum - 1;
   OpenFiles open(mapFiles);
@@ -94,7 +94,7 @@ TEST_F(MonXfrTest, FilesUpToTheMapSizeGetASlot)
 
 // A file that gets no slot, because the map is full, must still get its close
 // record
-TEST_F(MonXfrTest, FileWithoutASlotGetsItsCloseRecord)
+TEST_F(MonXfr, FileWithoutASlotGetsItsCloseRecord)
 {
   OpenFiles open(mapFiles + 1);
   auto &extra = open.files.back();
@@ -111,7 +111,7 @@ TEST_F(MonXfrTest, FileWithoutASlotGetsItsCloseRecord)
 
 // Each file of a full map with I/O gets an xfr record. Next() used to stop
 // before the last slot of the map, so that file got none.
-TEST_F(MonXfrTest, EveryFileOfAMapGetsAnXfrRecord)
+TEST_F(MonXfr, EveryFileOfAMapGetsAnXfrRecord)
 {
   OpenFiles open(XrdXrootdMonFMap::fmSize);
   std::set<kXR_unt32> fileIDs;
@@ -133,7 +133,7 @@ TEST_F(MonXfrTest, EveryFileOfAMapGetsAnXfrRecord)
 // larger than maxDgram cannot be sent. Such a buffer was lost each time that
 // it was full, so its records never arrived. Disconnect records are 8 bytes
 // long, so they fill the buffer up to 65528 bytes.
-TEST_F(MonXfrTest, FullFStreamBufferArrives)
+TEST_F(MonXfr, FullFStreamBufferArrives)
 {
   const int nDisc = 10000; // 80000 bytes, more than one buffer
   for (int i = 0; i < nDisc; i++)
@@ -145,7 +145,7 @@ TEST_F(MonXfrTest, FullFStreamBufferArrives)
 
 // The same applies to the buffer of the file stream (mbuff), which goes out
 // when it is full
-TEST_F(MonXfrTest, FullTraceBufferArrives)
+TEST_F(MonXfr, FullTraceBufferArrives)
 {
   ASSERT_NE(XrdXrootdMonitor::altMon, nullptr);
   const int nOpen = maxBsz / static_cast<int>(sizeof(XrdXrootdMonTrace));

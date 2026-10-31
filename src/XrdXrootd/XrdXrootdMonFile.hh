@@ -56,6 +56,21 @@ static bool Init();
 static void Open(XrdXrootdFileStats *fsP,
                  const char *Path, unsigned int uDID, bool isRW);
 
+//! Report a failed open, if the "err" option is set.
+//!
+//! @param  Path    The path that the client tried to open.
+//! @param  uDID    The user dictid (0 if user monitoring is off).
+//! @param  fileID  The dictid of the path, from a "d" mapping record, or 0 to
+//!                 assign a new dictid.
+//! @param  ecode   The kXR error code.
+//
+static void OpenErr(const char *Path, unsigned int uDID,
+                    unsigned int fileID, int ecode);
+
+//! @return True if failed opens and file errors are reported ("err" option).
+//
+static bool Errors() {return fsERR != 0;}
+
        XrdXrootdMonFile() : XrdJob("monitor fstat") {}
       ~XrdXrootdMonFile() {}
 
@@ -88,7 +103,9 @@ static int                  fBsz;
 static int                  xfrRem;
 static XrdXrootdMonFileXFR  xfrRec;
 static short                crecNLen;
+static short                erecNLen;  // crecNLen plus the error block
 static short                trecNLen;
+static char                 fsERR;
 static char                 fsLFN;
 static char                 fsLVL;
 static char                 fsOPS;

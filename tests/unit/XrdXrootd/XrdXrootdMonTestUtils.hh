@@ -161,7 +161,7 @@ inline MonEnv *env = nullptr;
 //! them, so they skip. But a monitor that does not start is a failure.
 //------------------------------------------------------------------------------
 
-class MonTest : public ::testing::Test
+class MonFixture : public ::testing::Test
 {
 protected:
   void SetUp() override

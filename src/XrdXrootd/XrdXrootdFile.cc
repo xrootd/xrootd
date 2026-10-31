@@ -310,8 +310,12 @@ XrdXrootdFile *XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum,
        if (monP) monP->Close(Stats.FileID,
                              Stats.xfr.read + Stats.xfr.readv,
                              Stats.xfr.write);
-       if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, false);
-       if (dodel) {delete fp; fp = 0;}  // Will do the close
+       // A deferred close (dodel false) does not know its result yet, so
+       // XrdXrootdCBJob::DoClose() sends its f-stream close record later.
+       if (dodel)
+          {if (Stats.MonEnt != -1) XrdXrootdMonFile::Close(&Stats, false);
+           delete fp; fp = 0;  // Will do the close
+          }
           else {if (!fhProc) fhProc = new XrdXrootdFileHP;
                    else fhProc->Ref();
                 fp->fHandle = fh;

@@ -190,7 +190,7 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
 /* Function: xmon
 
    Purpose:  Parse directive: monitor [...] [all] [auth]  [flush [io] <sec>]
-                                      [fstat <sec> [lfn] [ops] [ssq] [xfr <n>]
+                                      [fstat <sec> [err] [lfn] [ops] [ssq] [xfr <n>]
                                       [{fbuff | fbsz} <sz>] [gbuff <sz>]
                                       [ident {<sec>|off}] [mbuff <sz>]
                                       [rbuff <sz>] [rnums <cnt>] [window <sec>]
@@ -204,6 +204,8 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
                             io is given applies only to i/o events.
          fstat  <sec>       produces an "f" stream for open & close events
                             <sec> specifies the flush interval (also see xfr)
+                            err    - reports failed opens and the first
+                                     error of each file
                             lfn    - adds lfn to the open event
                             ops    - adds the ops record when the file is closed
                             ssq    - computes the sum of squares for the ops rec
@@ -285,7 +287,8 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                    if (XrdOuca2x::a2tm(eDest,"monitor fstat",val,
                                              &MP->monFSint,0)) return 1;
                    while((val = Config.GetWord()))
-                        if (!strcmp("lfn", val)) MP->monFSopt |=  XROOTD_MON_FSLFN;
+                        if (!strcmp("err", val)) MP->monFSopt |=  XROOTD_MON_FSERR;
+                   else if (!strcmp("lfn", val)) MP->monFSopt |=  XROOTD_MON_FSLFN;
                    else if (!strcmp("ops", val)) MP->monFSopt |=  XROOTD_MON_FSOPS;
                    else if (!strcmp("ssq", val)) MP->monFSopt |=  XROOTD_MON_FSSSQ;
                    else if (!strcmp("xfr", val))
