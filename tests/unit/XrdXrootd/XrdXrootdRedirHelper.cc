@@ -105,7 +105,7 @@ public:
    }
 };
 
-class XrdXrootdRedirHelperTest : public ::testing::Test
+class RedirHelperTest : public ::testing::Test
 {
 public:
    // logger and eDest are required by the helper's Init contract when a
@@ -147,7 +147,7 @@ public:
 // IsActive / Init
 //==============================================================================
 
-TEST_F(XrdXrootdRedirHelperTest, IsActiveReflectsInit)
+TEST_F(RedirHelperTest, IsActiveReflectsInit)
 {
    EXPECT_FALSE(XrdXrootdRedirHelper::IsActive());
 
@@ -162,7 +162,7 @@ TEST_F(XrdXrootdRedirHelperTest, IsActiveReflectsInit)
 // Redirect: host+port form (port >= 0)
 //==============================================================================
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectWithoutPluginIsUnchanged)
+TEST_F(RedirHelperTest, RedirectWithoutPluginIsUnchanged)
 {
    int         port = 1094;
    std::string outTarget = "untouched";
@@ -178,7 +178,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectWithoutPluginIsUnchanged)
    EXPECT_EQ(0,            plugin.calls);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectEmptyPluginResponseIsUnchanged)
+TEST_F(RedirHelperTest, RedirectEmptyPluginResponseIsUnchanged)
 {
    armWithPlugin();
    plugin.response = "";
@@ -196,7 +196,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectEmptyPluginResponseIsUnchanged)
    EXPECT_EQ(1,           plugin.calls);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectReplacedTargetIsReturnedToCaller)
+TEST_F(RedirHelperTest, RedirectReplacedTargetIsReturnedToCaller)
 {
    armWithPlugin();
    plugin.response = "alt.example.org";
@@ -213,7 +213,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectReplacedTargetIsReturnedToCaller)
    EXPECT_EQ("untouched",       errMsg);  // errMsg is for errors only
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectReplacedTargetCarriesCgi)
+TEST_F(RedirHelperTest, RedirectReplacedTargetCarriesCgi)
 {
    armWithPlugin();
    plugin.response = "alt.example.org?lcgi=1";
@@ -229,7 +229,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectReplacedTargetCarriesCgi)
    EXPECT_EQ("alt.example.org?lcgi=1", outTarget);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectPortMutationIsPropagated)
+TEST_F(RedirHelperTest, RedirectPortMutationIsPropagated)
 {
    armWithPlugin();
    plugin.response         = "alt.example.org";
@@ -247,7 +247,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectPortMutationIsPropagated)
    EXPECT_EQ(9999, port);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectErrorStripsBangFromMessage)
+TEST_F(RedirHelperTest, RedirectErrorStripsBangFromMessage)
 {
    armWithPlugin();
    plugin.response = "!something broke";
@@ -264,7 +264,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectErrorStripsBangFromMessage)
    EXPECT_EQ("untouched",       outTarget);  // outTarget is for replacements only
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectErrorEmptyMessageOnBareBang)
+TEST_F(RedirHelperTest, RedirectErrorEmptyMessageOnBareBang)
 {
    armWithPlugin();
    plugin.response = "!";
@@ -280,7 +280,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectErrorEmptyMessageOnBareBang)
    EXPECT_EQ("", errMsg);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectForwardsHostPortAndCgi)
+TEST_F(RedirHelperTest, RedirectForwardsHostPortAndCgi)
 {
    armWithPlugin();
    plugin.response = "";  // outcome irrelevant here; we check the plugin's inputs
@@ -300,7 +300,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectForwardsHostPortAndCgi)
    EXPECT_EQ(0,           plugin.urlCalls);  // host form must not call RedirectURL
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectTargetWithoutCgiYieldsEmptyCgi)
+TEST_F(RedirHelperTest, RedirectTargetWithoutCgiYieldsEmptyCgi)
 {
    armWithPlugin();
    plugin.response = "";
@@ -316,7 +316,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectTargetWithoutCgiYieldsEmptyCgi)
    EXPECT_EQ("",          plugin.seenCgi);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectUnchangedLeavesPortUntouched)
+TEST_F(RedirHelperTest, RedirectUnchangedLeavesPortUntouched)
 {
    armWithPlugin();
    plugin.response         = "";     // empty reply -> Unchanged
@@ -336,7 +336,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectUnchangedLeavesPortUntouched)
    EXPECT_EQ(1094, port);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectPortOutOfRangeIsUnchanged)
+TEST_F(RedirHelperTest, RedirectPortOutOfRangeIsUnchanged)
 {
    armWithPlugin();
    plugin.response = "alt.example.org";  // would Replace if the plugin ran
@@ -362,7 +362,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectPortOutOfRangeIsUnchanged)
 // argument doubles as the plugin's rdrOpts and is left unmodified on return.
 //==============================================================================
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectUrlWithoutPluginIsUnchanged)
+TEST_F(RedirHelperTest, RedirectUrlWithoutPluginIsUnchanged)
 {
    int         port      = -1;
    std::string outTarget = "untouched";
@@ -377,7 +377,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectUrlWithoutPluginIsUnchanged)
    EXPECT_EQ(0,           plugin.urlCalls);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectUrlReplacedTargetIsReturnedToCaller)
+TEST_F(RedirHelperTest, RedirectUrlReplacedTargetIsReturnedToCaller)
 {
    armWithPlugin();
    plugin.urlResponse = "file:///mnt/data";
@@ -392,7 +392,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectUrlReplacedTargetIsReturnedToCaller)
    EXPECT_EQ("file:///mnt/data", outTarget);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectUrlErrorStripsBangFromMessage)
+TEST_F(RedirHelperTest, RedirectUrlErrorStripsBangFromMessage)
 {
    armWithPlugin();
    plugin.urlResponse = "!nope";
@@ -407,7 +407,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectUrlErrorStripsBangFromMessage)
    EXPECT_EQ("nope", errMsg);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectUrlForwardsAllParts)
+TEST_F(RedirHelperTest, RedirectUrlForwardsAllParts)
 {
    armWithPlugin();
    plugin.urlResponse = "";  // outcome irrelevant; we check the plugin's inputs
@@ -428,7 +428,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectUrlForwardsAllParts)
    EXPECT_EQ(0,             plugin.calls);        // URL form must not call Redirect
 }
 
-TEST_F(XrdXrootdRedirHelperTest, RedirectUrlUnparseableUrlIsUnchanged)
+TEST_F(RedirHelperTest, RedirectUrlUnparseableUrlIsUnchanged)
 {
    armWithPlugin();
    plugin.urlResponse = "file:///mnt/data";  // would Replace if the plugin ran
@@ -453,7 +453,7 @@ TEST_F(XrdXrootdRedirHelperTest, RedirectUrlUnparseableUrlIsUnchanged)
 // split directly instead of observing it through the fake plugin.
 //==============================================================================
 
-TEST_F(XrdXrootdRedirHelperTest, ParseURLSplitsFullUrl)
+TEST_F(RedirHelperTest, ParseURLSplitsFullUrl)
 {
    std::string head;
    std::string host;
@@ -467,7 +467,7 @@ TEST_F(XrdXrootdRedirHelperTest, ParseURLSplitsFullUrl)
    EXPECT_EQ("/path?cgi=1",      tail);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, ParseURLWithoutPortYieldsEmptyPort)
+TEST_F(RedirHelperTest, ParseURLWithoutPortYieldsEmptyPort)
 {
    std::string head;
    std::string host;
@@ -480,7 +480,7 @@ TEST_F(XrdXrootdRedirHelperTest, ParseURLWithoutPortYieldsEmptyPort)
    EXPECT_EQ("/path",            tail);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, ParseURLWithoutTailYieldsEmptyTail)
+TEST_F(RedirHelperTest, ParseURLWithoutTailYieldsEmptyTail)
 {
    std::string head;
    std::string host;
@@ -493,7 +493,7 @@ TEST_F(XrdXrootdRedirHelperTest, ParseURLWithoutTailYieldsEmptyTail)
    EXPECT_EQ("",                 tail);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, ParseURLRejectsUrlWithoutScheme)
+TEST_F(RedirHelperTest, ParseURLRejectsUrlWithoutScheme)
 {
    std::string head;
    std::string host;
@@ -503,7 +503,7 @@ TEST_F(XrdXrootdRedirHelperTest, ParseURLRejectsUrlWithoutScheme)
        "data.example.org:1094/path", head, host, port, tail));
 }
 
-TEST_F(XrdXrootdRedirHelperTest, ParseURLRejectsTooShortAuthority)
+TEST_F(RedirHelperTest, ParseURLRejectsTooShortAuthority)
 {
    // "://" is present but the host[:port] before the first '/' is below the
    // minimum length, so ParseURL must reject the URL.
@@ -524,7 +524,7 @@ TEST_F(XrdXrootdRedirHelperTest, ParseURLRejectsTooShortAuthority)
 // be hit by a cache entry left behind by an earlier test.
 //==============================================================================
 
-TEST_F(XrdXrootdRedirHelperTest, RefreshAfterExpiryStillReplaces)
+TEST_F(RedirHelperTest, RefreshAfterExpiryStillReplaces)
 {
    FakeNow() = 1'000'000;
    XrdXrootdRedirHelper::SetClockForTesting(&gFakeClock);
@@ -556,7 +556,7 @@ TEST_F(XrdXrootdRedirHelperTest, RefreshAfterExpiryStillReplaces)
    EXPECT_EQ(2, plugin.calls);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, CacheHitWithinIpHoldStillReplaces)
+TEST_F(RedirHelperTest, CacheHitWithinIpHoldStillReplaces)
 {
    FakeNow() = 2'000'000;
    XrdXrootdRedirHelper::SetClockForTesting(&gFakeClock);
@@ -586,7 +586,7 @@ TEST_F(XrdXrootdRedirHelperTest, CacheHitWithinIpHoldStillReplaces)
    EXPECT_EQ(2, plugin.calls);
 }
 
-TEST_F(XrdXrootdRedirHelperTest, SetClockForTestingNullRestoresRealClock)
+TEST_F(RedirHelperTest, SetClockForTestingNullRestoresRealClock)
 {
    // Install a fake clock, then immediately uninstall it: subsequent Redirect
    // must not crash or produce an invalid outcome under the real wall clock.

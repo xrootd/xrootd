@@ -75,9 +75,12 @@ protected:
   }
 };
 
+// XrdCl::PlugInManager names this fixture as a friend
+using PlugInManagerTest = PlugInManagerFixture;
+
 // Issue #2618: the recorder.conf shipped by the packages is disabled for all
 // URLs. It must not prevent a user config from enabling the recorder.
-TEST_F(PlugInManagerFixture, EnabledDefaultPlugInLoadsAfterADisabledOne)
+TEST_F(PlugInManagerTest, EnabledDefaultPlugInLoadsAfterADisabledOne)
 {
   write_config("1-disabled.conf", "false");
   write_config("2-enabled.conf", "true");
@@ -90,7 +93,7 @@ TEST_F(PlugInManagerFixture, EnabledDefaultPlugInLoadsAfterADisabledOne)
 
 // A disabled default plug-in config must not hide a factory registered through
 // the public API, e.g. by an application or a test.
-TEST_F(PlugInManagerFixture, DisabledDefaultPlugInDoesNotShadowARegisteredFactory)
+TEST_F(PlugInManagerTest, DisabledDefaultPlugInDoesNotShadowARegisteredFactory)
 {
   write_config("1-disabled.conf", "false");
 
@@ -103,7 +106,7 @@ TEST_F(PlugInManagerFixture, DisabledDefaultPlugInDoesNotShadowARegisteredFactor
 }
 
 // A user can disable a default plug-in which the system config enables.
-TEST_F(PlugInManagerFixture, DisabledDefaultPlugInInAHigherDirectoryWins)
+TEST_F(PlugInManagerTest, DisabledDefaultPlugInInAHigherDirectoryWins)
 {
   const auto user = make_dir("user"), system = make_dir("system");
   write_config(user, "recorder.conf", "*", "false");
@@ -116,7 +119,7 @@ TEST_F(PlugInManagerFixture, DisabledDefaultPlugInInAHigherDirectoryWins)
 }
 
 // Issue #2618: the system config disables the recorder, the user enables it.
-TEST_F(PlugInManagerFixture, EnabledDefaultPlugInInAHigherDirectoryWins)
+TEST_F(PlugInManagerTest, EnabledDefaultPlugInInAHigherDirectoryWins)
 {
   const auto user = make_dir("user"), system = make_dir("system");
   write_config(user, "recorder.conf", "*", "true");
@@ -129,7 +132,7 @@ TEST_F(PlugInManagerFixture, EnabledDefaultPlugInInAHigherDirectoryWins)
 }
 
 // A plug-in for a protocol follows the same order as a default plug-in.
-TEST_F(PlugInManagerFixture, EnabledProtocolPlugInInAHigherDirectoryWins)
+TEST_F(PlugInManagerTest, EnabledProtocolPlugInInAHigherDirectoryWins)
 {
   const auto user = make_dir("user"), system = make_dir("system");
   write_config(user, "recorder.conf", "root://*", "true");
@@ -142,7 +145,7 @@ TEST_F(PlugInManagerFixture, EnabledProtocolPlugInInAHigherDirectoryWins)
 }
 
 // A lower directory still applies to the URLs which no higher directory sets.
-TEST_F(PlugInManagerFixture, LowerDirectoryAppliesToTheRemainingURLs)
+TEST_F(PlugInManagerTest, LowerDirectoryAppliesToTheRemainingURLs)
 {
   const auto user = make_dir("user"), system = make_dir("system");
   write_config(user, "recorder.conf", "root://*", "false");
@@ -157,7 +160,7 @@ TEST_F(PlugInManagerFixture, LowerDirectoryAppliesToTheRemainingURLs)
 
 // Issue #2618: XRD_PLUGINCONFDIR can point to the home directory, which the
 // manager then reads twice.
-TEST_F(PlugInManagerFixture, SameDirectoryTwiceKeepsTheDefaultPlugIn)
+TEST_F(PlugInManagerTest, SameDirectoryTwiceKeepsTheDefaultPlugIn)
 {
   const auto user = make_dir("user");
   write_config(user, "recorder.conf", "*", "true");

@@ -15,7 +15,7 @@ using namespace std::string_literals;
 using namespace testing;
 using namespace XrdClHttp;
 
-class ParseTokenFileFixture : public testing::Test
+class ParseTokenFileTest : public testing::Test
 {
 protected:
     // Suffixed with the pid because ctest may run the tests of this suite in
@@ -44,14 +44,14 @@ protected:
     }
 };
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheFileDoesNotExist)
+TEST_F(ParseTokenFileTest, FailsWhenTheFileDoesNotExist)
 {
     ASSERT_FALSE(ParseTokenFile(token_file_path, src_hdrs, dst_hdrs));
     ASSERT_THAT(src_hdrs, IsEmpty());
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, SetsBothAuthorizationHeadersWhenTheFileHasTwoLines)
+TEST_F(ParseTokenFileTest, SetsBothAuthorizationHeadersWhenTheFileHasTwoLines)
 {
     write_token_file("TokenA\nTokenB\n");
 
@@ -60,7 +60,7 @@ TEST_F(ParseTokenFileFixture, SetsBothAuthorizationHeadersWhenTheFileHasTwoLines
     ASSERT_THAT(dst_hdrs, ElementsAre(Pair("Authorization"s, "Bearer TokenB"s)));
 }
 
-TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheFileHasOneLine)
+TEST_F(ParseTokenFileTest, SetsOnlyTheSourceAuthorizationHeaderWhenTheFileHasOneLine)
 {
     write_token_file("TokenA\n");
 
@@ -69,7 +69,7 @@ TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheFileHas
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheSecondLineIsEmpty)
+TEST_F(ParseTokenFileTest, SetsOnlyTheSourceAuthorizationHeaderWhenTheSecondLineIsEmpty)
 {
     write_token_file("TokenA\n\n");
 
@@ -78,7 +78,7 @@ TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheSecondL
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, SetsOnlyTheDestinationAuthorizationHeaderWhenTheFirstLineIsEmpty)
+TEST_F(ParseTokenFileTest, SetsOnlyTheDestinationAuthorizationHeaderWhenTheFirstLineIsEmpty)
 {
     write_token_file("\nTokenB\n");
 
@@ -87,7 +87,7 @@ TEST_F(ParseTokenFileFixture, SetsOnlyTheDestinationAuthorizationHeaderWhenTheFi
     ASSERT_THAT(dst_hdrs, ElementsAre(Pair("Authorization"s, "Bearer TokenB"s)));
 }
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheFileHasOnlyEmptyLines)
+TEST_F(ParseTokenFileTest, FailsWhenTheFileHasOnlyEmptyLines)
 {
     write_token_file("\n\n");
 
@@ -96,7 +96,7 @@ TEST_F(ParseTokenFileFixture, FailsWhenTheFileHasOnlyEmptyLines)
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheFileIsEmpty)
+TEST_F(ParseTokenFileTest, FailsWhenTheFileIsEmpty)
 {
     write_token_file("");
 
@@ -105,7 +105,7 @@ TEST_F(ParseTokenFileFixture, FailsWhenTheFileIsEmpty)
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, SetsBothAuthorizationHeadersWhenTheJsonHasSrcAndDst)
+TEST_F(ParseTokenFileTest, SetsBothAuthorizationHeadersWhenTheJsonHasSrcAndDst)
 {
     write_token_file(R"({ "src": "TokenA", "dst": "TokenB" })");
 
@@ -114,7 +114,7 @@ TEST_F(ParseTokenFileFixture, SetsBothAuthorizationHeadersWhenTheJsonHasSrcAndDs
     ASSERT_THAT(dst_hdrs, ElementsAre(Pair("Authorization"s, "Bearer TokenB"s)));
 }
 
-TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheJsonHasSrcOnly)
+TEST_F(ParseTokenFileTest, SetsOnlyTheSourceAuthorizationHeaderWhenTheJsonHasSrcOnly)
 {
     write_token_file(R"({ "src": "TokenA" })");
 
@@ -123,7 +123,7 @@ TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheJsonHas
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, SetsOnlyTheDestinationAuthorizationHeaderWhenTheJsonHasDstOnly)
+TEST_F(ParseTokenFileTest, SetsOnlyTheDestinationAuthorizationHeaderWhenTheJsonHasDstOnly)
 {
     write_token_file(R"({ "dst": "TokenB" })");
 
@@ -132,7 +132,7 @@ TEST_F(ParseTokenFileFixture, SetsOnlyTheDestinationAuthorizationHeaderWhenTheJs
     ASSERT_THAT(dst_hdrs, ElementsAre(Pair("Authorization"s, "Bearer TokenB"s)));
 }
 
-TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheJsonDstIsNotAString)
+TEST_F(ParseTokenFileTest, SetsOnlyTheSourceAuthorizationHeaderWhenTheJsonDstIsNotAString)
 {
     write_token_file(R"({ "src": "TokenA", "dst": 1234 })");
 
@@ -141,7 +141,7 @@ TEST_F(ParseTokenFileFixture, SetsOnlyTheSourceAuthorizationHeaderWhenTheJsonDst
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, SetsOnlyTheDestinationAuthorizationHeaderWhenTheJsonSrcIsNotAString)
+TEST_F(ParseTokenFileTest, SetsOnlyTheDestinationAuthorizationHeaderWhenTheJsonSrcIsNotAString)
 {
     write_token_file(R"({ "src": 1234, "dst": "TokenB" })");
 
@@ -150,7 +150,7 @@ TEST_F(ParseTokenFileFixture, SetsOnlyTheDestinationAuthorizationHeaderWhenTheJs
     ASSERT_THAT(dst_hdrs, ElementsAre(Pair("Authorization"s, "Bearer TokenB"s)));
 }
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheJsonHasNeitherSrcNorDst)
+TEST_F(ParseTokenFileTest, FailsWhenTheJsonHasNeitherSrcNorDst)
 {
     write_token_file(R"({ "token": "TokenA" })");
 
@@ -159,7 +159,7 @@ TEST_F(ParseTokenFileFixture, FailsWhenTheJsonHasNeitherSrcNorDst)
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheJsonSrcIsNotAString)
+TEST_F(ParseTokenFileTest, FailsWhenTheJsonSrcIsNotAString)
 {
     write_token_file(R"({ "src": 1234 })");
 
@@ -168,7 +168,7 @@ TEST_F(ParseTokenFileFixture, FailsWhenTheJsonSrcIsNotAString)
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheJsonSrcIsEmpty)
+TEST_F(ParseTokenFileTest, FailsWhenTheJsonSrcIsEmpty)
 {
     write_token_file(R"({ "src": "" })");
 
@@ -177,7 +177,7 @@ TEST_F(ParseTokenFileFixture, FailsWhenTheJsonSrcIsEmpty)
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheJsonDstIsNotAString)
+TEST_F(ParseTokenFileTest, FailsWhenTheJsonDstIsNotAString)
 {
     write_token_file(R"({ "dst": 1234 })");
 
@@ -186,7 +186,7 @@ TEST_F(ParseTokenFileFixture, FailsWhenTheJsonDstIsNotAString)
     ASSERT_THAT(dst_hdrs, IsEmpty());
 }
 
-TEST_F(ParseTokenFileFixture, FailsWhenTheJsonDstIsEmpty)
+TEST_F(ParseTokenFileTest, FailsWhenTheJsonDstIsEmpty)
 {
     write_token_file(R"({ "dst": "" })");
 

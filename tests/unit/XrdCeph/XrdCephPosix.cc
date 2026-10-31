@@ -13,7 +13,7 @@ void fillCephFileParams(const std::string &params, XrdOucEnv *env,
 
 using namespace testing;
 
-class ParsingTest : public ::testing::Test {};
+class PosixTest : public ::testing::Test {};
 
 static CephFile parseParam(std::string param, XrdOucEnv *env = NULL)
 {
@@ -39,7 +39,7 @@ static void checkResult(CephFile a, CephFile b)
   EXPECT_EQ(a.objectSize, b.objectSize);
 }
 
-TEST(ParsingTest, Parameters)
+TEST(PosixTest, Parameters)
 {
   std::map<std::string, CephFile> inputs;
 
@@ -62,7 +62,7 @@ TEST(ParsingTest, Parameters)
     checkResult(parseParam(it->first), it->second);
 }
 
-TEST(ParsingTest, File)
+TEST(PosixTest, File)
 {
   std::vector<std::string> filenames;
   std::map<std::string, CephFile> inputs;

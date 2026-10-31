@@ -58,7 +58,7 @@ namespace XrdClHttp
 
 #include "XrdClHttp/XrdClHttpFilesystem.cc"
 
-class HttpThirdPartyCopyFixture : public testing::Test
+class FilesystemThirdPartyCopyTest : public testing::Test
 {
 protected:
     Filesystem fs;
@@ -69,7 +69,7 @@ protected:
     const std::string missing_token_file_path{(std::filesystem::temp_directory_path() /
         ("xrdclhttp-tests-missing-token-file-" + std::to_string(getpid()))).string()};
 
-    HttpThirdPartyCopyFixture() :
+    FilesystemThirdPartyCopyTest() :
         fs(std::string("mock://unresolvable:1094//file"), std::make_shared<HandlerQueue>(100), XrdCl::DefaultEnv::GetLog())
     {
     }
@@ -116,7 +116,7 @@ protected:
     }
 };
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheSourceSizeToTheProgressHandler)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheSourceSizeToTheProgressHandler)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -132,7 +132,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheSourceSizeToTheProgressHandler)
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, &mock_progress);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatFails)
+TEST_F(FilesystemThirdPartyCopyTest, SendsAZeroSizeToTheProgressHandlerWhenTheStatFails)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -147,7 +147,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatF
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, &mock_progress);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatDoesNotFinish)
+TEST_F(FilesystemThirdPartyCopyTest, SendsAZeroSizeToTheProgressHandlerWhenTheStatDoesNotFinish)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -162,7 +162,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatD
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, &mock_progress);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatDoneCheckThrows)
+TEST_F(FilesystemThirdPartyCopyTest, SendsAZeroSizeToTheProgressHandlerWhenTheStatDoneCheckThrows)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -177,7 +177,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatD
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, &mock_progress);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatThrows)
+TEST_F(FilesystemThirdPartyCopyTest, SendsAZeroSizeToTheProgressHandlerWhenTheStatThrows)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -191,7 +191,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsAZeroSizeToTheProgressHandlerWhenTheStatT
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, &mock_progress);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, GivesTheProgressHandlerToTheCopyOperation)
+TEST_F(FilesystemThirdPartyCopyTest, GivesTheProgressHandlerToTheCopyOperation)
 {
     NiceMock<MockProgressHandler> mock_progress;
 
@@ -203,7 +203,7 @@ TEST_F(HttpThirdPartyCopyFixture, GivesTheProgressHandlerToTheCopyOperation)
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, &mock_progress);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsErrPipelineFailedWhenTheCopyIsNotSent)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsErrPipelineFailedWhenTheCopyIsNotSent)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -216,7 +216,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsErrPipelineFailedWhenTheCopyIsNotSent)
     ASSERT_EQ(status.code, XrdCl::errPipelineFailed);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheCompletedProgressToTheProgressHandlerWhenTheCopySucceeds)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheCompletedProgressToTheProgressHandlerWhenTheCopySucceeds)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -238,7 +238,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheCompletedProgressToTheProgressHandlerW
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, &mock_progress);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenTheCopySucceeds)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsOkWhenTheCopySucceeds)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -259,7 +259,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenTheCopySucceeds)
     ASSERT_EQ(status.status, XrdCl::stOK);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderAsFalseWithoutTheForceProperty)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheOverwriteHeaderAsFalseWithoutTheForceProperty)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -269,7 +269,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderAsFalseWithoutTheForceP
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderAsTrueWithTheForceProperty)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheOverwriteHeaderAsTrueWithTheForceProperty)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -282,7 +282,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderAsTrueWithTheForcePrope
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, UsesThePullModeWithoutTheThirdPartyModeProperty)
+TEST_F(FilesystemThirdPartyCopyTest, UsesThePullModeWithoutTheThirdPartyModeProperty)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -292,7 +292,7 @@ TEST_F(HttpThirdPartyCopyFixture, UsesThePullModeWithoutTheThirdPartyModePropert
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, UsesThePushModeWhenTheThirdPartyModeIsPush)
+TEST_F(FilesystemThirdPartyCopyTest, UsesThePushModeWhenTheThirdPartyModeIsPush)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -305,7 +305,7 @@ TEST_F(HttpThirdPartyCopyFixture, UsesThePushModeWhenTheThirdPartyModeIsPush)
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheStreamCountHeaderAsOneByDefault)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheStreamCountHeaderAsOneByDefault)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -315,7 +315,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheStreamCountHeaderAsOneByDefault)
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheStreamCountHeaderFromTheSubStreamsPerChannelSetting)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheStreamCountHeaderFromTheSubStreamsPerChannelSetting)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -327,7 +327,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheStreamCountHeaderFromTheSubStreamsPerC
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsNoAuthorizationHeaderWithoutTheTokenFileProperty)
+TEST_F(FilesystemThirdPartyCopyTest, SendsNoAuthorizationHeaderWithoutTheTokenFileProperty)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -339,21 +339,21 @@ TEST_F(HttpThirdPartyCopyFixture, SendsNoAuthorizationHeaderWithoutTheTokenFileP
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsErrInvalidArgsWhenTheSourceIsNotHttp)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsErrInvalidArgsWhenTheSourceIsNotHttp)
 {
     XrdCl::XRootDStatus status = fs.ThirdPartyCopy("root://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr);
     ASSERT_EQ(status.status, XrdCl::stError);
     ASSERT_EQ(status.code, XrdCl::errInvalidArgs);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsErrInvalidArgsWhenTheDestinationIsNotHttp)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsErrInvalidArgsWhenTheDestinationIsNotHttp)
 {
     XrdCl::XRootDStatus status = fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "root://unresolvable:1094//file_dst", nullptr, nullptr);
     ASSERT_EQ(status.status, XrdCl::stError);
     ASSERT_EQ(status.code, XrdCl::errInvalidArgs);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheHttpProtocol)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsOkWhenBothUrlsUseTheHttpProtocol)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -365,7 +365,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheHttpProtocol)
     ASSERT_EQ(status.status, XrdCl::stOK);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheDavProtocol)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsOkWhenBothUrlsUseTheDavProtocol)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -377,7 +377,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheDavProtocol)
     ASSERT_EQ(status.status, XrdCl::stOK);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheDavsProtocol)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsOkWhenBothUrlsUseTheDavsProtocol)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -389,7 +389,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsOkWhenBothUrlsUseTheDavsProtocol)
     ASSERT_EQ(status.status, XrdCl::stOK);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsErrAuthFailedWhenTheTokenFileCannotBeParsed)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsErrAuthFailedWhenTheTokenFileCannotBeParsed)
 {
     XrdCl::PropertyList properties;
     properties.Set("thirdPartyTokenFile", missing_token_file_path);
@@ -399,7 +399,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsErrAuthFailedWhenTheTokenFileCannotBePa
     ASSERT_EQ(status.code, XrdCl::errAuthFailed);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheAuthorizationHeadersFromTheTokenFile)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheAuthorizationHeadersFromTheTokenFile)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -415,7 +415,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheAuthorizationHeadersFromTheTokenFile)
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderToTheDestinationInPushMode)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheOverwriteHeaderToTheDestinationInPushMode)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -428,7 +428,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheOverwriteHeaderToTheDestinationInPushM
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", &properties, nullptr);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, ReturnsItExistsWhenThePushDestinationExistsWithoutTheForceProperty)
+TEST_F(FilesystemThirdPartyCopyTest, ReturnsItExistsWhenThePushDestinationExistsWithoutTheForceProperty)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -445,7 +445,7 @@ TEST_F(HttpThirdPartyCopyFixture, ReturnsItExistsWhenThePushDestinationExistsWit
     ASSERT_EQ(status.errNo, kXR_ItExists);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsNoCopyWhenThePushDestinationExistsWithoutTheForceProperty)
+TEST_F(FilesystemThirdPartyCopyTest, SendsNoCopyWhenThePushDestinationExistsWithoutTheForceProperty)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -460,7 +460,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsNoCopyWhenThePushDestinationExistsWithout
     ASSERT_FALSE(XrdClHttp::CopyOp::HasBeenInstantiated());
 }
 
-TEST_F(HttpThirdPartyCopyFixture, SendsTheCopyWhenThePushDestinationDoesNotExist)
+TEST_F(FilesystemThirdPartyCopyTest, SendsTheCopyWhenThePushDestinationDoesNotExist)
 {
     XrdClHttp::StatOp::AddOperation([](auto *mock)
     {
@@ -475,7 +475,7 @@ TEST_F(HttpThirdPartyCopyFixture, SendsTheCopyWhenThePushDestinationDoesNotExist
     ASSERT_TRUE(XrdClHttp::CopyOp::HasBeenInstantiated());
 }
 
-TEST_F(HttpThirdPartyCopyFixture, DoesNotStatThePushDestinationWithTheForceProperty)
+TEST_F(FilesystemThirdPartyCopyTest, DoesNotStatThePushDestinationWithTheForceProperty)
 {
     XrdCl::PropertyList properties;
     properties.Set("thirdPartyMode", "push");
@@ -485,7 +485,7 @@ TEST_F(HttpThirdPartyCopyFixture, DoesNotStatThePushDestinationWithTheForcePrope
     ASSERT_FALSE(XrdClHttp::StatOp::HasBeenInstantiated());
 }
 
-TEST_F(HttpThirdPartyCopyFixture, UsesTheTimeoutArgumentWithoutTheTpcTimeoutProperty)
+TEST_F(FilesystemThirdPartyCopyTest, UsesTheTimeoutArgumentWithoutTheTpcTimeoutProperty)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {
@@ -495,7 +495,7 @@ TEST_F(HttpThirdPartyCopyFixture, UsesTheTimeoutArgumentWithoutTheTpcTimeoutProp
     fs.ThirdPartyCopy("https://unresolvable:1094//file_src", "https://unresolvable:1094//file_dst", nullptr, nullptr, 7);
 }
 
-TEST_F(HttpThirdPartyCopyFixture, UsesTheTpcTimeoutPropertyOverTheTimeoutArgument)
+TEST_F(FilesystemThirdPartyCopyTest, UsesTheTpcTimeoutPropertyOverTheTimeoutArgument)
 {
     XrdClHttp::CopyOp::AddOperation([](auto *mock)
     {

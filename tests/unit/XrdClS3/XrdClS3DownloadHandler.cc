@@ -104,7 +104,7 @@ public:
 
 } // namespace
 
-class DownloadHandlerFixture : public testing::Test {
+class DownloadHandlerTest : public testing::Test {
 protected:
     void SetUp() override
     {
@@ -121,7 +121,7 @@ protected:
 // Ensure a synchronous Read failure after a successful Open does not crash
 // (use-after-move of the parent handler) and still reports an error to the
 // caller.
-TEST_F(DownloadHandlerFixture, SyncReadFailurePropagates)
+TEST_F(DownloadHandlerTest, SyncReadFailurePropagates)
 {
     XrdCl::SyncResponseHandler handler;
     auto st = XrdClS3::DownloadUrl("failread://localhost/obj", nullptr, &handler, time_t{10});

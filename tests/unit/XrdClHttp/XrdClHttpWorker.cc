@@ -384,7 +384,7 @@ CURLMcode LifecycleMultiCleanup(CURLM *multi)
     return curl_multi_cleanup(multi);
 }
 
-TEST(WorkerLifecycle, CleansHandleWhenSetupThrowsBeforeAdoption)
+TEST(WorkerLifecycleTest, CleansHandleWhenSetupThrowsBeforeAdoption)
 {
     Harness test;
     auto op = test.Add();
@@ -393,7 +393,7 @@ TEST(WorkerLifecycle, CleansHandleWhenSetupThrowsBeforeAdoption)
     EXPECT_EQ(op->failures, 1u);
 }
 
-TEST(WorkerLifecycle, CleansHandleWhenSetupReturnsFalseBeforeAdoption)
+TEST(WorkerLifecycleTest, CleansHandleWhenSetupReturnsFalseBeforeAdoption)
 {
     Harness test;
     auto op = test.Add();
@@ -402,7 +402,7 @@ TEST(WorkerLifecycle, CleansHandleWhenSetupReturnsFalseBeforeAdoption)
     EXPECT_EQ(op->failures, 1u);
 }
 
-TEST(WorkerLifecycle, SetupExceptionAfterAdoptionFailsOperation)
+TEST(WorkerLifecycleTest, SetupExceptionAfterAdoptionFailsOperation)
 {
     Harness test;
     auto op = test.Add(false, SetupCallout);
@@ -412,7 +412,7 @@ TEST(WorkerLifecycle, SetupExceptionAfterAdoptionFailsOperation)
     EXPECT_EQ(op->failures, 1u);
 }
 
-TEST(WorkerLifecycle, SetupFalseAfterAdoptionFailsOperation)
+TEST(WorkerLifecycleTest, SetupFalseAfterAdoptionFailsOperation)
 {
     Harness test;
     auto op = test.Add();
@@ -429,9 +429,9 @@ struct OptionsSetupFailure {
     unsigned callout;
 };
 
-class OptionsSetup : public testing::TestWithParam<OptionsSetupFailure> {};
+class WorkerOptionsSetupTest : public testing::TestWithParam<OptionsSetupFailure> {};
 
-TEST_P(OptionsSetup, FailsParentOnce)
+TEST_P(WorkerOptionsSetupTest, FailsParentOnce)
 {
     const auto &failure = GetParam();
     Harness test;
@@ -449,7 +449,7 @@ TEST_P(OptionsSetup, FailsParentOnce)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(WorkerLifecycle, OptionsSetup, testing::Values(
+INSTANTIATE_TEST_SUITE_P(, WorkerOptionsSetupTest, testing::Values(
     OptionsSetupFailure{"InitialAllocation", false, 2, 0, 0},
     OptionsSetupFailure{"InitialAdd", false, 0, 1, 0},
     OptionsSetupFailure{"InitialException", false, 0, 0, 2},
@@ -464,9 +464,9 @@ struct OptionsResult {
     unsigned status;
 };
 
-class OptionsCompletion : public testing::TestWithParam<OptionsResult> {};
+class WorkerOptionsCompletionTest : public testing::TestWithParam<OptionsResult> {};
 
-TEST_P(OptionsCompletion, ChecksParentReactivation)
+TEST_P(WorkerOptionsCompletionTest, ChecksParentReactivation)
 {
     const auto &completion = GetParam();
     Harness test;
@@ -481,7 +481,7 @@ TEST_P(OptionsCompletion, ChecksParentReactivation)
     EXPECT_EQ(op->statuses.front().errNo, CURLM_OUT_OF_MEMORY);
 }
 
-TEST_P(OptionsCompletion, ResumesRedirectedParent)
+TEST_P(WorkerOptionsCompletionTest, ResumesRedirectedParent)
 {
     const auto &completion = GetParam();
     Harness test;
@@ -503,15 +503,15 @@ TEST_P(OptionsCompletion, ResumesRedirectedParent)
               completion.result == CURLE_OK && completion.status == 200 ? 1u : 0u);
 }
 
-INSTANTIATE_TEST_SUITE_P(WorkerLifecycle, OptionsCompletion, testing::Values(
+INSTANTIATE_TEST_SUITE_P(, WorkerOptionsCompletionTest, testing::Values(
     OptionsResult{"Success", CURLE_OK, 200},
     OptionsResult{"HttpFailure", CURLE_OK, 405},
     OptionsResult{"TransportFailure", CURLE_COULDNT_CONNECT, 200}),
     [](const testing::TestParamInfo<OptionsResult> &info) {return info.param.name;});
 
-class ConcurrentOptions : public testing::TestWithParam<unsigned> {};
+class WorkerConcurrentOptionsTest : public testing::TestWithParam<unsigned> {};
 
-TEST_P(ConcurrentOptions, PreservesOriginalParentHandles)
+TEST_P(WorkerConcurrentOptionsTest, PreservesOriginalParentHandles)
 {
     Harness test;
     std::vector<std::shared_ptr<TestOperation>> parents;
@@ -540,12 +540,12 @@ TEST_P(ConcurrentOptions, PreservesOriginalParentHandles)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(WorkerLifecycle, ConcurrentOptions, testing::Values(1u, 2u),
+INSTANTIATE_TEST_SUITE_P(, WorkerConcurrentOptionsTest, testing::Values(1u, 2u),
     [](const testing::TestParamInfo<unsigned> &info) {
         return info.param == 1 ? "SingleProbe" : "ChainedProbes";
     });
 
-TEST(WorkerLifecycle, WorkerExitReleasesExternallyRetainedActiveOperation)
+TEST(WorkerLifecycleTest, WorkerExitReleasesExternallyRetainedActiveOperation)
 {
     Harness test;
     auto op = test.Add();
@@ -555,7 +555,7 @@ TEST(WorkerLifecycle, WorkerExitReleasesExternallyRetainedActiveOperation)
     EXPECT_EQ(op->statuses.front().errNo, CURLM_INTERNAL_ERROR);
 }
 
-TEST(WorkerLifecycle, WorkerExitReleasesExternallyRetainedParentAndOptions)
+TEST(WorkerLifecycleTest, WorkerExitReleasesExternallyRetainedParentAndOptions)
 {
     Harness test;
     auto op = test.Add(true);
@@ -564,7 +564,7 @@ TEST(WorkerLifecycle, WorkerExitReleasesExternallyRetainedParentAndOptions)
     EXPECT_EQ(op->failures, 1u);
 }
 
-TEST(WorkerLifecycle, ShutdownCancelsExternallyRetainedActiveOperations)
+TEST(WorkerLifecycleTest, ShutdownCancelsExternallyRetainedActiveOperations)
 {
     Harness test;
     test.normal_shutdown = true;
@@ -577,7 +577,7 @@ TEST(WorkerLifecycle, ShutdownCancelsExternallyRetainedActiveOperations)
     }
 }
 
-TEST(WorkerLifecycle, ConnectionCalloutStartFailureFailsOnlyOnce)
+TEST(WorkerLifecycleTest, ConnectionCalloutStartFailureFailsOnlyOnce)
 {
     Harness test;
     auto op = test.Add(false, FailedCallout);

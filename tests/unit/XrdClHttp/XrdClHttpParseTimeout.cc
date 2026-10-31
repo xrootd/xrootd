@@ -24,7 +24,7 @@
 
 using namespace XrdClHttp;
 
-TEST(ParseTimeout, BasicHr) {
+TEST(ParseTimeoutTest, BasicHr) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -36,7 +36,7 @@ TEST(ParseTimeout, BasicHr) {
     EXPECT_EQ(ts.tv_nsec, 0);
 }
 
-TEST(ParseTimeout, BasicFraction) {
+TEST(ParseTimeoutTest, BasicFraction) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -48,7 +48,7 @@ TEST(ParseTimeout, BasicFraction) {
     EXPECT_EQ(ts.tv_nsec, 500'000'000);
 }
 
-TEST(ParseTimeout, Compound) {
+TEST(ParseTimeoutTest, Compound) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -60,7 +60,7 @@ TEST(ParseTimeout, Compound) {
     EXPECT_EQ(ts.tv_nsec, 50'000'000);
 }
 
-TEST(ParseTimeout, Negative) {
+TEST(ParseTimeoutTest, Negative) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -72,7 +72,7 @@ TEST(ParseTimeout, Negative) {
     EXPECT_EQ(ts.tv_nsec, 0);
 }
 
-TEST(ParseTimeout, NoUnit) {
+TEST(ParseTimeoutTest, NoUnit) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -84,7 +84,7 @@ TEST(ParseTimeout, NoUnit) {
     EXPECT_EQ(ts.tv_nsec, 0);
 }
 
-TEST(ParseTimeout, Empty) {
+TEST(ParseTimeoutTest, Empty) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -96,7 +96,7 @@ TEST(ParseTimeout, Empty) {
     EXPECT_EQ(ts.tv_nsec, 0);
 }
 
-TEST(ParseTimeout, Zero) {
+TEST(ParseTimeoutTest, Zero) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -108,7 +108,7 @@ TEST(ParseTimeout, Zero) {
     EXPECT_EQ(ts.tv_nsec, 0);
 }
 
-TEST(ParseTimeout, Invalid) {
+TEST(ParseTimeoutTest, Invalid) {
     struct timespec ts;
     ts.tv_nsec = 0;
     ts.tv_sec = 0;
@@ -120,14 +120,14 @@ TEST(ParseTimeout, Invalid) {
     EXPECT_EQ(ts.tv_nsec, 0);
 }
 
-TEST(MarshalDuration, Zero) {
+TEST(MarshalDurationTest, Zero) {
     struct timespec ts = {0, 0};
     auto result = MarshalDuration(ts);
     EXPECT_NE(result, "");
     EXPECT_EQ(result, "0s");
 }
 
-TEST(MarshalDuration, Simple) {
+TEST(MarshalDurationTest, Simple) {
     struct timespec ts = {0, 500'000'000};
     auto result = MarshalDuration(ts);
     EXPECT_EQ(result, "500ms");

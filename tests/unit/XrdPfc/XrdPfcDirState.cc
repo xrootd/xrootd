@@ -131,7 +131,7 @@ public:
 // The directory count must agree with the tree (issue #2808)
 //==============================================================================
 
-TEST(DirStateCount, MatchesTreeAfterOrdinaryUse)
+TEST(DirStateCountTest, MatchesTreeAfterOrdinaryUse)
 {
    Accounting a;
    a.cache_file("/a/b/c/f1", 8);
@@ -143,7 +143,7 @@ TEST(DirStateCount, MatchesTreeAfterOrdinaryUse)
    EXPECT_EQ(a.n_dirs_in_tree(), 5);   // root, a, a/b, a/b/c, d
 }
 
-TEST(DirStateCount, MatchesTreeThroughReapOfAWholeChain)
+TEST(DirStateCountTest, MatchesTreeThroughReapOfAWholeChain)
 {
    Accounting a;
    a.cache_file("/a/b/c/f1", 8);
@@ -161,7 +161,7 @@ TEST(DirStateCount, MatchesTreeThroughReapOfAWholeChain)
    EXPECT_EQ(a.n_dirs_in_tree(), 1);
 }
 
-TEST(DirStateCount, CountsNodesCreatedForAnAlreadyExistingFile)
+TEST(DirStateCountTest, CountsNodesCreatedForAnAlreadyExistingFile)
 {
    Accounting a;
    a.cache_file("/scanned/f1", 8);
@@ -178,7 +178,7 @@ TEST(DirStateCount, CountsNodesCreatedForAnAlreadyExistingFile)
    EXPECT_EQ(a.n_dirs_in_tree(), 4);   // root, scanned, unscanned, unscanned/sub
 }
 
-TEST(DirStateCount, NeverGoesNegativeAcrossRepeatedUnscannedDirs)
+TEST(DirStateCountTest, NeverGoesNegativeAcrossRepeatedUnscannedDirs)
 {
    Accounting a;
    a.cache_file("/base/anchor", 8);
@@ -205,7 +205,7 @@ TEST(DirStateCount, NeverGoesNegativeAcrossRepeatedUnscannedDirs)
 // What the empty-leaf reap must not remove (issue #2934)
 //==============================================================================
 
-TEST(DirStateReap, RemovesAGenuinelyEmptyLeaf)
+TEST(DirStateReapTest, RemovesAGenuinelyEmptyLeaf)
 {
    Accounting a;
    a.cache_file("/a/b/f1", 8);
@@ -219,7 +219,7 @@ TEST(DirStateReap, RemovesAGenuinelyEmptyLeaf)
    EXPECT_EQ(a.find("/a/b"), nullptr) << "an empty leaf should be reaped";
 }
 
-TEST(DirStateReap, KeepsADirectoryWhoseFileIsStillOpen)
+TEST(DirStateReapTest, KeepsADirectoryWhoseFileIsStillOpen)
 {
    Accounting a;
    a.m_ns.create("/a/b/f1");
@@ -248,7 +248,7 @@ TEST(DirStateReap, KeepsADirectoryWhoseFileIsStillOpen)
    EXPECT_EQ(a.find("/a/b"), nullptr) << "should be reaped once nothing is open";
 }
 
-TEST(DirStateReap, KeepsADirectoryThatStillHasChildren)
+TEST(DirStateReapTest, KeepsADirectoryThatStillHasChildren)
 {
    Accounting a;
    a.cache_file("/a/b/c/f1", 8);
@@ -271,7 +271,7 @@ TEST(DirStateReap, KeepsADirectoryThatStillHasChildren)
    EXPECT_NE(a.find("/a/b/c"), nullptr) << "and took a live subtree with it";
 }
 
-TEST(DirStateReap, TakesOneLevelPerCycle)
+TEST(DirStateReapTest, TakesOneLevelPerCycle)
 {
    Accounting a;
    a.cache_file("/a/b/c/f1", 8);
@@ -288,7 +288,7 @@ TEST(DirStateReap, TakesOneLevelPerCycle)
    EXPECT_NE(a.find("/a"), nullptr);
 }
 
-TEST(DirStateReap, HonoursAFailedUnlink)
+TEST(DirStateReapTest, HonoursAFailedUnlink)
 {
    Accounting a;
    a.cache_file("/a/b/f1", 8);
@@ -303,7 +303,7 @@ TEST(DirStateReap, HonoursAFailedUnlink)
 
 // A purge task defers the reap to a later beat, which has no propagation.
 
-TEST(DirStateReap, DeferredReapKeepsADirectoryOpenedSinceTheSnapshot)
+TEST(DirStateReapTest, DeferredReapKeepsADirectoryOpenedSinceTheSnapshot)
 {
    Accounting a;
    a.cache_file("/a/b/f1", 8);
@@ -320,7 +320,7 @@ TEST(DirStateReap, DeferredReapKeepsADirectoryOpenedSinceTheSnapshot)
    EXPECT_NE(a.find("/a/b"), nullptr) << "reaped a directory an unpropagated open points at";
 }
 
-TEST(DirStateReap, DeferredReapWaitsForASnapshotToShowTheDirectoryEmpty)
+TEST(DirStateReapTest, DeferredReapWaitsForASnapshotToShowTheDirectoryEmpty)
 {
    Accounting a;
    a.cache_file("/a/b/f1", 8);
@@ -339,7 +339,7 @@ TEST(DirStateReap, DeferredReapWaitsForASnapshotToShowTheDirectoryEmpty)
 // The delta reset during propagation must leave the snapshot stats intact
 //==============================================================================
 
-TEST(DirStateStats, SnapshotStatsKeepWhatTheResetClears)
+TEST(DirStateStatsTest, SnapshotStatsKeepWhatTheResetClears)
 {
    Accounting a;
    a.cache_file("/a/b/f1", 8);
@@ -364,7 +364,7 @@ TEST(DirStateStats, SnapshotStatsKeepWhatTheResetClears)
 // A reaped directory's leftover st_blocks leave the tree and the global total
 //==============================================================================
 
-TEST(DirStateResidue, RootTotalMatchesTheGlobalTotalAfterAReap)
+TEST(DirStateResidueTest, RootTotalMatchesTheGlobalTotalAfterAReap)
 {
    Accounting a;
    a.cache_file("/a/b/f1", 8);
@@ -385,7 +385,7 @@ TEST(DirStateResidue, RootTotalMatchesTheGlobalTotalAfterAReap)
    EXPECT_EQ(a.m_fs.m_st_blocks_fuzz, 2) << "and the global fuzz matches the root's";
 }
 
-TEST(DirStateResidue, FuzzSurvivesTheReapOfItsDirectory)
+TEST(DirStateResidueTest, FuzzSurvivesTheReapOfItsDirectory)
 {
    Accounting a;
    a.cache_file("/a/b/c/f1", 8);

@@ -14,7 +14,7 @@ const std::string key = "MaxBuffSize/with/a/longer/key";
 
 } // namespace
 
-TEST(XrdOucHashVal, MatchesKnownValue)
+TEST(HashValTest, MatchesKnownValue)
 {
   // Values of the original implementation on little-endian hosts, which
   // must not change. Big-endian hosts must give the same values.
@@ -26,7 +26,7 @@ TEST(XrdOucHashVal, MatchesKnownValue)
   EXPECT_EQ(XrdOucHashVal(key.c_str()), expected);
 }
 
-TEST(XrdOucHashVal, MisalignedKeyHashesLikeAlignedKey)
+TEST(HashValTest, MisalignedKeyHashesLikeAlignedKey)
 {
   // XrdOucEnv hashes names that sit at arbitrary offsets inside a larger
   // buffer, which UBSan flagged as a misaligned unsigned long load. Most
@@ -39,7 +39,7 @@ TEST(XrdOucHashVal, MisalignedKeyHashesLikeAlignedKey)
   }
 }
 
-TEST(XrdOucHashVal, ShortKeyIsItsOwnLittleEndianBytes)
+TEST(HashValTest, ShortKeyIsItsOwnLittleEndianBytes)
 {
   EXPECT_EQ(XrdOucHashVal("abc"), 0x636261UL);
 }

@@ -9,9 +9,9 @@
 
 #include <gtest/gtest.h>
 
-class XrdOssMirageFixture : public testing::Test {
+class OssMirageTest : public testing::Test {
 protected:
-    XrdOssMirageFixture() : file(oss)
+    OssMirageTest() : file(oss)
     {
         xattr.setOss(oss);
     }

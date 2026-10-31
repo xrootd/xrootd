@@ -80,7 +80,7 @@ void StartAndDiscover(XrdClHttp::TapeOperation &operation,
 }
 }
 
-TEST(XrdClHttpUtility, SelectsFirstAvailableConfiguredAuthentication)
+TEST(UtilTest, SelectsFirstAvailableConfiguredAuthentication)
 {
   EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("", true, true));
   EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("gsi,ztn", true, true));
@@ -90,7 +90,7 @@ TEST(XrdClHttpUtility, SelectsFirstAvailableConfiguredAuthentication)
   EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("unix", false, true));
 }
 
-TEST(XrdClHttpUtility, InjectsBearerTokenThroughCommonAuthentication)
+TEST(UtilTest, InjectsBearerTokenThroughCommonAuthentication)
 {
   auto env = XrdCl::DefaultEnv::GetEnv();
   ASSERT_NE(env, nullptr);
@@ -123,7 +123,7 @@ TEST(XrdClHttpUtility, InjectsBearerTokenThroughCommonAuthentication)
   EXPECT_TRUE(headers.empty());
 }
 
-TEST(TapeRestApi, DiscoversSupportedEndpoint)
+TEST(TapeRestApiTest, DiscoversSupportedEndpoint)
 {
   XrdCl::Buffer arg;
   arg.FromString("tape.discover");
@@ -144,7 +144,7 @@ TEST(TapeRestApi, DiscoversSupportedEndpoint)
   EXPECT_EQ(result["sitename"], "test-site");
 }
 
-TEST(TapeRestApi, BuildsStageRequestAndParsesResponse)
+TEST(TapeRestApiTest, BuildsStageRequestAndParsesResponse)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -180,7 +180,7 @@ TEST(TapeRestApi, BuildsStageRequestAndParsesResponse)
     R"({"requestId":""})", request, response, complete).IsOK());
 }
 
-TEST(TapeRestApi, BuildsStageStatusRequestAndParsesResponse)
+TEST(TapeRestApiTest, BuildsStageStatusRequestAndParsesResponse)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -209,7 +209,7 @@ TEST(TapeRestApi, BuildsStageStatusRequestAndParsesResponse)
   EXPECT_FALSE(status["files"][0].contains("onDisk"));
 }
 
-TEST(TapeRestApi, NormalizesOptionalStageStatusFields)
+TEST(TapeRestApiTest, NormalizesOptionalStageStatusFields)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -251,7 +251,7 @@ TEST(TapeRestApi, NormalizesOptionalStageStatusFields)
   EXPECT_EQ(status["files"][2]["error"], "slow");
 }
 
-TEST(TapeRestApi, RejectsMalformedStageStatusFields)
+TEST(TapeRestApiTest, RejectsMalformedStageStatusFields)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -298,7 +298,7 @@ TEST(TapeRestApi, RejectsMalformedStageStatusFields)
     R"("files":[{"path":"","onDisk":false}]})");
 }
 
-TEST(TapeRestApi, BuildsCancelReleaseAndDeleteRequests)
+TEST(TapeRestApiTest, BuildsCancelReleaseAndDeleteRequests)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -336,7 +336,7 @@ TEST(TapeRestApi, BuildsCancelReleaseAndDeleteRequests)
   EXPECT_TRUE(complete);
 }
 
-TEST(TapeRestApi, NormalizesTapePaths)
+TEST(TapeRestApiTest, NormalizesTapePaths)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -348,7 +348,7 @@ TEST(TapeRestApi, NormalizesTapePaths)
   EXPECT_EQ(Json::parse(request.body)["files"][0]["path"], "/store/file");
 }
 
-TEST(TapeRestApi, BuildsAndParsesArchiveInfo)
+TEST(TapeRestApiTest, BuildsAndParsesArchiveInfo)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -383,7 +383,7 @@ TEST(TapeRestApi, BuildsAndParsesArchiveInfo)
   EXPECT_EQ(result[1]["error"], "not found");
 }
 
-TEST(TapeRestApi, NormalizesArchiveInfoLocalitiesAndErrors)
+TEST(TapeRestApiTest, NormalizesArchiveInfoLocalitiesAndErrors)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -422,7 +422,7 @@ TEST(TapeRestApi, NormalizesArchiveInfoLocalitiesAndErrors)
   EXPECT_EQ(result[5]["error"], "locality attribute missing");
 }
 
-TEST(TapeRestApi, RejectsUnsupportedDiscoveryResponses)
+TEST(TapeRestApiTest, RejectsUnsupportedDiscoveryResponses)
 {
   XrdCl::Buffer arg;
   arg.FromString("tape.discover");
@@ -452,7 +452,7 @@ TEST(TapeRestApi, RejectsUnsupportedDiscoveryResponses)
     complete).IsOK());
 }
 
-TEST(TapeRestApi, RejectsNativeXRootdSchemes)
+TEST(TapeRestApiTest, RejectsNativeXRootdSchemes)
 {
   XrdCl::Buffer arg;
   arg.FromString("tape.discover");
@@ -469,7 +469,7 @@ TEST(TapeRestApi, RejectsNativeXRootdSchemes)
   }
 }
 
-TEST(TapeRestApi, RejectsArchiveInfoAcrossStorageEndpoints)
+TEST(TapeRestApiTest, RejectsArchiveInfoAcrossStorageEndpoints)
 {
   XrdCl::Buffer arg;
   arg.FromString("tape.archiveinfo\n"
@@ -481,7 +481,7 @@ TEST(TapeRestApi, RejectsArchiveInfoAcrossStorageEndpoints)
   EXPECT_FALSE(operation.Start(request).IsOK());
 }
 
-TEST(TapeRestApi, RejectsAmbiguousPrepareFlags)
+TEST(TapeRestApiTest, RejectsAmbiguousPrepareFlags)
 {
   XrdClHttp::TapeOperation mixed(kStorageUrl, {"/store/file"},
     XrdCl::PrepareFlags::Stage | XrdCl::PrepareFlags::Cancel);
@@ -493,7 +493,7 @@ TEST(TapeRestApi, RejectsAmbiguousPrepareFlags)
   EXPECT_FALSE(unsupported.Start(request).IsOK());
 }
 
-TEST(TapeRestApi, RejectsMalformedInputs)
+TEST(TapeRestApiTest, RejectsMalformedInputs)
 {
   XrdClHttp::TapeOperation emptyStage(kStorageUrl,
     std::vector<std::string>{},
@@ -575,7 +575,7 @@ TEST(TapeRestApi, RejectsMalformedInputs)
   EXPECT_FALSE(carriageReturnDelete.Start(request).IsOK());
 }
 
-TEST(TapeRestApi, RejectsConflictingStageStatusFields)
+TEST(TapeRestApiTest, RejectsConflictingStageStatusFields)
 {
   CurlHandle curl(XrdClHttp::GetHandle(false), curl_easy_cleanup);
   ASSERT_NE(curl, nullptr);
@@ -597,7 +597,7 @@ TEST(TapeRestApi, RejectsConflictingStageStatusFields)
   EXPECT_EQ(status.errNo, EBADMSG);
 }
 
-TEST(TapeRestApi, PreservesProblemResponseDetails)
+TEST(TapeRestApiTest, PreservesProblemResponseDetails)
 {
   EXPECT_EQ(XrdClHttp::TapeProblemResponse(400,
     R"({"title":"invalid request","detail":"missing files"})"),

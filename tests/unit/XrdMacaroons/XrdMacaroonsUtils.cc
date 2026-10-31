@@ -9,7 +9,7 @@
 using namespace Macaroons;
 
 // ISO 8601 duration parsing for the macaroon 'validity' field.
-TEST(XrdMacaroons, DetermineValidityValid)
+TEST(UtilsTest, DetermineValidityValid)
 {
     EXPECT_EQ(determine_validity("PT1S"), 1);
     EXPECT_EQ(determine_validity("PT30S"), 30);
@@ -25,7 +25,7 @@ TEST(XrdMacaroons, DetermineValidityValid)
     EXPECT_EQ(determine_validity("PT"), 0);
 }
 
-TEST(XrdMacaroons, DetermineValidityInvalid)
+TEST(UtilsTest, DetermineValidityInvalid)
 {
     // Missing the mandatory "PT" prefix.
     EXPECT_EQ(determine_validity(""), -1);

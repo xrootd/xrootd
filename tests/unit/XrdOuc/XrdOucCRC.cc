@@ -52,7 +52,7 @@ const size_t dataLen = 9001;   // Crosses two 4096 byte pages
 /*                     c r c 3 2 c _ c o m b i n e                            */
 /******************************************************************************/
 
-TEST(Crc32cCombineTest, MatchesWholeAtEverySplit)
+TEST(CRC32CTest, MatchesWholeAtEverySplit)
 {
    const std::vector<char> data = TestData(dataLen);
    const char* p = data.data();
@@ -71,7 +71,7 @@ TEST(Crc32cCombineTest, MatchesWholeAtEverySplit)
        }
 }
 
-TEST(Crc32cCombineTest, EmptySecondBlockReturnsFirst)
+TEST(CRC32CTest, EmptySecondBlockReturnsFirst)
 {
    const std::vector<char> data = TestData(dataLen);
    const uint32_t csA = crc32c(0, data.data(), dataLen);
@@ -79,7 +79,7 @@ TEST(Crc32cCombineTest, EmptySecondBlockReturnsFirst)
    EXPECT_EQ(crc32c_combine(csA, 0, 0), csA);
 }
 
-TEST(Crc32cCombineTest, CombineIsAssociative)
+TEST(CRC32CTest, CombineIsAssociative)
 {
    const std::vector<char> data = TestData(dataLen);
    const char* p = data.data();
@@ -100,7 +100,7 @@ TEST(Crc32cCombineTest, CombineIsAssociative)
 /*                   X r d O u c C R C : : C o m b i n e 3 2 C                */
 /******************************************************************************/
 
-TEST(XrdOucCRCTest, Combine32CAgreesWithCrc32cCombine)
+TEST(CRCTest, Combine32CAgreesWithCrc32cCombine)
 {
    const std::vector<char> data = TestData(dataLen);
    const char* p = data.data();

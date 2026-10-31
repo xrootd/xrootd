@@ -4,11 +4,11 @@
 
 #include <fcntl.h>
 
-class XrdOssMirageXAttrFixture : public XrdOssMirageFixture
+class XAttrTest : public OssMirageTest
 {
 };
 
-TEST_F(XrdOssMirageXAttrFixture, SetPropertiesShouldSucceed)
+TEST_F(XAttrTest, SetPropertiesShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Set("U.open.return_code", "1", 1, "/dummy", 0, 0));
     EXPECT_EQ(0, xattr.Set("U.close.return_code", "7", 1, "/dummy", 0, 0));
@@ -19,7 +19,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesShouldSucceed)
     EXPECT_EQ(0, xattr.Set("U.pattern", "6", 1, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPropertiesChangesTheirValues)
+TEST_F(XAttrTest, SetPropertiesChangesTheirValues)
 {
     xattr.Set("U.open.return_code", "1", 1, "/dummy", 0, 0);
     xattr.Set("U.close.return_code", "7", 1, "/dummy", 0, 0);
@@ -40,24 +40,24 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesChangesTheirValues)
     EXPECT_EQ("6", entry.pattern);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetInvalidPropertyFailsWithINVAL)
+TEST_F(XAttrTest, SetInvalidPropertyFailsWithINVAL)
 {
     ASSERT_EQ(-EINVAL, xattr.Set("invalid", "1", 1, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPropertyOfAFileThatDoesNotExistFailsWithINVAL)
+TEST_F(XAttrTest, SetPropertyOfAFileThatDoesNotExistFailsWithINVAL)
 {
     ASSERT_EQ(-EINVAL, xattr.Set("U.pattern", "1", 1, "/inexistent", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPropertyOfAFileThatIsBeingWrittenFailsWithINVAL)
+TEST_F(XAttrTest, SetPropertyOfAFileThatIsBeingWrittenFailsWithINVAL)
 {
     auto entry = oss.get_entry_write("/dummy").value();
 
     ASSERT_EQ(-EINVAL, xattr.Set("U.pattern", "1", 1, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeFailsWithINVAL)
+TEST_F(XAttrTest, SetPropertiesWithValuesOutOfRangeFailsWithINVAL)
 {
     EXPECT_EQ(-ERANGE, xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
     EXPECT_EQ(-ERANGE, xattr.Set("U.close.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
@@ -65,13 +65,13 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeFailsWithINVAL
     EXPECT_EQ(-ERANGE, xattr.Set("U.write.return_code", "18446744073709551615", 20, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPositionsToMaximumOffsetShouldSucceed)
+TEST_F(XAttrTest, SetPositionsToMaximumOffsetShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Set("U.read.return_position", "9223372036854775807", 19, "/dummy", 0, 0));
     EXPECT_EQ(0, xattr.Set("U.write.return_position", "9223372036854775807", 19, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPositionsToMaximumOffsetChangesTheirValues)
+TEST_F(XAttrTest, SetPositionsToMaximumOffsetChangesTheirValues)
 {
     xattr.Set("U.read.return_position", "9223372036854775807", 19, "/dummy", 0, 0);
     xattr.Set("U.write.return_position", "9223372036854775807", 19, "/dummy", 0, 0);
@@ -82,13 +82,13 @@ TEST_F(XrdOssMirageXAttrFixture, SetPositionsToMaximumOffsetChangesTheirValues)
     EXPECT_EQ(9223372036854775807ULL, entry.write.return_position);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPositionsBeyondMaximumOffsetFailsWithINVAL)
+TEST_F(XAttrTest, SetPositionsBeyondMaximumOffsetFailsWithINVAL)
 {
     EXPECT_EQ(-ERANGE, xattr.Set("U.read.return_position", "9223372036854775808", 19, "/dummy", 0, 0));
     EXPECT_EQ(-ERANGE, xattr.Set("U.write.return_position", "9223372036854775808", 19, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPositionsBeyondMaximumOffsetDoesNotChangeTheirValues)
+TEST_F(XAttrTest, SetPositionsBeyondMaximumOffsetDoesNotChangeTheirValues)
 {
     xattr.Set("U.read.return_position", "9223372036854775808", 19, "/dummy", 0, 0);
     xattr.Set("U.write.return_position", "9223372036854775808", 19, "/dummy", 0, 0);
@@ -99,7 +99,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetPositionsBeyondMaximumOffsetDoesNotChangeThe
     EXPECT_EQ(0, entry.write.return_position);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeDoesNotChangeTheirValues)
+TEST_F(XAttrTest, SetPropertiesWithValuesOutOfRangeDoesNotChangeTheirValues)
 {
     xattr.Set("U.open.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
     xattr.Set("U.close.return_code", "18446744073709551615", 20, "/dummy", 0, 0);
@@ -114,27 +114,27 @@ TEST_F(XrdOssMirageXAttrFixture, SetPropertiesWithValuesOutOfRangeDoesNotChangeT
     EXPECT_EQ(0, entry.write.return_code);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetOpenReturnCodeToNegativeIntegerFailsWithINVAL)
+TEST_F(XAttrTest, SetOpenReturnCodeToNegativeIntegerFailsWithINVAL)
 {
     EXPECT_EQ(-EINVAL, xattr.Set("U.open.return_code", "-1", 2, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetCloseReturnCodeToNegativeIntegerFailsWithINVAL)
+TEST_F(XAttrTest, SetCloseReturnCodeToNegativeIntegerFailsWithINVAL)
 {
     EXPECT_EQ(-EINVAL, xattr.Set("U.close.return_code", "-1", 2, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetReadReturnCodeToNegativeIntegerFailsWithINVAL)
+TEST_F(XAttrTest, SetReadReturnCodeToNegativeIntegerFailsWithINVAL)
 {
     EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_code", "-1", 2, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnCodeToNegativeIntegerFailsWithINVAL)
+TEST_F(XAttrTest, SetWriteReturnCodeToNegativeIntegerFailsWithINVAL)
 {
     EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_code", "-1", 2, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetOpenReturnCodeToNegativeIntegerKeepsPreviousValue)
+TEST_F(XAttrTest, SetOpenReturnCodeToNegativeIntegerKeepsPreviousValue)
 {
     xattr.Set("U.open.return_code", "5", 1, "/dummy", 0, 0);
     xattr.Set("U.open.return_code", "-1", 2, "/dummy", 0, 0);
@@ -142,7 +142,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetOpenReturnCodeToNegativeIntegerKeepsPrevious
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().open.return_code);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetCloseReturnCodeToNegativeIntegerKeepsPreviousValue)
+TEST_F(XAttrTest, SetCloseReturnCodeToNegativeIntegerKeepsPreviousValue)
 {
     xattr.Set("U.close.return_code", "5", 1, "/dummy", 0, 0);
     xattr.Set("U.close.return_code", "-1", 2, "/dummy", 0, 0);
@@ -150,7 +150,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetCloseReturnCodeToNegativeIntegerKeepsPreviou
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().close.return_code);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetReadReturnCodeToNegativeIntegerKeepsPreviousValue)
+TEST_F(XAttrTest, SetReadReturnCodeToNegativeIntegerKeepsPreviousValue)
 {
     xattr.Set("U.read.return_code", "5", 1, "/dummy", 0, 0);
     xattr.Set("U.read.return_code", "-1", 2, "/dummy", 0, 0);
@@ -158,7 +158,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetReadReturnCodeToNegativeIntegerKeepsPrevious
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().read.return_code);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnCodeToNegativeIntegerKeepsPreviousValue)
+TEST_F(XAttrTest, SetWriteReturnCodeToNegativeIntegerKeepsPreviousValue)
 {
     xattr.Set("U.write.return_code", "5", 1, "/dummy", 0, 0);
     xattr.Set("U.write.return_code", "-1", 2, "/dummy", 0, 0);
@@ -166,17 +166,17 @@ TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnCodeToNegativeIntegerKeepsPreviou
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().write.return_code);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToNegativeIntegerFailsWithINVAL)
+TEST_F(XAttrTest, SetReadReturnPositionToNegativeIntegerFailsWithINVAL)
 {
     EXPECT_EQ(-EINVAL, xattr.Set("U.read.return_position", "-1", 2, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToNegativeIntegerFailsWithINVAL)
+TEST_F(XAttrTest, SetWriteReturnPositionToNegativeIntegerFailsWithINVAL)
 {
     EXPECT_EQ(-EINVAL, xattr.Set("U.write.return_position", "-1", 2, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToNegativeIntegerKeepsPreviousValue)
+TEST_F(XAttrTest, SetReadReturnPositionToNegativeIntegerKeepsPreviousValue)
 {
     xattr.Set("U.read.return_position", "5", 1, "/dummy", 0, 0);
     xattr.Set("U.read.return_position", "-1", 2, "/dummy", 0, 0);
@@ -184,7 +184,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToNegativeIntegerKeepsPrev
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().read.return_position);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToNegativeIntegerKeepsPreviousValue)
+TEST_F(XAttrTest, SetWriteReturnPositionToNegativeIntegerKeepsPreviousValue)
 {
     xattr.Set("U.write.return_position", "5", 1, "/dummy", 0, 0);
     xattr.Set("U.write.return_position", "-1", 2, "/dummy", 0, 0);
@@ -192,31 +192,31 @@ TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToNegativeIntegerKeepsPre
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().write.return_position);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToPositiveIntegerShouldSucceed)
+TEST_F(XAttrTest, SetReadReturnPositionToPositiveIntegerShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Set("U.read.return_position", "5", 1, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToPositiveIntegerShouldSucceed)
+TEST_F(XAttrTest, SetWriteReturnPositionToPositiveIntegerShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Set("U.write.return_position", "5", 1, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetReadReturnPositionToPositiveIntegerChangesItsValue)
+TEST_F(XAttrTest, SetReadReturnPositionToPositiveIntegerChangesItsValue)
 {
     xattr.Set("U.read.return_position", "5", 1, "/dummy", 0, 0);
 
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().read.return_position);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetWriteReturnPositionToPositiveIntegerChangesItsValue)
+TEST_F(XAttrTest, SetWriteReturnPositionToPositiveIntegerChangesItsValue)
 {
     xattr.Set("U.write.return_position", "5", 1, "/dummy", 0, 0);
 
     EXPECT_EQ(5, oss.get_entry_read("/dummy").value().write.return_position);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, SetReturnCodesToZeroShouldSucceed)
+TEST_F(XAttrTest, SetReturnCodesToZeroShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Set("U.open.return_code", "0", 1, "/dummy", 0, 0));
     EXPECT_EQ(0, xattr.Set("U.close.return_code", "0", 1, "/dummy", 0, 0));
@@ -224,7 +224,7 @@ TEST_F(XrdOssMirageXAttrFixture, SetReturnCodesToZeroShouldSucceed)
     EXPECT_EQ(0, xattr.Set("U.write.return_code", "0", 1, "/dummy", 0, 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsNumberOfReadBytes)
+TEST_F(XAttrTest, GetPropertiesReturnsNumberOfReadBytes)
 {
     {
         auto entry = oss.get_entry_write("/dummy").value();
@@ -247,7 +247,7 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsNumberOfReadBytes)
     EXPECT_EQ(1, xattr.Get("U.pattern", &value, 1, "/dummy", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsTheirChangedValues)
+TEST_F(XAttrTest, GetPropertiesReturnsTheirChangedValues)
 {
     {
         auto entry = oss.get_entry_write("/dummy").value();
@@ -289,24 +289,24 @@ TEST_F(XrdOssMirageXAttrFixture, GetPropertiesReturnsTheirChangedValues)
     EXPECT_EQ('6', value);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, GetInvalidPropertyFailsWithINVAL)
+TEST_F(XAttrTest, GetInvalidPropertyFailsWithINVAL)
 {
     ASSERT_EQ(-EINVAL, xattr.Get("invalid", nullptr, 0, "/dummy", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, GetPropertyOfAFileThatDoesNotExistFailsWithINVAL)
+TEST_F(XAttrTest, GetPropertyOfAFileThatDoesNotExistFailsWithINVAL)
 {
     ASSERT_EQ(-EINVAL, xattr.Get("U.pattern", nullptr, 0, "/inexistent", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, GetPropertyOfAFileThatIsBeingWrittenFailsWithINVAL)
+TEST_F(XAttrTest, GetPropertyOfAFileThatIsBeingWrittenFailsWithINVAL)
 {
     auto entry = oss.get_entry_write("/dummy").value();
 
     ASSERT_EQ(-EINVAL, xattr.Get("U.pattern", nullptr, 0, "/dummy", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesShouldSucceed)
+TEST_F(XAttrTest, DeletePropertiesShouldSucceed)
 {
     EXPECT_EQ(0, xattr.Del("U.open.return_code", "/dummy", 0));
     EXPECT_EQ(0, xattr.Del("U.close.return_code", "/dummy", 0));
@@ -317,7 +317,7 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesShouldSucceed)
     EXPECT_EQ(0, xattr.Del("U.pattern", "/dummy", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
+TEST_F(XAttrTest, DeletePropertiesResetsTheirValues)
 {
     {
         auto entry = oss.get_entry_write("/dummy").value();
@@ -349,17 +349,17 @@ TEST_F(XrdOssMirageXAttrFixture, DeletePropertiesResetsTheirValues)
     EXPECT_EQ("", entry.pattern);
 }
 
-TEST_F(XrdOssMirageXAttrFixture, DeleteInvalidPropertyFailsWithINVAL)
+TEST_F(XAttrTest, DeleteInvalidPropertyFailsWithINVAL)
 {
     ASSERT_EQ(-EINVAL, xattr.Del("invalid", "/dummy", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, DeletePropertyOfAFileThatDoesNotExistFailsWithINVAL)
+TEST_F(XAttrTest, DeletePropertyOfAFileThatDoesNotExistFailsWithINVAL)
 {
     ASSERT_EQ(-EINVAL, xattr.Del("U.pattern", "/inexistent", 0));
 }
 
-TEST_F(XrdOssMirageXAttrFixture, DeletePropertyOfAFileThatIsBeingWrittenFailsWithINVAL)
+TEST_F(XAttrTest, DeletePropertyOfAFileThatIsBeingWrittenFailsWithINVAL)
 {
     auto entry = oss.get_entry_write("/dummy").value();
 

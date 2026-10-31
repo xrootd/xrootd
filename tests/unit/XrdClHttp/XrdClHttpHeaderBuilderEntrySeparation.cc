@@ -13,7 +13,7 @@ using testing::Pair;
 
 namespace {
 
-class EntrySeparation : public HeaderBuilderFixture {};
+class HeaderBuilderEntrySeparationTest : public HeaderBuilderFixture {};
 
 } // namespace
 
@@ -21,7 +21,7 @@ class EntrySeparation : public HeaderBuilderFixture {};
 /*                B u i l d :  e n t r y  s e p a r a t i o n                 */
 /******************************************************************************/
 
-TEST_F(EntrySeparation, TheFirstOfSeveralEntriesIsAdded)
+TEST_F(HeaderBuilderEntrySeparationTest, TheFirstOfSeveralEntriesIsAdded)
 {
     const std::string spec{"X-First: one\nX-Second: two\nX-Third: three"};
 
@@ -29,7 +29,7 @@ TEST_F(EntrySeparation, TheFirstOfSeveralEntriesIsAdded)
     EXPECT_THAT(headers, Contains(Pair("X-First", "one")));
 }
 
-TEST_F(EntrySeparation, AMiddleEntryIsAdded)
+TEST_F(HeaderBuilderEntrySeparationTest, AMiddleEntryIsAdded)
 {
     const std::string spec{"X-First: one\nX-Second: two\nX-Third: three"};
 
@@ -37,7 +37,7 @@ TEST_F(EntrySeparation, AMiddleEntryIsAdded)
     EXPECT_THAT(headers, Contains(Pair("X-Second", "two")));
 }
 
-TEST_F(EntrySeparation, TheLastOfSeveralEntriesIsAdded)
+TEST_F(HeaderBuilderEntrySeparationTest, TheLastOfSeveralEntriesIsAdded)
 {
     const std::string spec{"X-First: one\nX-Second: two\nX-Third: three"};
 
@@ -47,7 +47,7 @@ TEST_F(EntrySeparation, TheLastOfSeveralEntriesIsAdded)
 
 // Blank entries are tolerated so that padding a specification is not an error.
 
-TEST_F(EntrySeparation, ALeadingBlankEntryIsSkipped)
+TEST_F(HeaderBuilderEntrySeparationTest, ALeadingBlankEntryIsSkipped)
 {
     const std::string spec{"\nX-Test: value"};
 
@@ -55,7 +55,7 @@ TEST_F(EntrySeparation, ALeadingBlankEntryIsSkipped)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
-TEST_F(EntrySeparation, AnEmbeddedBlankEntryIsSkipped)
+TEST_F(HeaderBuilderEntrySeparationTest, AnEmbeddedBlankEntryIsSkipped)
 {
     const std::string spec{"X-First: one\n\nX-Second: two"};
 
@@ -63,7 +63,7 @@ TEST_F(EntrySeparation, AnEmbeddedBlankEntryIsSkipped)
     EXPECT_THAT(headers, ElementsAre(Pair("X-First", "one"), Pair("X-Second", "two")));
 }
 
-TEST_F(EntrySeparation, ATrailingBlankEntryIsSkipped)
+TEST_F(HeaderBuilderEntrySeparationTest, ATrailingBlankEntryIsSkipped)
 {
     const std::string spec{"X-Test: value\n"};
 
@@ -73,7 +73,7 @@ TEST_F(EntrySeparation, ATrailingBlankEntryIsSkipped)
 
 // A newline separates entries, so it cannot appear inside a value; a bare
 // carriage return could otherwise forge part of the request.
-TEST_F(EntrySeparation, ACarriageReturnInAValueIsRejected)
+TEST_F(HeaderBuilderEntrySeparationTest, ACarriageReturnInAValueIsRejected)
 {
     const std::string spec{"X-Test: a\rEvil: b"};
 
@@ -82,7 +82,7 @@ TEST_F(EntrySeparation, ACarriageReturnInAValueIsRejected)
 
 // A CRLF is the wire form of the separator, so it yields two entries.
 
-TEST_F(EntrySeparation, ACrlfEndsTheEntryBeforeIt)
+TEST_F(HeaderBuilderEntrySeparationTest, ACrlfEndsTheEntryBeforeIt)
 {
     const std::string spec{"X-Test: a\r\nX-Other: b"};
 
@@ -90,7 +90,7 @@ TEST_F(EntrySeparation, ACrlfEndsTheEntryBeforeIt)
     EXPECT_THAT(headers, Contains(Pair("X-Test", "a")));
 }
 
-TEST_F(EntrySeparation, ACrlfStartsTheEntryAfterIt)
+TEST_F(HeaderBuilderEntrySeparationTest, ACrlfStartsTheEntryAfterIt)
 {
     const std::string spec{"X-Test: a\r\nX-Other: b"};
 
@@ -100,7 +100,7 @@ TEST_F(EntrySeparation, ACrlfStartsTheEntryAfterIt)
 
 // Each entry a CRLF yields is validated in its own right, which is what stops a
 // reserved header sneaking in behind one.
-TEST_F(EntrySeparation, AForbiddenEntryAfterACrlfIsRejected)
+TEST_F(HeaderBuilderEntrySeparationTest, AForbiddenEntryAfterACrlfIsRejected)
 {
     const std::string spec{"X-Test: a\r\nHost: evil"};
 

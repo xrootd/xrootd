@@ -15,7 +15,7 @@
 
 using namespace testing;
 
-class XrdHttpTpcStreamTests : public Test {};
+class StreamTest : public Test {};
 
 // Minimal XrdSfsFile implementation used to observe which writes the Stream
 // reordering layer sends to the backing filesystem.
@@ -145,7 +145,7 @@ std::vector<char> AsBytes(const std::string &str) {
 
 }
 
-TEST_F(XrdHttpTpcStreamTests, FlushesExactlyFullEmptyBuffer) {
+TEST_F(StreamTest, FlushesExactlyFullEmptyBuffer) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -163,7 +163,7 @@ TEST_F(XrdHttpTpcStreamTests, FlushesExactlyFullEmptyBuffer) {
   EXPECT_EQ(AsBytes("abcdefgh"), raw_file->Data());
 }
 
-TEST_F(XrdHttpTpcStreamTests, FlushesExactlyFullCurrentBuffer) {
+TEST_F(StreamTest, FlushesExactlyFullCurrentBuffer) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -189,7 +189,7 @@ TEST_F(XrdHttpTpcStreamTests, FlushesExactlyFullCurrentBuffer) {
   EXPECT_EQ(AsBytes("abcdefgh"), raw_file->Data());
 }
 
-TEST_F(XrdHttpTpcStreamTests, FlushesCascadeAfterOutOfOrderArrival) {
+TEST_F(StreamTest, FlushesCascadeAfterOutOfOrderArrival) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -221,7 +221,7 @@ TEST_F(XrdHttpTpcStreamTests, FlushesCascadeAfterOutOfOrderArrival) {
   EXPECT_EQ(AsBytes("aaaaaaaabbbbbbbbccccccccdddddddd"), raw_file->Data());
 }
 
-TEST_F(XrdHttpTpcStreamTests, PartialAcceptSpansTwoBuffers) {
+TEST_F(StreamTest, PartialAcceptSpansTwoBuffers) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -249,7 +249,7 @@ TEST_F(XrdHttpTpcStreamTests, PartialAcceptSpansTwoBuffers) {
   EXPECT_EQ(AsBytes("abcdefghijklmnop"), raw_file->Data());
 }
 
-TEST_F(XrdHttpTpcStreamTests, AvailableCountReflectsBufferOccupancy) {
+TEST_F(StreamTest, AvailableCountReflectsBufferOccupancy) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -278,7 +278,7 @@ TEST_F(XrdHttpTpcStreamTests, AvailableCountReflectsBufferOccupancy) {
   EXPECT_EQ(AsBytes("aaaaaaaabbbbbbbbcccccccc"), raw_file->Data());
 }
 
-TEST_F(XrdHttpTpcStreamTests, ZeroSizeWriteForcesFlushOfPartialBuffer) {
+TEST_F(StreamTest, ZeroSizeWriteForcesFlushOfPartialBuffer) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -299,7 +299,7 @@ TEST_F(XrdHttpTpcStreamTests, ZeroSizeWriteForcesFlushOfPartialBuffer) {
   EXPECT_TRUE(stream.Finalize());
 }
 
-TEST_F(XrdHttpTpcStreamTests, RepeatedFlushesPushOutBufferedDataOnce) {
+TEST_F(StreamTest, RepeatedFlushesPushOutBufferedDataOnce) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -322,7 +322,7 @@ TEST_F(XrdHttpTpcStreamTests, RepeatedFlushesPushOutBufferedDataOnce) {
   EXPECT_TRUE(stream.Finalize());
 }
 
-TEST_F(XrdHttpTpcStreamTests, FlushSucceedsWhenNothingIsBuffered) {
+TEST_F(StreamTest, FlushSucceedsWhenNothingIsBuffered) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
@@ -343,7 +343,7 @@ TEST_F(XrdHttpTpcStreamTests, FlushSucceedsWhenNothingIsBuffered) {
   EXPECT_TRUE(stream.Finalize());
 }
 
-TEST_F(XrdHttpTpcStreamTests, FilesystemWriteFailureIsPropagated) {
+TEST_F(StreamTest, FilesystemWriteFailureIsPropagated) {
   XrdSysLogger logger(STDERR_FILENO, 0);
   XrdSysError log(&logger, "StreamTest");
   auto file = std::make_unique<MemorySfsFile>();
