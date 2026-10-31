@@ -2,15 +2,8 @@ if(NOT TARGET XrdHttpTapeApiStore)
   return()
 endif()
 
-add_executable(xrd-http-tape-api-unit-tests XrdHttpTapeApiStore.cc)
-
-target_link_libraries(xrd-http-tape-api-unit-tests
-  XrdHttpTapeApiStore GTest::gtest_main)
-
-target_include_directories(xrd-http-tape-api-unit-tests
-  BEFORE PRIVATE
-    "${PROJECT_SOURCE_DIR}/vendor/googletest/googletest/include"
-    "${PROJECT_SOURCE_DIR}/src/XrdHttpTapeApi")
-
-gtest_discover_tests(xrd-http-tape-api-unit-tests TEST_PREFIX unit::XrdHttpTapeApi::
-  PROPERTIES DISCOVERY_TIMEOUT 10)
+add_unit_tests(
+  SOURCES XrdHttpTapeApiStore.cc
+  LIBRARIES XrdHttpTapeApiStore
+  INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/src/XrdHttpTapeApi
+)

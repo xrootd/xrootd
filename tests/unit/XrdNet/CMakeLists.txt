@@ -1,14 +1,8 @@
-add_executable(xrdnet-unit-tests
-  XrdNetAddr.cc
-  XrdNetIdentity.cc
-  XrdNetMsg.cc
+add_unit_tests(
+  SOURCES
+    XrdNetAddr.cc
+    XrdNetIdentity.cc
+    XrdNetMsg.cc
+  LIBRARIES
+    XrdUtils
 )
-
-target_link_libraries(xrdnet-unit-tests
-  XrdUtils
-  GTest::gtest
-  GTest::gtest_main
-)
-
-gtest_discover_tests(xrdnet-unit-tests TEST_PREFIX unit::XrdNet::
-  PROPERTIES DISCOVERY_TIMEOUT 10)
