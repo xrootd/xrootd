@@ -31,7 +31,7 @@
 
 using namespace XrdClS3;
 
-class FactoryFixture : public testing::Test {
+class FactoryCredentialsTest : public testing::Test {
 public:
 
 void SetUp() override {
@@ -90,7 +90,7 @@ private:
     std::string m_tempdir;
 };
 
-TEST(Factory, ExtractHostname) {
+TEST(FactoryTest, ExtractHostname) {
     std::string_view url = "https://bucket-name.s3.amazonaws.com/path/to/object";
     std::string_view hostname = Factory::ExtractHostname(url);
     ASSERT_EQ(hostname, "bucket-name.s3.amazonaws.com");
@@ -120,7 +120,7 @@ TEST(Factory, ExtractHostname) {
     ASSERT_EQ(hostname, "");
 }
 
-TEST(Factory, GenerateHttpUrl) {
+TEST(FactoryTest, GenerateHttpUrl) {
     Factory::SetEndpoint("s3.amazonaws.com");
     Factory::SetRegion("us-east-1");
     Factory::SetUrlStyle("virtual");
@@ -188,7 +188,7 @@ TEST(Factory, GenerateHttpUrl) {
     ASSERT_FALSE(Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg));
 }
 
-TEST(Factory, GetBucketFromHttpsUrl) {
+TEST(FactoryTest, GetBucketFromHttpsUrl) {
     std::string bucket_name;
     Factory::SetEndpoint("s3.amazonaws.com");
     Factory::SetRegion("us-east-1");
@@ -209,7 +209,7 @@ TEST(Factory, GetBucketFromHttpsUrl) {
     ASSERT_EQ(bucket_name, "bucket-name");
 }
 
-TEST_F(FactoryFixture, GetCredentialsForBucket) {
+TEST_F(FactoryCredentialsTest, GetCredentialsForBucket) {
 
     WriteCreds("access_key.txt", "my_access_key",
                "secret_key.txt", "my_secret_key");
@@ -247,7 +247,7 @@ TEST_F(FactoryFixture, GetCredentialsForBucket) {
     ASSERT_FALSE(ok);
 }
 
-TEST_F(FactoryFixture, GenerateV4Signature) {
+TEST_F(FactoryCredentialsTest, GenerateV4Signature) {
     Factory::ResetCredCache();
     Factory::SetEndpoint("s3.amazonaws.com");
     Factory::SetRegion("us-east-1");
@@ -290,7 +290,7 @@ TEST_F(FactoryFixture, GenerateV4Signature) {
     ASSERT_EQ(auth_token, "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class,Signature=98ad721746da40c64f1a55b78f14c238d841ea1380cd77a1b5971af0ece108bd");
 }
 
-TEST(Factory, PathEncode) {
+TEST(FactoryTest, PathEncode) {
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test.txt"), "/test.txt");
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test//sub.txt"), "/test//sub.txt");
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test.txt?foo=bar"), "/test.txt");
@@ -298,7 +298,7 @@ TEST(Factory, PathEncode) {
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test$file.text"), "/test\%24file.text");
 }
 
-TEST(Factory, CleanObjectName) {
+TEST(FactoryTest, CleanObjectName) {
     ASSERT_EQ(Factory::CleanObjectName("test.txt"), "test.txt");
     ASSERT_EQ(Factory::CleanObjectName("test//sub.txt"), "test//sub.txt");
     ASSERT_EQ(Factory::CleanObjectName("test.txt?foo=bar"), "test.txt?foo=bar");
@@ -313,7 +313,7 @@ TEST(Factory, CleanObjectName) {
     ASSERT_EQ(Factory::CleanObjectName("test.txt?&foo=bar&oss.asize&authz=foo&foo=bar"), "test.txt?foo=bar&oss.asize&foo=bar");
 }
 
-TEST(File, RejectsWriteToDirectoryKey) {
+TEST(FileTest, RejectsWriteToDirectoryKey) {
     Factory::SetEndpoint("s3.amazonaws.com");
     Factory::SetUrlStyle("path");
     XrdClS3::File file(XrdCl::DefaultEnv::GetLog());

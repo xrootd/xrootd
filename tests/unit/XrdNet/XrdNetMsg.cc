@@ -68,7 +68,7 @@ public:
 // XrdNet gives a UDP socket a 32 KiB send buffer. On some systems, such as
 // macOS, a larger datagram then fails with EMSGSIZE. A monitor buffer can be
 // as large as the largest UDP payload, so XrdNetMsg must send it.
-TEST(XrdNetMsg, SendsTheLargestUdpPayload)
+TEST(MsgTest, SendsTheLargestUdpPayload)
 {
   Receiver rcv;
   ASSERT_GT(rcv.port, 0) << "no loopback UDP socket";

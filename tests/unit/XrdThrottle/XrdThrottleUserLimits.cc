@@ -10,7 +10,7 @@
 #include <string>
 #include <unistd.h>
 
-class XrdThrottleUserLimitsTests : public ::testing::Test {
+class ManagerUserLimitsTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // Create a logger (using stderr for test output)
@@ -59,7 +59,7 @@ protected:
     XrdThrottleManager* m_manager;
 };
 
-TEST_F(XrdThrottleUserLimitsTests, LoadUserLimits_ValidConfig) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimits_ValidConfig) {
     std::string config_content = R"(
 [default]
 name = *
@@ -100,7 +100,7 @@ maxconn = 10
     RemoveTempFile(config_file);
 }
 
-TEST_F(XrdThrottleUserLimitsTests, LoadUserLimits_NoDefault) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimits_NoDefault) {
     std::string config_content = R"(
 [user1]
 name = user1
@@ -122,7 +122,7 @@ maxconn = 25
     RemoveTempFile(config_file);
 }
 
-TEST_F(XrdThrottleUserLimitsTests, LoadUserLimits_MissingName) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimits_MissingName) {
     std::string config_content = R"(
 [user1]
 maxconn = 25
@@ -140,7 +140,7 @@ maxconn = 25
     RemoveTempFile(config_file);
 }
 
-TEST_F(XrdThrottleUserLimitsTests, LoadUserLimits_InvalidMaxconn) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimits_InvalidMaxconn) {
     std::string config_content = R"(
 [user1]
 name = user1
@@ -164,12 +164,12 @@ maxconn = -5
     RemoveTempFile(config_file);
 }
 
-TEST_F(XrdThrottleUserLimitsTests, LoadUserLimits_NonexistentFile) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimits_NonexistentFile) {
     int result = m_manager->LoadUserLimits("/nonexistent/file.conf");
     EXPECT_NE(0, result) << "LoadUserLimits should fail for nonexistent file";
 }
 
-TEST_F(XrdThrottleUserLimitsTests, GetUserMaxConn_WildcardPriority) {
+TEST_F(ManagerUserLimitsTest, GetUserMaxConn_WildcardPriority) {
     std::string config_content = R"(
 [default]
 name = *
@@ -203,7 +203,7 @@ maxconn = 25
     RemoveTempFile(config_file);
 }
 
-TEST_F(XrdThrottleUserLimitsTests, ReloadUserLimits) {
+TEST_F(ManagerUserLimitsTest, ReloadUserLimits) {
     std::string config_content1 = R"(
 [user1]
 name = user1

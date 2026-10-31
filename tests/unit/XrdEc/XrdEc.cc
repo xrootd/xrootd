@@ -259,62 +259,65 @@ class XrdEcTests : public ::testing::Test
     std::vector<char> rawdata;
 };
 
-TEST_F(XrdEcTests, AlignedWriteTest)
+// XrdCl::ZipArchive and XrdEc::Reader name this fixture as a friend
+using EcTest = XrdEcTests;
+
+TEST_F(EcTest, AlignedWriteTest)
 {
   AlignedWriteTest();
 }
 
-TEST_F(XrdEcTests, SmallWriteTest)
+TEST_F(EcTest, SmallWriteTest)
 {
   SmallWriteTest();
 }
 
-TEST_F(XrdEcTests, BigWriteTest)
+TEST_F(EcTest, BigWriteTest)
 {
   BigWriteTest();
 }
 
-TEST_F(XrdEcTests, VectorReadTest)
+TEST_F(EcTest, VectorReadTest)
 {
   VectorReadTest();
 }
 
-TEST_F(XrdEcTests, IllegalVectorReadTest)
+TEST_F(EcTest, IllegalVectorReadTest)
 {
   IllegalVectorReadTest();
 }
 
-TEST_F(XrdEcTests, AlignedWrite1MissingTest)
+TEST_F(EcTest, AlignedWrite1MissingTest)
 {
   AlignedWrite1MissingTest();
 }
 
-TEST_F(XrdEcTests, AlignedWrite2MissingTest) 
+TEST_F(EcTest, AlignedWrite2MissingTest) 
 {
   AlignedWrite2MissingTest();
 }
 
-TEST_F(XrdEcTests, AlignedWriteTestIsalCrcNoMt)
+TEST_F(EcTest, AlignedWriteTestIsalCrcNoMt)
 {
   AlignedWriteTestIsalCrcNoMt();
 }
 
-TEST_F(XrdEcTests, SmallWriteTestIsalCrcNoMt)
+TEST_F(EcTest, SmallWriteTestIsalCrcNoMt)
 {
   SmallWriteTestIsalCrcNoMt();
 }
 
-TEST_F(XrdEcTests, BigWriteTestIsalCrcNoMt)
+TEST_F(EcTest, BigWriteTestIsalCrcNoMt)
 {
   BigWriteTestIsalCrcNoMt();
 }
 
-TEST_F(XrdEcTests, AlignedWrite1MissingTestIsalCrcNoMt)
+TEST_F(EcTest, AlignedWrite1MissingTestIsalCrcNoMt)
 {
   AlignedWrite1MissingTestIsalCrcNoMt();
 }
 
-TEST_F(XrdEcTests, AlignedWrite2MissingTestIsalCrcNoMt)
+TEST_F(EcTest, AlignedWrite2MissingTestIsalCrcNoMt)
 {
   AlignedWrite2MissingTestIsalCrcNoMt();
 }

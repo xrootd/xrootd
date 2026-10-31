@@ -12,7 +12,7 @@ using testing::SizeIs;
 
 namespace {
 
-class AppendMissing : public HeaderBuilderFixture {};
+class HeaderBuilderAppendMissingTest : public HeaderBuilderFixture {};
 
 } // namespace
 
@@ -22,7 +22,7 @@ class AppendMissing : public HeaderBuilderFixture {};
 
 // A requested header must never displace one the request set for itself; a
 // requested Range would otherwise corrupt a read.
-TEST_F(AppendMissing, ARequestHeaderIsNotDisplaced)
+TEST_F(HeaderBuilderAppendMissingTest, ARequestHeaderIsNotDisplaced)
 {
     headers.emplace_back("Range", "bytes=0-1023");
 
@@ -31,7 +31,7 @@ TEST_F(AppendMissing, ARequestHeaderIsNotDisplaced)
 }
 
 // Only one Range must be present, or curl would send both.
-TEST_F(AppendMissing, ARequestHeaderIsNotDuplicated)
+TEST_F(HeaderBuilderAppendMissingTest, ARequestHeaderIsNotDuplicated)
 {
     headers.emplace_back("Range", "bytes=0-1023");
 
@@ -40,7 +40,7 @@ TEST_F(AppendMissing, ARequestHeaderIsNotDuplicated)
 }
 
 // Dropping the duplicate must not cost the other entries their place.
-TEST_F(AppendMissing, ADroppedDuplicateStillLeavesTheOtherEntries)
+TEST_F(HeaderBuilderAppendMissingTest, ADroppedDuplicateStillLeavesTheOtherEntries)
 {
     headers.emplace_back("Range", "bytes=0-1023");
 
@@ -48,7 +48,7 @@ TEST_F(AppendMissing, ADroppedDuplicateStillLeavesTheOtherEntries)
     EXPECT_THAT(headers, Contains(Pair("X-Test-Header", "value")));
 }
 
-TEST_F(AppendMissing, ADuplicateDifferingInCaseIsNotAdded)
+TEST_F(HeaderBuilderAppendMissingTest, ADuplicateDifferingInCaseIsNotAdded)
 {
     headers.emplace_back("X-Test", "original");
 
@@ -56,7 +56,7 @@ TEST_F(AppendMissing, ADuplicateDifferingInCaseIsNotAdded)
     EXPECT_THAT(headers, SizeIs(1));
 }
 
-TEST_F(AppendMissing, ADuplicateDifferingInCaseKeepsTheRequestValue)
+TEST_F(HeaderBuilderAppendMissingTest, ADuplicateDifferingInCaseKeepsTheRequestValue)
 {
     headers.emplace_back("X-Test", "original");
 
@@ -64,7 +64,7 @@ TEST_F(AppendMissing, ADuplicateDifferingInCaseKeepsTheRequestValue)
     EXPECT_THAT(headers, Contains(Pair("X-Test", "original")));
 }
 
-TEST_F(AppendMissing, AnUnrelatedNameIsAppended)
+TEST_F(HeaderBuilderAppendMissingTest, AnUnrelatedNameIsAppended)
 {
     headers.emplace_back("Range", "bytes=0-1023");
 
@@ -73,7 +73,7 @@ TEST_F(AppendMissing, AnUnrelatedNameIsAppended)
                                      Pair("X-Test-Header", "value")));
 }
 
-TEST_F(AppendMissing, NothingToAppendLeavesTheHeadersUnchanged)
+TEST_F(HeaderBuilderAppendMissingTest, NothingToAppendLeavesTheHeadersUnchanged)
 {
     headers.emplace_back("Range", "bytes=0-1023");
 

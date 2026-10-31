@@ -88,7 +88,7 @@ const size_t splitOff = 1237;  // An arbitrary interior split point
 // This test pins the definition of the crc32 digest to the zlib algorithm.
 // It fails if the algorithm changes.
 
-TEST(XrdCksCalccrc32Test, FinalIsBigEndianZlibCrc32)
+TEST(Calccrc32Test, FinalIsBigEndianZlibCrc32)
 {
    const std::vector<char> data = TestData(dataLen);
    const uint32_t expect = crc32(crc32(0L, Z_NULL, 0),
@@ -98,7 +98,7 @@ TEST(XrdCksCalccrc32Test, FinalIsBigEndianZlibCrc32)
    EXPECT_EQ(Bytes(calc.Calc(data.data(), data.size())), BigEndian(expect));
 }
 
-TEST(XrdCksCalccrc32Test, IsCombinable)
+TEST(Calccrc32Test, IsCombinable)
 {
    XrdCksCalccrc32 calc;
    int csSz = 0;
@@ -108,7 +108,7 @@ TEST(XrdCksCalccrc32Test, IsCombinable)
    EXPECT_EQ(csSz, 4);
 }
 
-TEST(XrdCksCalccrc32Test, CombineIntoCurrentMatchesWhole)
+TEST(Calccrc32Test, CombineIntoCurrentMatchesWhole)
 {
    const std::vector<char> data = TestData(dataLen);
    const size_t tailLen = data.size() - splitOff;
@@ -123,7 +123,7 @@ TEST(XrdCksCalccrc32Test, CombineIntoCurrentMatchesWhole)
    EXPECT_EQ(Bytes(head.Final()), expect);
 }
 
-TEST(XrdCksCalccrc32Test, CombineTwoMatchesWhole)
+TEST(Calccrc32Test, CombineTwoMatchesWhole)
 {
    const std::vector<char> data = TestData(dataLen);
    const size_t tailLen = data.size() - splitOff;
@@ -142,7 +142,7 @@ TEST(XrdCksCalccrc32Test, CombineTwoMatchesWhole)
 /*                             c r c 3 2 c                                    */
 /******************************************************************************/
 
-TEST(XrdCksCalccrc32CTest, FinalIsBigEndianCrc32C)
+TEST(Calccrc32CTest, FinalIsBigEndianCrc32C)
 {
    const std::vector<char> data = TestData(dataLen);
    const uint32_t expect = crc32c(0, data.data(), data.size());
@@ -151,7 +151,7 @@ TEST(XrdCksCalccrc32CTest, FinalIsBigEndianCrc32C)
    EXPECT_EQ(Bytes(calc.Calc(data.data(), data.size())), BigEndian(expect));
 }
 
-TEST(XrdCksCalccrc32CTest, IsCombinable)
+TEST(Calccrc32CTest, IsCombinable)
 {
    XrdCksCalccrc32C calc;
    int csSz = 0;
@@ -161,7 +161,7 @@ TEST(XrdCksCalccrc32CTest, IsCombinable)
    EXPECT_EQ(csSz, 4);
 }
 
-TEST(XrdCksCalccrc32CTest, CombineIntoCurrentMatchesWhole)
+TEST(Calccrc32CTest, CombineIntoCurrentMatchesWhole)
 {
    const std::vector<char> data = TestData(dataLen);
    const size_t tailLen = data.size() - splitOff;
@@ -176,7 +176,7 @@ TEST(XrdCksCalccrc32CTest, CombineIntoCurrentMatchesWhole)
    EXPECT_EQ(Bytes(head.Final()), expect);
 }
 
-TEST(XrdCksCalccrc32CTest, CombineTwoMatchesWhole)
+TEST(Calccrc32CTest, CombineTwoMatchesWhole)
 {
    const std::vector<char> data = TestData(dataLen);
    const size_t tailLen = data.size() - splitOff;
@@ -218,12 +218,12 @@ static void CombineThreeSegments()
    EXPECT_EQ(Bytes(calc.Final()), expect);
 }
 
-TEST(XrdCksCalccrc32Test,  CombineThreeSegments)
+TEST(Calccrc32Test,  CombineThreeSegments)
 {
    CombineThreeSegments<XrdCksCalccrc32>();
 }
 
-TEST(XrdCksCalccrc32CTest, CombineThreeSegments)
+TEST(Calccrc32CTest, CombineThreeSegments)
 {
    CombineThreeSegments<XrdCksCalccrc32C>();
 }

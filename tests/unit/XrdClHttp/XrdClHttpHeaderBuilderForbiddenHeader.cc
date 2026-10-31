@@ -8,127 +8,127 @@ using namespace XrdClHttp;
 /*                     I s F o r b i d d e n H e a d e r                      */
 /******************************************************************************/
 
-TEST(IsForbiddenHeader, ConnectionIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, ConnectionIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("connection"));
 }
 
-TEST(IsForbiddenHeader, ConnectionIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, ConnectionIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Connection"));
 }
 
-TEST(IsForbiddenHeader, ContentLengthIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, ContentLengthIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("content-length"));
 }
 
-TEST(IsForbiddenHeader, ContentLengthIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, ContentLengthIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Content-Length"));
 }
 
-TEST(IsForbiddenHeader, ExpectIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, ExpectIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("expect"));
 }
 
-TEST(IsForbiddenHeader, ExpectIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, ExpectIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Expect"));
 }
 
-TEST(IsForbiddenHeader, HostIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, HostIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("host"));
 }
 
-TEST(IsForbiddenHeader, HostIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, HostIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Host"));
 }
 
-TEST(IsForbiddenHeader, KeepAliveIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, KeepAliveIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("keep-alive"));
 }
 
-TEST(IsForbiddenHeader, KeepAliveIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, KeepAliveIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Keep-Alive"));
 }
 
-TEST(IsForbiddenHeader, ProxyAuthenticateIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, ProxyAuthenticateIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("proxy-authenticate"));
 }
 
-TEST(IsForbiddenHeader, ProxyAuthenticateIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, ProxyAuthenticateIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Proxy-Authenticate"));
 }
 
-TEST(IsForbiddenHeader, ProxyAuthorizationIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, ProxyAuthorizationIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("proxy-authorization"));
 }
 
-TEST(IsForbiddenHeader, ProxyAuthorizationIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, ProxyAuthorizationIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Proxy-Authorization"));
 }
 
-TEST(IsForbiddenHeader, ProxyConnectionIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, ProxyConnectionIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("proxy-connection"));
 }
 
-TEST(IsForbiddenHeader, ProxyConnectionIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, ProxyConnectionIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Proxy-Connection"));
 }
 
-TEST(IsForbiddenHeader, TeIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TeIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("te"));
 }
 
-TEST(IsForbiddenHeader, TeIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, TeIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TE"));
 }
 
-TEST(IsForbiddenHeader, TrailerIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TrailerIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("trailer"));
 }
 
-TEST(IsForbiddenHeader, TrailerIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, TrailerIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Trailer"));
 }
 
-TEST(IsForbiddenHeader, TransferEncodingIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferEncodingIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("transfer-encoding"));
 }
 
-TEST(IsForbiddenHeader, TransferEncodingIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferEncodingIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Transfer-Encoding"));
 }
 
-TEST(IsForbiddenHeader, UpgradeIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, UpgradeIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("upgrade"));
 }
 
-TEST(IsForbiddenHeader, UpgradeIsForbiddenWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, UpgradeIsForbiddenWhenCapitalized)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("Upgrade"));
 }
 
-TEST(IsForbiddenHeader, ACustomHeaderIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, ACustomHeaderIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("X-Test-Header"));
 }
@@ -136,22 +136,22 @@ TEST(IsForbiddenHeader, ACustomHeaderIsAllowed)
 // A user who holds a token has to be able to present it, so Authorization is
 // the caller's to set, on the near server and on the far one alike.
 
-TEST(IsForbiddenHeader, AuthorizationIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, AuthorizationIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("authorization"));
 }
 
-TEST(IsForbiddenHeader, AuthorizationIsAllowedWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, AuthorizationIsAllowedWhenCapitalized)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("Authorization"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderAuthorizationIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("transferheaderauthorization"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsAllowedWhenCapitalized)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderAuthorizationIsAllowedWhenCapitalized)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("TransferHeaderAuthorization"));
 }
@@ -159,87 +159,87 @@ TEST(IsForbiddenHeader, TransferHeaderAuthorizationIsAllowedWhenCapitalized)
 // The TransferHeader prefix aims a header at the far server of a third party
 // copy, and so must not let a forbidden header through.
 
-TEST(IsForbiddenHeader, TransferHeaderConnectionIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderConnectionIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderConnection"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderContentLengthIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderContentLengthIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderContent-Length"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderExpectIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderExpectIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderExpect"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderHostIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderHostIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderHost"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderKeepAliveIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderKeepAliveIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderKeep-Alive"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderProxyAuthenticateIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderProxyAuthenticateIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderProxy-Authenticate"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderProxyAuthorizationIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderProxyAuthorizationIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderProxy-Authorization"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderProxyConnectionIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderProxyConnectionIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderProxy-Connection"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderTeIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderTeIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTE"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderTrailerIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderTrailerIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTrailer"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderTransferEncodingIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderTransferEncodingIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTransfer-Encoding"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderUpgradeIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderUpgradeIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderUpgrade"));
 }
 
-TEST(IsForbiddenHeader, ARepeatedTransferHeaderPrefixOnAForbiddenNameIsForbidden)
+TEST(HeaderBuilderForbiddenHeaderTest, ARepeatedTransferHeaderPrefixOnAForbiddenNameIsForbidden)
 {
     EXPECT_TRUE(HeaderBuilder::IsForbiddenHeader("TransferHeaderTransferHeaderHost"));
 }
 
-TEST(IsForbiddenHeader, TransferHeaderOnACustomHeaderIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, TransferHeaderOnACustomHeaderIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("TransferHeaderX-Test-Header"));
 }
 
-TEST(IsForbiddenHeader, TheTransferHeaderPrefixAloneIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, TheTransferHeaderPrefixAloneIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("TransferHeader"));
 }
 
-TEST(IsForbiddenHeader, RangeIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, RangeIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("Range"));
 }
 
-TEST(IsForbiddenHeader, WantDigestIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, WantDigestIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("Want-Digest"));
 }
@@ -247,27 +247,27 @@ TEST(IsForbiddenHeader, WantDigestIsAllowed)
 // The match must be on the whole name; a header that merely contains a
 // forbidden one is perfectly legitimate.
 
-TEST(IsForbiddenHeader, ANameEndingInAForbiddenOneIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, ANameEndingInAForbiddenOneIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("X-Host"));
 }
 
-TEST(IsForbiddenHeader, ANameStartingWithAForbiddenOneIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, ANameStartingWithAForbiddenOneIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("Hostname"));
 }
 
-TEST(IsForbiddenHeader, ANameExtendingAForbiddenOneIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, ANameExtendingAForbiddenOneIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("Content-Length-Hint"));
 }
 
-TEST(IsForbiddenHeader, ANamePrefixingAForbiddenOneIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, ANamePrefixingAForbiddenOneIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader("Not-Connection"));
 }
 
-TEST(IsForbiddenHeader, AnEmptyNameIsAllowed)
+TEST(HeaderBuilderForbiddenHeaderTest, AnEmptyNameIsAllowed)
 {
     EXPECT_FALSE(HeaderBuilder::IsForbiddenHeader(""));
 }

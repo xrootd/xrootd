@@ -11,9 +11,9 @@
 
 using namespace testing;
 
-class XrdHttpTpcTests : public Test {};
+class UtilsTest : public Test {};
 
-TEST(XrdHttpTpcTests, prepareOpenURLTest) {
+TEST(UtilsTest, prepareOpenURLTest) {
   std::string resource = "/eos/test/file.txt";
   std::map<std::string,std::string> empty {};
   {

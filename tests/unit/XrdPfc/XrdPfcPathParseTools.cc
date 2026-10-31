@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-class PathParseToolTest : public ::testing::Test {
+class PathParseToolsTest : public ::testing::Test {
 protected:
     std::vector<std::string> dirs { "vultures", "nest", "quite", "high", "in", "a",
                                     "directory", "tree" };
@@ -17,7 +17,7 @@ protected:
 
 using namespace XrdPfc;
 
-TEST_F(PathParseToolTest, SplitParser)
+TEST_F(PathParseToolsTest, SplitParser)
 {
     for (int i = 0; i < n_dirs; ++i)
     {
@@ -33,7 +33,7 @@ TEST_F(PathParseToolTest, SplitParser)
     }
 }
 
-TEST_F(PathParseToolTest, PathTokenizer)
+TEST_F(PathParseToolsTest, PathTokenizer)
 {
     int  max_depth;
     bool parse_as_lfn;

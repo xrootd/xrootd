@@ -230,7 +230,7 @@ TEST_F(MonFileTest, RedirectPathEndsWithANullByte)
 }
 
 // CopyText() truncates the text so that it and its null byte fit the room
-TEST(MonCopyText, TruncatesToTheRoom)
+TEST(MonitorCopyTextTest, TruncatesToTheRoom)
 {
   char buff[8];
   EXPECT_EQ(XrdXrootdMonitor::CopyText(buff, 4, "abcdefghij", 10), 3);
@@ -238,7 +238,7 @@ TEST(MonCopyText, TruncatesToTheRoom)
 }
 
 // CopyText() copies only the length that the caller gives
-TEST(MonCopyText, CopiesTheGivenLength)
+TEST(MonitorCopyTextTest, CopiesTheGivenLength)
 {
   char buff[8];
   EXPECT_EQ(XrdXrootdMonitor::CopyText(buff, sizeof(buff), "abcdefghij", 2), 2);
@@ -246,7 +246,7 @@ TEST(MonCopyText, CopiesTheGivenLength)
 }
 
 // CopyText() fills the rest of the room with null bytes
-TEST(MonCopyText, NullPadsTheRoom)
+TEST(MonitorCopyTextTest, NullPadsTheRoom)
 {
   char buff[16];
   memset(buff, 'x', sizeof(buff));

@@ -22,7 +22,7 @@ size_t FamilySize(XrdNetAddr &addr)
 // with getaddrinfo(). Without SetIPV4() or SetIPV6(), the resolver can give an
 // IPv4 address. Its size must not be the size of an IPv6 address, as macOS
 // then rejects it in connect() and bind() with EINVAL.
-TEST(XrdNetAddr, AddressWithAPortHasTheSizeOfItsFamily)
+TEST(AddrTest, AddressWithAPortHasTheSizeOfItsFamily)
 {
   XrdNetAddr addr;
   ASSERT_EQ(addr.Set("127.0.0.1:1094"), nullptr);
@@ -30,7 +30,7 @@ TEST(XrdNetAddr, AddressWithAPortHasTheSizeOfItsFamily)
 }
 
 // The same applies to a host name
-TEST(XrdNetAddr, HostNameHasTheSizeOfItsFamily)
+TEST(AddrTest, HostNameHasTheSizeOfItsFamily)
 {
   XrdNetAddr addr;
   ASSERT_EQ(addr.Set("localhost:1094"), nullptr);

@@ -65,7 +65,7 @@ double Now()
 // A lost timer wakeup leaves the timer thread asleep until its wait expires,
 // and no timed job runs meanwhile. With nothing else queued here but the
 // idle-worker check, that wait is long, so a gap of a few seconds is the bug.
-TEST(XrdScheduler, TimedJobsKeepRunning)
+TEST(SchedulerTest, TimedJobsKeepRunning)
 {
    const double duration = 10, maxGap = 3;
 

@@ -14,9 +14,9 @@
 
 #include <gtest/gtest.h>
 
-class XrdOucUtilsTests : public ::testing::Test {};
+class UtilsTest : public ::testing::Test {};
 
-TEST(XrdOucUtilsTests, JoinUrl)
+TEST(UtilsTest, JoinUrl)
 {
   EXPECT_EQ(XrdOucUtils::JoinUrl("https://example.org", "/api/v1"),
             "https://example.org/api/v1");
@@ -29,7 +29,7 @@ TEST(XrdOucUtilsTests, JoinUrl)
             "https://example.org");
 }
 
-TEST(XrdOucUtilsTests, NormalizePath)
+TEST(UtilsTest, NormalizePath)
 {
   EXPECT_EQ(XrdOucUtils::NormalizePath("/foo/bar"), "/foo/bar");
   EXPECT_EQ(XrdOucUtils::NormalizePath("//foo////bar"), "/foo/bar");
@@ -41,7 +41,7 @@ TEST(XrdOucUtilsTests, NormalizePath)
   EXPECT_EQ(XrdOucUtils::NormalizePath(""), "");
 }
 
-TEST(XrdOucUtilsTests, ToUint8)
+TEST(UtilsTest, ToUint8)
 {
   EXPECT_EQ(XrdOucUtils::touint8_t("0"), 0);
   EXPECT_EQ(XrdOucUtils::touint8_t("255"), 255);
@@ -182,7 +182,7 @@ static const std::string authz_headers[] = {
 
 /* Check that plain URLs not containing a token remain intact */
 
-TEST(XrdOucUtilsTests, RedactToken_PlainURLs)
+TEST(UtilsTest, RedactToken_PlainURLs)
 {
   for (std::string str : plain_urls)
     ASSERT_EQ(str, obfuscateAuth(str));
@@ -202,7 +202,7 @@ TEST(XrdOucUtilsTests, RedactToken_PlainURLs)
  * only that the word "REDACTED" appears in the output.
  */
 
-TEST(XrdOucUtilsTests, RedactToken_AuthzCGI_EmptyToken)
+TEST(UtilsTest, RedactToken_AuthzCGI_EmptyToken)
 {
   for (std::string authz : authz_strings) {
     for (std::string prefix : token_prefixes) {
@@ -224,7 +224,7 @@ TEST(XrdOucUtilsTests, RedactToken_AuthzCGI_EmptyToken)
   }
 }
 
-TEST(XrdOucUtilsTests, RedactToken_AuthzCGI_ValidToken)
+TEST(UtilsTest, RedactToken_AuthzCGI_ValidToken)
 {
   size_t pos = 0;
   for (std::string authz : authz_strings) {
@@ -259,7 +259,7 @@ TEST(XrdOucUtilsTests, RedactToken_AuthzCGI_ValidToken)
   }
 }
 
-TEST(XrdOucUtilsTests, StripToken_AuthzCGI)
+TEST(UtilsTest, StripToken_AuthzCGI)
 {
   size_t pos = 0;
   for (std::string authz : authz_strings) {
@@ -319,7 +319,7 @@ TEST(XrdOucUtilsTests, StripToken_AuthzCGI)
   }
 }
 
-TEST(XrdOucUtilsTests, RedactToken_AuthHeader)
+TEST(UtilsTest, RedactToken_AuthHeader)
 {
   size_t pos = 0;
   for (std::string header : authz_headers) {
@@ -354,7 +354,7 @@ TEST(XrdOucUtilsTests, RedactToken_AuthHeader)
   }
 }
 
-TEST(XrdOucUtilsTests, caseInsensitiveFind) {
+TEST(UtilsTest, caseInsensitiveFind) {
   {
     std::map<std::string, std::string> map;
     ASSERT_EQ(map.end(), XrdOucTUtils::caseInsensitiveFind(map, "test"));
@@ -370,7 +370,7 @@ TEST(XrdOucUtilsTests, caseInsensitiveFind) {
   }
 }
 
-TEST(XrdOucUtilsTests, hex2bin)
+TEST(UtilsTest, hex2bin)
 {
   struct testcase {
     const char *input;
@@ -427,7 +427,7 @@ static const std::map<uint64_t,std::string> size_to_human = {
 };
 
 
-TEST(XrdOucUtilsTests, genHumanSizeTest) {
+TEST(UtilsTest, genHumanSizeTest) {
   for (const auto & sizeToHuman: size_to_human) {
     ASSERT_EQ(sizeToHuman.second,XrdOucUtils::genHumanSize(sizeToHuman.first,1024));
   }
@@ -451,7 +451,7 @@ static const std::array split_host_cgi_cases = {
   splitHostCgiCase{ "",                              "",                 ""              }
 };
 
-TEST(XrdOucUtilsTests, splitHostCgi) {
+TEST(UtilsTest, splitHostCgi) {
   for (const auto & t : split_host_cgi_cases) {
     std::string host;
     std::string cgi;

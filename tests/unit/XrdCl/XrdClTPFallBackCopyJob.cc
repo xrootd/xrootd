@@ -32,7 +32,7 @@ public:
   MOCK_METHOD(void, JobProgress, (uint32_t, uint64_t, uint64_t), (override));
 };
 
-class TPFallBackCopyJobFixture : public testing::Test
+class TPFallBackCopyJobTest : public testing::Test
 {
 protected:
     // Arbitrary values. They show that the job returns the plug-in status.
@@ -46,7 +46,7 @@ protected:
     PropertyList results;
     TPFallBackCopyJob job;
 
-    TPFallBackCopyJobFixture() :
+    TPFallBackCopyJobTest() :
         factory(new NiceMock<MockFactory>),
         plugin_filesystem(new NiceMock<MockPluginFileSystem>),
         job(0, &properties, &results)
@@ -97,7 +97,7 @@ protected:
     }
 };
 
-TEST_F(TPFallBackCopyJobFixture, RootProtocolCreatesNoPlugInFileSystem)
+TEST_F(TPFallBackCopyJobTest, RootProtocolCreatesNoPlugInFileSystem)
 {
     Mock::AllowLeak(plugin_filesystem);
 
@@ -110,7 +110,7 @@ TEST_F(TPFallBackCopyJobFixture, RootProtocolCreatesNoPlugInFileSystem)
     job.Run();
 }
 
-TEST_F(TPFallBackCopyJobFixture, RootProtocolDoesNotReturnErrNotSupported)
+TEST_F(TPFallBackCopyJobTest, RootProtocolDoesNotReturnErrNotSupported)
 {
     Mock::AllowLeak(plugin_filesystem);
 
@@ -122,7 +122,7 @@ TEST_F(TPFallBackCopyJobFixture, RootProtocolDoesNotReturnErrNotSupported)
     ASSERT_NE(status.code, errNotSupported);
 }
 
-TEST_F(TPFallBackCopyJobFixture, UnregisteredProtocolCreatesNoPlugInFileSystem)
+TEST_F(TPFallBackCopyJobTest, UnregisteredProtocolCreatesNoPlugInFileSystem)
 {
     Mock::AllowLeak(plugin_filesystem);
 
@@ -134,7 +134,7 @@ TEST_F(TPFallBackCopyJobFixture, UnregisteredProtocolCreatesNoPlugInFileSystem)
     job.Run();
 }
 
-TEST_F(TPFallBackCopyJobFixture, UnregisteredProtocolReturnsErrNotSupported)
+TEST_F(TPFallBackCopyJobTest, UnregisteredProtocolReturnsErrNotSupported)
 {
     Mock::AllowLeak(plugin_filesystem);
 
@@ -146,28 +146,28 @@ TEST_F(TPFallBackCopyJobFixture, UnregisteredProtocolReturnsErrNotSupported)
     ASSERT_EQ(status.code, errNotSupported);
 }
 
-TEST_F(TPFallBackCopyJobFixture, RegisteredProtocolCreatesThePlugInFileSystemForTheSourceUrl)
+TEST_F(TPFallBackCopyJobTest, RegisteredProtocolCreatesThePlugInFileSystemForTheSourceUrl)
 {
     EXPECT_CALL(*factory, CreateFileSystem("mock://unresolvable:1094//src")).Times(1);
 
     job.Run();
 }
 
-TEST_F(TPFallBackCopyJobFixture, RegisteredProtocolCallsThirdPartyCopyWithTheSourceAndTargetUrls)
+TEST_F(TPFallBackCopyJobTest, RegisteredProtocolCallsThirdPartyCopyWithTheSourceAndTargetUrls)
 {
     EXPECT_CALL(*plugin_filesystem, ThirdPartyCopy("mock://unresolvable:1094//src", "mock://unresolvable:1094//dst", _, _, _)).Times(1);
 
     job.Run();
 }
 
-TEST_F(TPFallBackCopyJobFixture, RegisteredProtocolReturnsTheStatusOfThirdPartyCopy)
+TEST_F(TPFallBackCopyJobTest, RegisteredProtocolReturnsTheStatusOfThirdPartyCopy)
 {
     XRootDStatus status = job.Run();
     ASSERT_EQ(status.status, plugin_status);
     ASSERT_EQ(status.code, plugin_code);
 }
 
-TEST_F(TPFallBackCopyJobFixture, ProgressHandlerReceivesTheProgressOfThirdPartyCopy)
+TEST_F(TPFallBackCopyJobTest, ProgressHandlerReceivesTheProgressOfThirdPartyCopy)
 {
     MockCopyProgressHandler progress_handler;
     EXPECT_CALL(progress_handler, JobProgress(0, 1, 2)).Times(1);
@@ -182,7 +182,7 @@ TEST_F(TPFallBackCopyJobFixture, ProgressHandlerReceivesTheProgressOfThirdPartyC
     job.Run(&progress_handler);
 }
 
-TEST_F(TPFallBackCopyJobFixture, ProgressHandlerReceivesTheLastKnownTotalWhenThirdPartyCopyOmitsIt)
+TEST_F(TPFallBackCopyJobTest, ProgressHandlerReceivesTheLastKnownTotalWhenThirdPartyCopyOmitsIt)
 {
     MockCopyProgressHandler progress_handler;
     EXPECT_CALL(progress_handler, JobProgress(_, _, _)).Times(1);
@@ -199,14 +199,14 @@ TEST_F(TPFallBackCopyJobFixture, ProgressHandlerReceivesTheLastKnownTotalWhenThi
     job.Run(&progress_handler);
 }
 
-TEST_F(TPFallBackCopyJobFixture, ThirdPartyCopyReceivesNoProgressHandlerWhenTheJobRunsWithoutOne)
+TEST_F(TPFallBackCopyJobTest, ThirdPartyCopyReceivesNoProgressHandlerWhenTheJobRunsWithoutOne)
 {
     EXPECT_CALL(*plugin_filesystem, ThirdPartyCopy(_, _, _, IsNull(), _)).Times(1);
 
     job.Run();
 }
 
-TEST_F(TPFallBackCopyJobFixture, FallBackDisabledDoesNotFallBackWhenThirdPartyCopyReturnsErrNotImplemented)
+TEST_F(TPFallBackCopyJobTest, FallBackDisabledDoesNotFallBackWhenThirdPartyCopyReturnsErrNotImplemented)
 {
     ON_CALL(*plugin_filesystem, ThirdPartyCopy(_, _, _, _, _)).WillByDefault(Return(XRootDStatus{stError, errNotImplemented}));
 
@@ -217,7 +217,7 @@ TEST_F(TPFallBackCopyJobFixture, FallBackDisabledDoesNotFallBackWhenThirdPartyCo
     ASSERT_EQ(status.code, errNotImplemented);
 }
 
-TEST_F(TPFallBackCopyJobFixture, FallBackEnabledFallsBackToStreamingWhenThirdPartyCopyReturnsErrNotImplemented)
+TEST_F(TPFallBackCopyJobTest, FallBackEnabledFallsBackToStreamingWhenThirdPartyCopyReturnsErrNotImplemented)
 {
     properties.Set("thirdParty", "first");
 
@@ -228,7 +228,7 @@ TEST_F(TPFallBackCopyJobFixture, FallBackEnabledFallsBackToStreamingWhenThirdPar
     job.Run();
 }
 
-TEST_F(TPFallBackCopyJobFixture, FallBackEnabledFallsBackToStreamingWhenThirdPartyCopyReturnsErrOperationExpired)
+TEST_F(TPFallBackCopyJobTest, FallBackEnabledFallsBackToStreamingWhenThirdPartyCopyReturnsErrOperationExpired)
 {
     properties.Set("thirdParty", "first");
 
@@ -239,7 +239,7 @@ TEST_F(TPFallBackCopyJobFixture, FallBackEnabledFallsBackToStreamingWhenThirdPar
     job.Run();
 }
 
-TEST_F(TPFallBackCopyJobFixture, FallBackEnabledDoesNotFallBackWhenThirdPartyCopyReturnsAnUnrelatedError)
+TEST_F(TPFallBackCopyJobTest, FallBackEnabledDoesNotFallBackWhenThirdPartyCopyReturnsAnUnrelatedError)
 {
     properties.Set("thirdParty", "first");
 

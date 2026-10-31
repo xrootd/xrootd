@@ -13,7 +13,7 @@ using testing::Pair;
 
 namespace {
 
-class HeaderParsing : public HeaderBuilderFixture {};
+class HeaderBuilderParsingTest : public HeaderBuilderFixture {};
 
 } // namespace
 
@@ -21,7 +21,7 @@ class HeaderParsing : public HeaderBuilderFixture {};
 /*                      B u i l d :  p a r s i n g                            */
 /******************************************************************************/
 
-TEST_F(HeaderParsing, ARequestedHeaderIsAdded)
+TEST_F(HeaderBuilderParsingTest, ARequestedHeaderIsAdded)
 {
     const std::string spec{"X-Test-Header: value"};
 
@@ -32,7 +32,7 @@ TEST_F(HeaderParsing, ARequestedHeaderIsAdded)
 // A user who holds a token has to be able to present it, so an Authorization
 // entry is built like any other, for the near server and for the far one.
 
-TEST_F(HeaderParsing, AnAuthorizationEntryIsAdded)
+TEST_F(HeaderBuilderParsingTest, AnAuthorizationEntryIsAdded)
 {
     const std::string spec{"Authorization: Bearer token"};
 
@@ -40,7 +40,7 @@ TEST_F(HeaderParsing, AnAuthorizationEntryIsAdded)
     EXPECT_THAT(headers, ElementsAre(Pair("Authorization", "Bearer token")));
 }
 
-TEST_F(HeaderParsing, ATransferHeaderAuthorizationEntryIsAdded)
+TEST_F(HeaderBuilderParsingTest, ATransferHeaderAuthorizationEntryIsAdded)
 {
     const std::string spec{"TransferHeaderAuthorization: Bearer token"};
 
@@ -49,7 +49,7 @@ TEST_F(HeaderParsing, ATransferHeaderAuthorizationEntryIsAdded)
         ElementsAre(Pair("TransferHeaderAuthorization", "Bearer token")));
 }
 
-TEST_F(HeaderParsing, TheColonNeedNotBeFollowedByASpace)
+TEST_F(HeaderBuilderParsingTest, TheColonNeedNotBeFollowedByASpace)
 {
     const std::string spec{"X-Test:value"};
 
@@ -57,7 +57,7 @@ TEST_F(HeaderParsing, TheColonNeedNotBeFollowedByASpace)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
-TEST_F(HeaderParsing, WhitespaceBeforeTheNameIsTrimmed)
+TEST_F(HeaderBuilderParsingTest, WhitespaceBeforeTheNameIsTrimmed)
 {
     const std::string spec{" \t X-Test: value"};
 
@@ -65,7 +65,7 @@ TEST_F(HeaderParsing, WhitespaceBeforeTheNameIsTrimmed)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
-TEST_F(HeaderParsing, WhitespaceAfterTheNameIsTrimmed)
+TEST_F(HeaderBuilderParsingTest, WhitespaceAfterTheNameIsTrimmed)
 {
     const std::string spec{"X-Test \t : value"};
 
@@ -73,7 +73,7 @@ TEST_F(HeaderParsing, WhitespaceAfterTheNameIsTrimmed)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
-TEST_F(HeaderParsing, WhitespaceBeforeTheValueIsTrimmed)
+TEST_F(HeaderBuilderParsingTest, WhitespaceBeforeTheValueIsTrimmed)
 {
     const std::string spec{"X-Test: \t value"};
 
@@ -81,7 +81,7 @@ TEST_F(HeaderParsing, WhitespaceBeforeTheValueIsTrimmed)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "value")));
 }
 
-TEST_F(HeaderParsing, WhitespaceAfterTheValueIsTrimmed)
+TEST_F(HeaderBuilderParsingTest, WhitespaceAfterTheValueIsTrimmed)
 {
     const std::string spec{"X-Test: value \t "};
 
@@ -90,7 +90,7 @@ TEST_F(HeaderParsing, WhitespaceAfterTheValueIsTrimmed)
 }
 
 // Only the first colon separates, so the rest of the entry is the value.
-TEST_F(HeaderParsing, AValueMayContainAColon)
+TEST_F(HeaderBuilderParsingTest, AValueMayContainAColon)
 {
     const std::string spec{"X-Test: a:b"};
 
@@ -98,7 +98,7 @@ TEST_F(HeaderParsing, AValueMayContainAColon)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Test", "a:b")));
 }
 
-TEST_F(HeaderParsing, AValueMayContainASpace)
+TEST_F(HeaderBuilderParsingTest, AValueMayContainASpace)
 {
     const std::string spec{"X-Test: a b"};
 
@@ -108,7 +108,7 @@ TEST_F(HeaderParsing, AValueMayContainASpace)
 
 // A name is an RFC 7230 token, so each of the characters below belongs in one.
 
-TEST_F(HeaderParsing, ADigitIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, ADigitIsAcceptedInAName)
 {
     const std::string spec{"X1Y: value"};
 
@@ -116,7 +116,7 @@ TEST_F(HeaderParsing, ADigitIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X1Y", "value")));
 }
 
-TEST_F(HeaderParsing, AnExclamationMarkIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AnExclamationMarkIsAcceptedInAName)
 {
     const std::string spec{"X!Y: value"};
 
@@ -124,7 +124,7 @@ TEST_F(HeaderParsing, AnExclamationMarkIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X!Y", "value")));
 }
 
-TEST_F(HeaderParsing, AHashIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AHashIsAcceptedInAName)
 {
     const std::string spec{"X#Y: value"};
 
@@ -132,7 +132,7 @@ TEST_F(HeaderParsing, AHashIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X#Y", "value")));
 }
 
-TEST_F(HeaderParsing, ADollarSignIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, ADollarSignIsAcceptedInAName)
 {
     const std::string spec{"X$Y: value"};
 
@@ -140,7 +140,7 @@ TEST_F(HeaderParsing, ADollarSignIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X$Y", "value")));
 }
 
-TEST_F(HeaderParsing, APercentSignIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, APercentSignIsAcceptedInAName)
 {
     const std::string spec{"X%Y: value"};
 
@@ -148,7 +148,7 @@ TEST_F(HeaderParsing, APercentSignIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X%Y", "value")));
 }
 
-TEST_F(HeaderParsing, AnAmpersandIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AnAmpersandIsAcceptedInAName)
 {
     const std::string spec{"X&Y: value"};
 
@@ -156,7 +156,7 @@ TEST_F(HeaderParsing, AnAmpersandIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X&Y", "value")));
 }
 
-TEST_F(HeaderParsing, AnApostropheIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AnApostropheIsAcceptedInAName)
 {
     const std::string spec{"X'Y: value"};
 
@@ -164,7 +164,7 @@ TEST_F(HeaderParsing, AnApostropheIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X'Y", "value")));
 }
 
-TEST_F(HeaderParsing, AnAsteriskIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AnAsteriskIsAcceptedInAName)
 {
     const std::string spec{"X*Y: value"};
 
@@ -172,7 +172,7 @@ TEST_F(HeaderParsing, AnAsteriskIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X*Y", "value")));
 }
 
-TEST_F(HeaderParsing, APlusSignIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, APlusSignIsAcceptedInAName)
 {
     const std::string spec{"X+Y: value"};
 
@@ -180,7 +180,7 @@ TEST_F(HeaderParsing, APlusSignIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X+Y", "value")));
 }
 
-TEST_F(HeaderParsing, AHyphenIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AHyphenIsAcceptedInAName)
 {
     const std::string spec{"X-Y: value"};
 
@@ -188,7 +188,7 @@ TEST_F(HeaderParsing, AHyphenIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X-Y", "value")));
 }
 
-TEST_F(HeaderParsing, APeriodIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, APeriodIsAcceptedInAName)
 {
     const std::string spec{"X.Y: value"};
 
@@ -196,7 +196,7 @@ TEST_F(HeaderParsing, APeriodIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X.Y", "value")));
 }
 
-TEST_F(HeaderParsing, ACaretIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, ACaretIsAcceptedInAName)
 {
     const std::string spec{"X^Y: value"};
 
@@ -204,7 +204,7 @@ TEST_F(HeaderParsing, ACaretIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X^Y", "value")));
 }
 
-TEST_F(HeaderParsing, AnUnderscoreIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AnUnderscoreIsAcceptedInAName)
 {
     const std::string spec{"X_Y: value"};
 
@@ -212,7 +212,7 @@ TEST_F(HeaderParsing, AnUnderscoreIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X_Y", "value")));
 }
 
-TEST_F(HeaderParsing, ABackquoteIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, ABackquoteIsAcceptedInAName)
 {
     const std::string spec{"X`Y: value"};
 
@@ -220,7 +220,7 @@ TEST_F(HeaderParsing, ABackquoteIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X`Y", "value")));
 }
 
-TEST_F(HeaderParsing, AVerticalBarIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, AVerticalBarIsAcceptedInAName)
 {
     const std::string spec{"X|Y: value"};
 
@@ -228,7 +228,7 @@ TEST_F(HeaderParsing, AVerticalBarIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X|Y", "value")));
 }
 
-TEST_F(HeaderParsing, ATildeIsAcceptedInAName)
+TEST_F(HeaderBuilderParsingTest, ATildeIsAcceptedInAName)
 {
     const std::string spec{"X~Y: value"};
 
@@ -236,7 +236,7 @@ TEST_F(HeaderParsing, ATildeIsAcceptedInAName)
     EXPECT_THAT(headers, ElementsAre(Pair("X~Y", "value")));
 }
 
-TEST_F(HeaderParsing, AnEmptySpecificationYieldsNoHeaders)
+TEST_F(HeaderBuilderParsingTest, AnEmptySpecificationYieldsNoHeaders)
 {
     const std::string spec{""};
 
@@ -248,28 +248,28 @@ TEST_F(HeaderParsing, AnEmptySpecificationYieldsNoHeaders)
 /*                B u i l d :  m a l f o r m e d  e n t r y                   */
 /******************************************************************************/
 
-TEST_F(HeaderParsing, AnEntryWithoutAColonIsRejected)
+TEST_F(HeaderBuilderParsingTest, AnEntryWithoutAColonIsRejected)
 {
     const std::string spec{"nocolon"};
 
     EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
-TEST_F(HeaderParsing, AnEntryWithoutANameIsRejected)
+TEST_F(HeaderBuilderParsingTest, AnEntryWithoutANameIsRejected)
 {
     const std::string spec{": value"};
 
     EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
-TEST_F(HeaderParsing, AnEntryWithoutAValueIsRejected)
+TEST_F(HeaderBuilderParsingTest, AnEntryWithoutAValueIsRejected)
 {
     const std::string spec{"X-Test:"};
 
     EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
-TEST_F(HeaderParsing, AnEntryWithABlankValueIsRejected)
+TEST_F(HeaderBuilderParsingTest, AnEntryWithABlankValueIsRejected)
 {
     const std::string spec{"X-Test:   "};
 
@@ -278,28 +278,28 @@ TEST_F(HeaderParsing, AnEntryWithABlankValueIsRejected)
 
 // A name is an RFC 7230 token, so none of the characters below belongs in one.
 
-TEST_F(HeaderParsing, ASpaceIsRejectedInAName)
+TEST_F(HeaderBuilderParsingTest, ASpaceIsRejectedInAName)
 {
     const std::string spec{"X Y: value"};
 
     EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
-TEST_F(HeaderParsing, ATabIsRejectedInAName)
+TEST_F(HeaderBuilderParsingTest, ATabIsRejectedInAName)
 {
     const std::string spec{"X\tY: value"};
 
     EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
-TEST_F(HeaderParsing, AParenthesisIsRejectedInAName)
+TEST_F(HeaderBuilderParsingTest, AParenthesisIsRejectedInAName)
 {
     const std::string spec{"X(Y: value"};
 
     EXPECT_FALSE(HeaderBuilder::Build(spec, headers));
 }
 
-TEST_F(HeaderParsing, AQuoteIsRejectedInAName)
+TEST_F(HeaderBuilderParsingTest, AQuoteIsRejectedInAName)
 {
     const std::string spec{"X\"Y: value"};
 
@@ -308,7 +308,7 @@ TEST_F(HeaderParsing, AQuoteIsRejectedInAName)
 
 // Rejection must not leave a half-built list behind for a caller that ignores
 // the return value.
-TEST_F(HeaderParsing, RejectionYieldsNoRequestedHeaders)
+TEST_F(HeaderBuilderParsingTest, RejectionYieldsNoRequestedHeaders)
 {
     const std::string spec{"X-Good: value\nnocolon"};
 
