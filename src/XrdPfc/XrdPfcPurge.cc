@@ -1,4 +1,5 @@
 #include "XrdPfc.hh"
+#include "XrdPfcInfo.hh"
 #include "XrdPfcDirStatePurgeshot.hh"
 #include "XrdPfcResourceMonitor.hh"
 #include "XrdPfcFPurgeState.hh"

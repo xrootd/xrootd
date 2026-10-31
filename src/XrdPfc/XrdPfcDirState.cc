@@ -6,6 +6,17 @@
 
 using namespace XrdPfc;
 
+namespace
+{
+void update_usage_from_stats(DirUsage &u, const DirStats &s)
+{
+   u.m_StBlocks     += s.m_StBlocksAdded       - s.m_StBlocksRemoved;
+   u.m_NFilesOpen   += s.m_NFilesOpened        - s.m_NFilesClosed;
+   u.m_NFiles       += s.m_NFilesCreated       - s.m_NFilesRemoved;
+   u.m_NDirectories += s.m_NDirectoriesCreated - s.m_NDirectoriesRemoved;
+}
+}
+
 //----------------------------------------------------------------------------
 //! Constructor
 //----------------------------------------------------------------------------
@@ -188,8 +199,8 @@ void DirState::update_stats_and_usages(std::vector<DirState*> *reap_candidates)
    m_sshot_stats.AddUp(m_here_stats);
 
    // Apply deltas / stats to usages.
-   m_here_usage.update_from_stats(m_here_stats);
-   m_recursive_subdir_usage.update_from_stats(m_recursive_subdir_stats);
+   update_usage_from_stats(m_here_usage, m_here_stats);
+   update_usage_from_stats(m_recursive_subdir_usage, m_recursive_subdir_stats);
 
    // Once we have m_report_stats and m_purge_stats, update them here.
 }
