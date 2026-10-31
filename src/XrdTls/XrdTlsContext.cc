@@ -378,6 +378,38 @@ const char *sslCiphers = "ECDHE-ECDSA-AES128-GCM-SHA256:"
                          "DHE-RSA-AES128-GCM-SHA256:"
                          "DHE-RSA-AES256-GCM-SHA384";
 
+#if OPENSSL_VERSION_NUMBER >= 0x40000000L
+// Signature algorithms that a server sends in a TLS 1.3 CertificateRequest.
+// The OpenSSL 4 default has 33 entries. LibreSSL 3.3 (e.g. macOS system curl)
+// rejects more than 32 entries with a decode_error alert, which breaks the
+// handshake even when the client has no certificate. This list is the OpenSSL
+// default without the SLH-DSA schemes. The "?" prefix skips names that the
+// OpenSSL build does not implement.
+//
+// The list has no SHA-1, SHA-224, or DSA schemes; the OpenSSL 3.5 default
+// does not send them either. The SLH-DSA schemes are not a loss in practice,
+// since their signatures are 8 to 50 KB and slow to make. The client key type
+// selects the scheme, so the order has no effect on performance.
+const char *sslClientSigAlgs = "?mldsa65:?mldsa87:?mldsa44:"
+                               "?ecdsa_secp256r1_sha256:"
+                               "?ecdsa_secp384r1_sha384:"
+                               "?ecdsa_secp521r1_sha512:"
+                               "?ed25519:?ed448:"
+                               "?ecdsa_brainpoolP256r1tls13_sha256:"
+                               "?ecdsa_brainpoolP384r1tls13_sha384:"
+                               "?ecdsa_brainpoolP512r1tls13_sha512:"
+                               "?rsa_pss_pss_sha256:"
+                               "?rsa_pss_pss_sha384:"
+                               "?rsa_pss_pss_sha512:"
+                               "?rsa_pss_rsae_sha256:"
+                               "?rsa_pss_rsae_sha384:"
+                               "?rsa_pss_rsae_sha512:"
+                               "?rsa_pkcs1_sha256:"
+                               "?rsa_pkcs1_sha384:"
+                               "?rsa_pkcs1_sha512:"
+                               "?sm2sig_sm3";
+#endif
+
 XrdSysMutex            dbgMutex, tlsMutex;
 XrdSys::RAtomic<bool>  initDbgDone{ false };
 bool                   initTlsDone{ false };
@@ -717,6 +749,19 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (!SSL_CTX_set_cipher_list(pImpl->ctx, sslCiphers))
       FATAL_SSL("Unable to set SSL cipher list; no supported ciphers.");
+
+// Limit the signature algorithms sent in a certificate request, so that older
+// TLS 1.3 clients can parse it. Only a server sends a certificate request, and
+// client verification can be enabled after the context is created (see
+// SetTlsClientAuth()), so we do this for every server context. A failure here
+// is not fatal, since the OpenSSL default still works for most clients.
+//
+#if OPENSSL_VERSION_NUMBER >= 0x40000000L
+   if ((opts & servr)
+   &&  !SSL_CTX_set1_client_sigalgs_list(pImpl->ctx, sslClientSigAlgs))
+      XrdTls::Emsg("TLS_Context:", "Unable to set the client signature "
+                   "algorithm list; using the OpenSSL default.", true);
+#endif
 
 // If we need to enable eliptic-curve support, do so now. Note that for
 // OpenSSL 1.1.0+ this is automatically done for us.
