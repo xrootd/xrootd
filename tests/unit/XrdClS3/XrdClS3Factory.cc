@@ -90,7 +90,7 @@ private:
     std::string m_tempdir;
 };
 
-TEST(FactoryTest, ExtractHostname) {
+TEST(FactoryTest, ExtractHostnameRemovesSchemeUserPortPathAndQuery) {
     std::string_view url = "https://bucket-name.s3.amazonaws.com/path/to/object";
     std::string_view hostname = Factory::ExtractHostname(url);
     ASSERT_EQ(hostname, "bucket-name.s3.amazonaws.com");
@@ -120,7 +120,7 @@ TEST(FactoryTest, ExtractHostname) {
     ASSERT_EQ(hostname, "");
 }
 
-TEST(FactoryTest, GenerateHttpUrl) {
+TEST(FactoryTest, GenerateHttpUrlBuildsUrlsForVirtualAndPathStyles) {
     Factory::SetEndpoint("s3.amazonaws.com");
     Factory::SetRegion("us-east-1");
     Factory::SetUrlStyle("virtual");
@@ -188,7 +188,7 @@ TEST(FactoryTest, GenerateHttpUrl) {
     ASSERT_FALSE(Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg));
 }
 
-TEST(FactoryTest, GetBucketFromHttpsUrl) {
+TEST(FactoryTest, GetBucketFromHttpsUrlFindsTheBucketInBothUrlStyles) {
     std::string bucket_name;
     Factory::SetEndpoint("s3.amazonaws.com");
     Factory::SetRegion("us-east-1");
@@ -209,7 +209,7 @@ TEST(FactoryTest, GetBucketFromHttpsUrl) {
     ASSERT_EQ(bucket_name, "bucket-name");
 }
 
-TEST_F(FactoryCredentialsTest, GetCredentialsForBucket) {
+TEST_F(FactoryCredentialsTest, GetCredentialsForBucketReadsAndCachesTheKeyFiles) {
 
     WriteCreds("access_key.txt", "my_access_key",
                "secret_key.txt", "my_secret_key");
@@ -247,7 +247,7 @@ TEST_F(FactoryCredentialsTest, GetCredentialsForBucket) {
     ASSERT_FALSE(ok);
 }
 
-TEST_F(FactoryCredentialsTest, GenerateV4Signature) {
+TEST_F(FactoryCredentialsTest, GenerateV4SignatureMatchesTheAwsExamples) {
     Factory::ResetCredCache();
     Factory::SetEndpoint("s3.amazonaws.com");
     Factory::SetRegion("us-east-1");
@@ -290,7 +290,7 @@ TEST_F(FactoryCredentialsTest, GenerateV4Signature) {
     ASSERT_EQ(auth_token, "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class,Signature=98ad721746da40c64f1a55b78f14c238d841ea1380cd77a1b5971af0ece108bd");
 }
 
-TEST(FactoryTest, PathEncode) {
+TEST(FactoryTest, PathEncodeReturnsTheEncodedPathWithoutQuery) {
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test.txt"), "/test.txt");
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test//sub.txt"), "/test//sub.txt");
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test.txt?foo=bar"), "/test.txt");
@@ -298,7 +298,7 @@ TEST(FactoryTest, PathEncode) {
     ASSERT_EQ(Factory::PathEncode("https://examplebucket.s3.amazonaws.com/test$file.text"), "/test\%24file.text");
 }
 
-TEST(FactoryTest, CleanObjectName) {
+TEST(FactoryTest, CleanObjectNameRemovesAllAuthzParameters) {
     ASSERT_EQ(Factory::CleanObjectName("test.txt"), "test.txt");
     ASSERT_EQ(Factory::CleanObjectName("test//sub.txt"), "test//sub.txt");
     ASSERT_EQ(Factory::CleanObjectName("test.txt?foo=bar"), "test.txt?foo=bar");

@@ -162,7 +162,7 @@ namespace
 // A security requirements tail much larger than the declared vector must not
 // be copied past the stored protocol response
 //------------------------------------------------------------------------------
-TEST( ProtocolRespTest, OversizedSecReqs )
+TEST( ProtocolRespTest, RejectsSecurityRequirementsWithAnOversizedTail )
 {
   const size_t size = 8 + 8 + 4096;
   RogueServer server( size, ProtocolBody( 0, size ) );
@@ -173,7 +173,7 @@ TEST( ProtocolRespTest, OversizedSecReqs )
 //------------------------------------------------------------------------------
 // A security vector longer than the response body must be rejected
 //------------------------------------------------------------------------------
-TEST( ProtocolRespTest, TruncatedSecVec )
+TEST( ProtocolRespTest, RejectsASecurityVectorLongerThanTheBody )
 {
   const size_t size = 8 + 6;
   RogueServer server( size, ProtocolBody( 10, size ) );
@@ -184,7 +184,7 @@ TEST( ProtocolRespTest, TruncatedSecVec )
 //------------------------------------------------------------------------------
 // A body length that wraps the 32-bit buffer size must be rejected
 //------------------------------------------------------------------------------
-TEST( ProtocolRespTest, WrappedBodyLength )
+TEST( ProtocolRespTest, RejectsABodyLengthThatWrapsTheBufferSize )
 {
   RogueServer server( 0xFFFFFFFF, ProtocolBody( 0, 4096 ) );
   ASSERT_NE( server.GetPort(), 0 );

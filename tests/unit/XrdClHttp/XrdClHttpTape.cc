@@ -80,7 +80,7 @@ void StartAndDiscover(XrdClHttp::TapeOperation &operation,
 }
 }
 
-TEST(UtilTest, SelectsFirstAvailableConfiguredAuthentication)
+TEST(UtilTest, ShouldUseBearerTokenWhenZtnIsTheFirstAvailableProtocol)
 {
   EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("", true, true));
   EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("gsi,ztn", true, true));
@@ -90,7 +90,7 @@ TEST(UtilTest, SelectsFirstAvailableConfiguredAuthentication)
   EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("unix", false, true));
 }
 
-TEST(UtilTest, InjectsBearerTokenThroughCommonAuthentication)
+TEST(UtilTest, InjectBearerTokenAddsTheTokenWhenZtnIsSelectedAndNoTokenIsGiven)
 {
   auto env = XrdCl::DefaultEnv::GetEnv();
   ASSERT_NE(env, nullptr);

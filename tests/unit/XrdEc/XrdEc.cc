@@ -262,62 +262,62 @@ class XrdEcTests : public ::testing::Test
 // XrdCl::ZipArchive and XrdEc::Reader name this fixture as a friend
 using EcTest = XrdEcTests;
 
-TEST_F(EcTest, AlignedWriteTest)
+TEST_F(EcTest, ReadsBackAlignedWrites)
 {
   AlignedWriteTest();
 }
 
-TEST_F(EcTest, SmallWriteTest)
+TEST_F(EcTest, ReadsBackWritesSmallerThanAChunk)
 {
   SmallWriteTest();
 }
 
-TEST_F(EcTest, BigWriteTest)
+TEST_F(EcTest, ReadsBackWritesLargerThanAChunk)
 {
   BigWriteTest();
 }
 
-TEST_F(EcTest, VectorReadTest)
+TEST_F(EcTest, VectorReadReturnsTheWrittenData)
 {
   VectorReadTest();
 }
 
-TEST_F(EcTest, IllegalVectorReadTest)
+TEST_F(EcTest, VectorReadFailsForAChunkPastTheEndOrTooManyChunks)
 {
   IllegalVectorReadTest();
 }
 
-TEST_F(EcTest, AlignedWrite1MissingTest)
+TEST_F(EcTest, ReadsBackAlignedWritesWithOneLocationUnreachable)
 {
   AlignedWrite1MissingTest();
 }
 
-TEST_F(EcTest, AlignedWrite2MissingTest) 
+TEST_F(EcTest, ReadsBackAlignedWritesWithTwoLocationsUnreachable) 
 {
   AlignedWrite2MissingTest();
 }
 
-TEST_F(EcTest, AlignedWriteTestIsalCrcNoMt)
+TEST_F(EcTest, ReadsBackAlignedWritesWithIsalCrc32)
 {
   AlignedWriteTestIsalCrcNoMt();
 }
 
-TEST_F(EcTest, SmallWriteTestIsalCrcNoMt)
+TEST_F(EcTest, ReadsBackWritesSmallerThanAChunkWithIsalCrc32)
 {
   SmallWriteTestIsalCrcNoMt();
 }
 
-TEST_F(EcTest, BigWriteTestIsalCrcNoMt)
+TEST_F(EcTest, ReadsBackWritesLargerThanAChunkWithIsalCrc32)
 {
   BigWriteTestIsalCrcNoMt();
 }
 
-TEST_F(EcTest, AlignedWrite1MissingTestIsalCrcNoMt)
+TEST_F(EcTest, ReadsBackAlignedWritesWithOneLocationUnreachableWithIsalCrc32)
 {
   AlignedWrite1MissingTestIsalCrcNoMt();
 }
 
-TEST_F(EcTest, AlignedWrite2MissingTestIsalCrcNoMt)
+TEST_F(EcTest, ReadsBackAlignedWritesWithTwoLocationsUnreachableWithIsalCrc32)
 {
   AlignedWrite2MissingTestIsalCrcNoMt();
 }

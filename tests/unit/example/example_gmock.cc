@@ -16,7 +16,7 @@ struct MockBase : public Base
     MOCK_METHOD(int, do_it, (int), (override));
 };
 
-TEST(ExampleTest, gMockWorks)
+TEST(ExampleTest, NiceMockReturnsTheValueOfTheDefaultAction)
 {
     NiceMock<MockBase> mock;
     ON_CALL(mock, do_it(_)).WillByDefault(Invoke(
