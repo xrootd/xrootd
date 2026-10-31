@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                 X r d S c h e d u l e r T e s t s . c c                    */
+/*                       X r d S c h e d u l e r . c c                        */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */

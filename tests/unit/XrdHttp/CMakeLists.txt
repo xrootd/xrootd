@@ -3,7 +3,7 @@ if(NOT BUILD_HTTP OR NOT TARGET XrdHttpUtils)
     return()
 endif()
 
-add_executable(xrdhttp-unit-tests XrdHttpTests.cc
+add_executable(xrdhttp-unit-tests XrdHttp.cc
         ${PROJECT_SOURCE_DIR}/src/XrdHttpCors/XrdHttpCorsHandler.cc)
 
 target_link_libraries(xrdhttp-unit-tests XrdHttpUtils GTest::gtest GTest::gtest_main XrdUtils)

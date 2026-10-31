@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*              X r d C l H t t p H e a d e r P a r s e r T e s t           */
+/*                     X r d C l H t t p U t i l . c c                      */
 /*                                                                            */
 /* (c) 2026 by the XRootD Collaboration                                       */
 /*                                                                            */

@@ -1,4 +1,4 @@
-add_executable(xrdcks-unit-tests XrdCksCombineTests.cc)
+add_executable(xrdcks-unit-tests XrdCksCombine.cc)
 
 target_link_libraries(xrdcks-unit-tests
   XrdUtils

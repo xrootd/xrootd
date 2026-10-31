@@ -1,4 +1,4 @@
-add_executable(xrdouccrc-unit-tests XrdOucCRCTests.cc)
+add_executable(xrdouccrc-unit-tests XrdOucCRC.cc)
 
 target_link_libraries(xrdouccrc-unit-tests
   XrdUtils
@@ -9,14 +9,14 @@ target_link_libraries(xrdouccrc-unit-tests
 gtest_discover_tests(xrdouccrc-unit-tests TEST_PREFIX unit::XrdOuc::
   PROPERTIES DISCOVERY_TIMEOUT 10)
 
-add_executable(xrdouc-hashval-unit-tests XrdOucHashValTests.cc)
+add_executable(xrdouc-hashval-unit-tests XrdOucHashVal.cc)
 
 target_link_libraries(xrdouc-hashval-unit-tests XrdUtils GTest::gtest GTest::gtest_main)
 
 gtest_discover_tests(xrdouc-hashval-unit-tests TEST_PREFIX unit::XrdOuc::
   PROPERTIES DISCOVERY_TIMEOUT 10)
 
-add_executable(xrdoucutils-unit-tests XrdOucUtilsTests.cc)
+add_executable(xrdoucutils-unit-tests XrdOucUtils.cc)
 
 target_link_libraries(xrdoucutils-unit-tests XrdUtils GTest::gtest GTest::gtest_main)
 
