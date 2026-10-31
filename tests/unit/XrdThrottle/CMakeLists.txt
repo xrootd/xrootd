@@ -22,28 +22,11 @@ target_include_directories(XrdThrottleTestLib
     ${PROJECT_SOURCE_DIR}/vendor/inih
 )
 
-# Create the test executable
-add_executable(xrdthrottle-unit-tests XrdThrottleUserLimits.cc)
-
-target_link_libraries(xrdthrottle-unit-tests
-  PRIVATE
+add_unit_tests(
+  SOURCES
+    XrdThrottleUserLimits.cc
+  LIBRARIES
     XrdThrottleTestLib
     XrdUtils
     XrdServer
-    GTest::gtest
-    GTest::gtest_main
 )
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-  AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
-  target_link_libraries(xrdthrottle-unit-tests PRIVATE stdc++fs)
-endif()
-
-target_include_directories(xrdthrottle-unit-tests
-  PRIVATE
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/vendor/inih
-)
-
-gtest_discover_tests(xrdthrottle-unit-tests TEST_PREFIX unit::XrdThrottle::
-  PROPERTIES DISCOVERY_TIMEOUT 10)
