@@ -288,6 +288,11 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!ConfigSecurity(xrootdEnv, pi->ConfigFN)) return 0;
 
+// Publish the security service so that other protocols (e.g. XrdHttp for
+// http.jwt bearer authentication) can share it instead of loading their own.
+//
+   if (pi->theEnv && CIA) pi->theEnv->PutPtr("XrdSecService*", (void *)CIA);
+
 // Set up the network for self-identification and display it
 //
    pi->NetTCP->netIF.Port(Port);

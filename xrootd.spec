@@ -539,6 +539,10 @@ fi
 %{_libdir}/libXrdSecsss-6.so
 %{_libdir}/libXrdSecunix-6.so
 %{_libdir}/libXrdSecztn-6.so
+%{_libdir}/libXrdSecjwt-6.so
+%{_libdir}/libXrdSecjwtCore-6.so
+%{_libdir}/libXrdAccjwt-6.so
+%doc src/XrdAccjwt/README.md
 %license COPYING* LICENSE
 
 %files devel

@@ -360,6 +360,11 @@ public:
   /// State machine to talk to the bridge
   int reqstate;
 
+  /// Bearer JWT is validated once per request. Process() is re-entered for the
+  /// Bridge login and for every body chunk; this stops those calls from
+  /// repeating the check. Cleared by reset().
+  bool jwtChecked = false;
+
   /// In a long write, we track where we have arrived
   long long writtenbytes;
 

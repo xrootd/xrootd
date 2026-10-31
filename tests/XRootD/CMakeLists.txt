@@ -17,6 +17,15 @@ list(APPEND XROOTD_CONFIGS cachepurge)
 add_executable(xrdpfc-read utils/xrdpfc-read.cc)
 target_link_libraries(xrdpfc-read XrdCl XrdUtils Threads::Threads)
 
+# jwt.cfg loads sec.protocol jwt. Register it only when that plugin was built.
+# The token minter is OpenSSL only, so the live test does not depend on
+# scitokens-cpp.
+if(TARGET XrdSecjwtCore)
+  list(APPEND XROOTD_CONFIGS jwt)
+  add_executable(xrdjwt-create-token utils/xrdjwt-create-token.cc)
+  target_link_libraries(xrdjwt-create-token PRIVATE OpenSSL::Crypto)
+endif()
+
 if(ENABLE_FUSE_TESTS)
   list(APPEND XROOTD_CONFIGS fuse)
 endif()
