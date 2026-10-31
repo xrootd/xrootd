@@ -1700,12 +1700,14 @@ int XrdXrootdProtocol::do_Open()
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
                      (mode_t)mode, CRED, oinfo.c_str())))
-      return fsError(rc, opC, fp->error, fn, opaque);
+      return fsError(rc, opC, fp->error, fn, opaque,
+                     0, XrdXrootdMonStatERR::errOpen);
 
 // If file needs to be cloned, do so now
 //
    if (doClone && (rc = fp->Clone(*(sameFS->XrdSfsp))))
-      return fsError(rc, opC, fp->error, fn, opaque);
+      return fsError(rc, opC, fp->error, fn, opaque,
+                     0, XrdXrootdMonStatERR::errOpen);
 
 // Obtain a hyper file object
 //
@@ -3912,7 +3914,9 @@ void XrdXrootdProtocol::SetFD(int fildes)
 /******************************************************************************/
 
 // When fP and errCat are given, a file system error is also kept as the
-// first error of the file, for the f-stream close record.
+// first error of the file, for the f-stream close record. do_Open() gives
+// errCat errOpen without fP: an error sent to the client then gives an isError
+// record. The open opC does not tell this, because fattr requests use it too.
 //
 int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
                                const char *Path, char *Cgi,
@@ -3946,8 +3950,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
                                        Route[popt].Port[rdType],
                                        Route[popt].Host[rdType]);
           } else {
-           if (Path && (opC == XROOTD_MON_OPENR || opC == XROOTD_MON_OPENW
-                                                || opC == XROOTD_MON_OPENC))
+           if (Path && errCat == XrdXrootdMonStatERR::errOpen)
               monOpenErr(Monitor, Path, rc);
            rs = Response.Send((XErrorCode)rc, eMsg);
           }
