@@ -1,3 +1,8 @@
+# The tested code links XrdServer, which a client-only build does not have
+if(NOT TARGET XrdServer)
+  return()
+endif()
+
 # XrdPfcInfo.cc and XrdPfcDirState.cc are compiled in rather than linked from
 # the plugin, as neither needs the Cache singleton.
 add_executable(xrdpfc-unit-tests
@@ -9,5 +14,5 @@ add_executable(xrdpfc-unit-tests
 
 target_link_libraries(xrdpfc-unit-tests XrdServer XrdUtils GTest::gtest GTest::gtest_main)
 
-gtest_discover_tests(xrdpfc-unit-tests
+gtest_discover_tests(xrdpfc-unit-tests TEST_PREFIX unit::XrdPfc::
   PROPERTIES DISCOVERY_TIMEOUT 10)

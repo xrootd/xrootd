@@ -14,7 +14,7 @@ target_link_libraries(xrdhttptpc-unit-tests
         GTest::gtest
         GTest::gtest_main)
 
-gtest_discover_tests(xrdhttptpc-unit-tests PROPERTIES DISCOVERY_TIMEOUT 10)
+gtest_discover_tests(xrdhttptpc-unit-tests TEST_PREFIX unit::XrdHttpTpc:: PROPERTIES DISCOVERY_TIMEOUT 10)
 
 if(TARGET XrdServer)
   add_executable(xrdhttptpc-stream-unit-tests
@@ -27,5 +27,5 @@ if(TARGET XrdServer)
           GTest::gtest
           GTest::gtest_main)
 
-  gtest_discover_tests(xrdhttptpc-stream-unit-tests PROPERTIES DISCOVERY_TIMEOUT 10)
+  gtest_discover_tests(xrdhttptpc-stream-unit-tests TEST_PREFIX unit::XrdHttpTpc:: PROPERTIES DISCOVERY_TIMEOUT 10)
 endif()

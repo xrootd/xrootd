@@ -6,5 +6,5 @@ target_link_libraries(xrdscheduler-unit-tests
   GTest::gtest_main
 )
 
-gtest_discover_tests(xrdscheduler-unit-tests
+gtest_discover_tests(xrdscheduler-unit-tests TEST_PREFIX unit::Xrd::
   PROPERTIES DISCOVERY_TIMEOUT 10)

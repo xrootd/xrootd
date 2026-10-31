@@ -8,5 +8,5 @@ target_link_libraries(example-tests-unit
         GTest::gtest_main
         )
 
-gtest_discover_tests(example-tests-unit
+gtest_discover_tests(example-tests-unit TEST_PREFIX unit::example::
         PROPERTIES DISCOVERY_TIMEOUT 10)

@@ -64,18 +64,7 @@ add_executable(xrdcl-s3-test
   DirListTest.cc
 )
 
-add_executable(xrdcl-s3-unittest
-  UrlParseTest.cc
-  DownloadHandlerTest.cc
-)
-
 target_link_libraries(xrdcl-s3-test XrdClS3Obj XrdClHttpTransferTest GTest::gtest_main)
-target_link_libraries(xrdcl-s3-unittest XrdClS3Obj GTest::gtest_main)
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-  AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
-  target_link_libraries(xrdcl-s3-unittest stdc++fs)
-endif()
 
 # See tests/XrdClHttp/CMakeLists.txt: X509_USER_PROXY points at a path that
 # can never exist, so that a grid proxy belonging to the user running the
@@ -87,8 +76,6 @@ set_tests_properties(${S3Tests}
     FIXTURES_REQUIRED XrdClS3::s3
     ENVIRONMENT "XRD_LOGLEVEL=Debug;ENV_FILE=${CMAKE_BINARY_DIR}/tests/s3/setup.sh;XRD_PLUGINCONFDIR=${CMAKE_BINARY_DIR}/tests/s3/client.plugins.d;X509_USER_PROXY=/dev/null/x509"
 )
-
-gtest_add_tests(TARGET xrdcl-s3-unittest TEST_LIST S3UnitTests)
 
 
 ######################################

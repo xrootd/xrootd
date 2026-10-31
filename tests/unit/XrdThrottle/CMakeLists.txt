@@ -1,3 +1,8 @@
+# The tested code links XrdServer, which a client-only build does not have
+if(NOT TARGET XrdServer)
+  return()
+endif()
+
 # Create a static library for testing (since MODULE libraries can't be linked)
 add_library(XrdThrottleTestLib STATIC
   ${PROJECT_SOURCE_DIR}/src/XrdThrottle/XrdThrottleManager.cc
@@ -40,5 +45,5 @@ target_include_directories(xrdthrottle-unit-tests
     ${PROJECT_SOURCE_DIR}/vendor/inih
 )
 
-gtest_discover_tests(xrdthrottle-unit-tests
+gtest_discover_tests(xrdthrottle-unit-tests TEST_PREFIX unit::XrdThrottle::
   PROPERTIES DISCOVERY_TIMEOUT 10)
