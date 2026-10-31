@@ -311,13 +311,25 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    Client->tident = Client->pident = Link->ID;
    Client->addrInfo = addrP;
 
-// Allocate a monitoring object, if needed for this connection and record login
+// Allocate a monitoring object, if needed for this connection and record login.
+// A bridged (e.g. HTTP) client has no kXR_login, so do_Login() does not run.
+// Thus, build the same monitoring info here: the CGI that ends the user
+// ("u") record. It gives the numeric client address (&a=) and the IP version
+// (&I=), so that a collector can identify the client without a DNS lookup.
 //
    if (Monitor.Ready())
-      {Monitor.Register(linkP->ID, linkP->Host(), protP);
+      {char apBuff[80], ipBuff[64];
+       addrP->Format(ipBuff, sizeof(ipBuff), XrdNetAddrInfo::fmtAddr,
+                     XrdNetAddrInfo::prefipv4 | XrdNetAddrInfo::noPortRaw);
+       snprintf(apBuff, sizeof(apBuff), "&a=%s&I=%c", ipBuff,
+                (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
+       Monitor.Register(linkP->ID, linkP->Host(), protP);
        if (Monitor.Logins())
-          {if (Monitor.Auths() && seceP) MonAuth();
-              else Monitor.Report(Monitor.Auths() ? "" : 0);
+          {Entity.moninfo = strdup(apBuff);
+           if (Monitor.Auths() && seceP) MonAuth();
+              else {Monitor.Report(Entity.moninfo);
+                    free(Entity.moninfo); Entity.moninfo = 0;
+                   }
           }
       }
 

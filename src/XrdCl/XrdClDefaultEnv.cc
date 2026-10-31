@@ -391,6 +391,9 @@ namespace XrdCl
     ImportString( "AppName", "XRD_APPNAME" );
     PutString( "MonInfo", "" );
     ImportString( "MonInfo", "XRD_MONINFO" );
+    PutString( "ClientSite", "" );
+    ImportString( "ClientSite", "XRDSITE" );
+    ImportString( "ClientSite", "XRD_SITE" );
 
     //--------------------------------------------------------------------------
     // Process ints
