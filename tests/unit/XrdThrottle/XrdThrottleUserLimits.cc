@@ -59,7 +59,7 @@ protected:
     XrdThrottleManager* m_manager;
 };
 
-TEST_F(ManagerUserLimitsTest, LoadUserLimits_ValidConfig) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimitsAppliesExactWildcardAndDefaultLimits) {
     std::string config_content = R"(
 [default]
 name = *
@@ -100,7 +100,7 @@ maxconn = 10
     RemoveTempFile(config_file);
 }
 
-TEST_F(ManagerUserLimitsTest, LoadUserLimits_NoDefault) {
+TEST_F(ManagerUserLimitsTest, GetUserMaxConnReturnsZeroForUnknownUserWithoutDefault) {
     std::string config_content = R"(
 [user1]
 name = user1
@@ -122,7 +122,7 @@ maxconn = 25
     RemoveTempFile(config_file);
 }
 
-TEST_F(ManagerUserLimitsTest, LoadUserLimits_MissingName) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimitsSkipsASectionWithoutName) {
     std::string config_content = R"(
 [user1]
 maxconn = 25
@@ -140,7 +140,7 @@ maxconn = 25
     RemoveTempFile(config_file);
 }
 
-TEST_F(ManagerUserLimitsTest, LoadUserLimits_InvalidMaxconn) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimitsSkipsSectionsWithNonPositiveMaxconn) {
     std::string config_content = R"(
 [user1]
 name = user1
@@ -164,12 +164,12 @@ maxconn = -5
     RemoveTempFile(config_file);
 }
 
-TEST_F(ManagerUserLimitsTest, LoadUserLimits_NonexistentFile) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimitsFailsForAMissingFile) {
     int result = m_manager->LoadUserLimits("/nonexistent/file.conf");
     EXPECT_NE(0, result) << "LoadUserLimits should fail for nonexistent file";
 }
 
-TEST_F(ManagerUserLimitsTest, GetUserMaxConn_WildcardPriority) {
+TEST_F(ManagerUserLimitsTest, GetUserMaxConnPrefersExactThenWildcardThenDefault) {
     std::string config_content = R"(
 [default]
 name = *
@@ -203,7 +203,7 @@ maxconn = 25
     RemoveTempFile(config_file);
 }
 
-TEST_F(ManagerUserLimitsTest, ReloadUserLimits) {
+TEST_F(ManagerUserLimitsTest, LoadUserLimitsAgainReplacesTheOldLimits) {
     std::string config_content1 = R"(
 [user1]
 name = user1

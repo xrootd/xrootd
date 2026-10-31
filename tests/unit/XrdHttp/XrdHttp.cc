@@ -16,7 +16,7 @@
 
 using namespace testing;
 
-TEST(ChecksumHandlerTest, checksumHandlerTests) {
+TEST(ChecksumHandlerTest, ConfigureSeparatesNonIanaChecksums) {
     {
         XrdHttpChecksumHandlerImpl handler;
         handler.configure("0:sha512,1:crc32");
@@ -36,7 +36,7 @@ TEST(ChecksumHandlerTest, checksumHandlerTests) {
     }
 }
 
-TEST(ChecksumHandlerTest, checksumHandlerSelectionTest) {
+TEST(ChecksumHandlerTest, WantDigestPicksFirstRequestedOrFirstIanaOne) {
     {
         //one algorithm, HTTP-IANA compatible
         std::string reqDigest = "adler32";
@@ -178,7 +178,7 @@ static std::vector<std::pair<std::map<std::string,uint8_t>,std::string>> wantRep
   {{{"adler32",1},{"sha-256",11}}, "sha-256"},
 };
 
-TEST(ChecksumHandlerTest, checksumHandlerSelectionWantReprDigestTest) {
+TEST(ChecksumHandlerTest, WantReprDigestPicksTheHighestWeight) {
   for(const auto & wantReprDigestCksumName: wantReprDigestCksumNames) {
     XrdHttpChecksumHandlerImpl handler;
     handler.configure("0:adler32,1:sha-256");
@@ -186,7 +186,7 @@ TEST(ChecksumHandlerTest, checksumHandlerSelectionWantReprDigestTest) {
   }
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerTwoRangesOfSizeEqualToMaxChunkSize) {
+TEST(ReadRangeHandlerTest, ReadsTwoMaxChunkSizeRangesAsTwoChunks) {
     long long filesize = 8;
     int rangeBegin = 0;
     int rangeEnd = 3;
@@ -212,7 +212,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerTwoRangesOfSizeEqualToMaxChunk
     ASSERT_EQ(2u, ul.size());
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerOneRangeSizeLessThanMaxChunkSize) {
+TEST(ReadRangeHandlerTest, ReadsASmallRangeAsOneChunk) {
   long long filesize = 8;
   int rangeBegin = 0;
   int rangeEnd = 3;
@@ -234,7 +234,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerOneRangeSizeLessThanMaxChunkSi
   ASSERT_EQ(1u, ul.size());
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerOneRangeSizeGreaterThanMaxChunkSize) {
+TEST(ReadRangeHandlerTest, SplitsLargeRangeOnlyInAMultiRangeRequest) {
   long long filesize = 8;
   int rangeBegin = 0;
   int rangeEnd = 7;
@@ -278,7 +278,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerOneRangeSizeGreaterThanMaxChun
   }
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRange0ToEnd) {
+TEST(ReadRangeHandlerTest, ReadsAnOpenEndedRangeInMaxRequestSizeSteps) {
   long long filesize = 200;
   int rangeBegin = 0;
   int readvMaxChunkSize = 4;
@@ -309,7 +309,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRange0ToEnd) {
   }
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRange5FromEnd) {
+TEST(ReadRangeHandlerTest, ReadsTheLastBytesForASuffixRange) {
   long long filesize = 200;
   int rangeEnd = 5;
   int readvMaxChunkSize = 4;
@@ -340,7 +340,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRange5FromEnd) {
   }
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRange0To0) {
+TEST(ReadRangeHandlerTest, ReadsOneByteForRangeZeroToZero) {
   long long filesize = 8;
   int rangeBegin = 0;
   int rangeEnd = 0;
@@ -364,7 +364,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRange0To0) {
   ASSERT_EQ(1, cl[0].size);
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerEndByteGreaterThanFileSize) {
+TEST(ReadRangeHandlerTest, TruncatesTheRangeEndAtTheFileSize) {
   long long filesize = 2;
   int rangeBegin = 0;
   int rangeEnd = 4;
@@ -388,7 +388,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerEndByteGreaterThanFileSize) {
   ASSERT_EQ(1, ul[0].end);
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRangeBeginGreaterThanFileSize) {
+TEST(ReadRangeHandlerTest, Returns416ForARangeAfterTheFileEnd) {
   long long filesize = 2;
   int rangeBegin = 4;
   int rangeEnd = 6;
@@ -411,7 +411,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerRangeBeginGreaterThanFileSize)
   ASSERT_EQ(416, error.httpRetCode);
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerTwoRangesOneOutsideFileExtent) {
+TEST(ReadRangeHandlerTest, DropsARangeOutsideTheFile) {
   long long filesize = 20;
   int rangeBegin1 = 22;
   int rangeEnd1 = 30;
@@ -437,7 +437,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerTwoRangesOneOutsideFileExtent)
   ASSERT_EQ(3, cl[0].size);
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerMultiChunksSingleRange) {
+TEST(ReadRangeHandlerTest, ReadsOneRangeInStepsAndFlagsStartAndEnd) {
   long long filesize = 20;
   int rangeBegin = 0;
   int rangeEnd = 15;
@@ -500,7 +500,7 @@ TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerMultiChunksSingleRange) {
   }
 }
 
-TEST(ReadRangeHandlerTest, xrdHttpReadRangeHandlerMultiChunksTwoRanges) {
+TEST(ReadRangeHandlerTest, MapsEachChunkOfTwoRangesToItsUserRange) {
   long long filesize = 22;
   int rangeBegin1 = 0;
   int rangeEnd1 = 1;
@@ -604,7 +604,7 @@ static inline const std::pair<std::string,std::string> encodedDecodedStrings [] 
   {"%20%5B%5D%3A%23%3D%0A%0D"," []:#=\n\r"}
 };
 
-TEST(UtilsTest, strEncodeDecodeTest) {
+TEST(UtilsTest, EncodeStrAndDecodeStrConvertBothWays) {
   for(auto [encoded,decoded]: encodedDecodedStrings) {
     ASSERT_EQ(decode_str(encoded), decoded);
     ASSERT_EQ(encoded, encode_str(decoded));
@@ -627,13 +627,13 @@ static inline const std::pair<std::string,std::string> decodedEncodedOpaque [] {
   {"foo bar=baz","foo%20bar=baz"}
 };
 
-TEST(UtilsTest,encodeOpaqueTest) {
+TEST(UtilsTest,EncodeOpaqueEncodesKeysAndValuesButKeepsSeparators) {
   for(auto [decoded,encoded]: decodedEncodedOpaque) {
     ASSERT_EQ(encoded,encode_opaque(decoded));
   }
 }
 
-TEST(UtilsTest, pathFromAbsoluteUrl) {
+TEST(UtilsTest, HttpPathFromAbsoluteUrlReturnsThePathOrSlash) {
   EXPECT_EQ("/store/a", httpPathFromAbsoluteUrl("https://site.example:1094/store/a"));
   EXPECT_EQ("//pfn/path", httpPathFromAbsoluteUrl("root://host:1094//pfn/path"));
   // HTTP clients request "/" when the URL has no path.
@@ -646,14 +646,14 @@ TEST(UtilsTest, pathFromAbsoluteUrl) {
       httpPathFromAbsoluteUrl("http://host/store//a%20b"))));
 }
 
-TEST(UtilsTest, buildRedirectLocationHostPort) {
+TEST(UtilsTest, HttpBuildRedirectLocationJoinsSchemeHostPortAndPath) {
   EXPECT_EQ("Location: https://site.example:1094/store/lfn",
             httpBuildRedirectLocation(true, 1094, "site.example", "/store/lfn"));
   EXPECT_EQ("Location: http://site.example:1094/store/lfn",
             httpBuildRedirectLocation(false, 1094, "site.example", "/store/lfn"));
 }
 
-TEST(UtilsTest, buildRedirectLocationAbsoluteUrl) {
+TEST(UtilsTest, HttpBuildRedirectLocationKeepsAUrlTargetUnchanged) {
   // port < 0 => URL-form: do not double the scheme or append the original LFN.
   EXPECT_EQ("Location: https://site.example:443//dcache/store/file.root",
             httpBuildRedirectLocation(
@@ -668,7 +668,7 @@ TEST(UtilsTest, buildRedirectLocationAbsoluteUrl) {
                                       "/store/lfn"));
 }
 
-TEST(UtilsTest, collapseSlashes) {
+TEST(UtilsTest, HttpCollapseSlashesReplacesRunsOfSlashesWithOne) {
   EXPECT_EQ("/pfn/path", httpCollapseSlashes("//pfn/path"));
   EXPECT_EQ("/a/b", httpCollapseSlashes("///a////b"));
   EXPECT_EQ("/store/plain", httpCollapseSlashes("/store/plain"));
@@ -693,7 +693,7 @@ static inline const std::pair<std::string, std::map<std::string,std::string>> re
   {"=::value:",{}}
 };
 
-TEST(HeaderUtilsTest, parseReprDigest) {
+TEST(HeaderUtilsTest, ParseReprDigestDecodesBase64ToHexAndSkipsBadEntries) {
   for(const auto & [input, expectedMap]: reprDigest) {
     std::map<std::string,std::string> output;
     XrdHttpHeaderUtils::parseReprDigest(input,output);
@@ -701,7 +701,7 @@ TEST(HeaderUtilsTest, parseReprDigest) {
   }
 }
 
-TEST(CorsHandlerTest, getCORSAllowOriginHeader) {
+TEST(CorsHandlerTest, GetCorsAllowOriginHeaderReturnsHeaderOnlyForAllowedOrigins) {
   std::unordered_set<std::string> allowedOrigins = {
     "https://helloworld.cern.ch",
     "https://anotherorigins.cern.ch"
@@ -734,7 +734,7 @@ static inline const std::pair<std::string, std::map<std::string, uint8_t>> wantR
   {"=",{}},
 };
 
-TEST(HeaderUtilsTest, parseWantReprDigest) {
+TEST(HeaderUtilsTest, ParseWantReprDigestKeepsValidEntriesAndCapsWeightAtTen) {
   for(const auto & [input, expectedMap]: wantReprDigests) {
     std::map<std::string,uint8_t> output;
     XrdHttpHeaderUtils::parseWantReprDigest(input,output);
@@ -752,7 +752,7 @@ static inline const std::pair<std::string,std::pair<bool,std::vector<uint8_t>>> 
   {"1",        {false,{}}},  // Invalid input: odd length
 };
 
-TEST(UtilsTest, fromHexDigest) {
+TEST(UtilsTest, FromHexDigestConvertsHexToBytesAndRejectsBadInput) {
   for(const auto & [hex,expected]: hexDigestToBinary) {
     std::vector<uint8_t> outputBytes;
     ASSERT_EQ(expected.first,Fromhexdigest(hex,outputBytes));
@@ -785,7 +785,7 @@ static inline const std::pair<std::vector<uint8_t>,std::string> binaryToBase64[]
   {{'A','B','C','D','E','F','G','H','I','J','K','L'}, "QUJDREVGR0hJSktM"}
 };
 
-TEST(UtilsTest,tobase64) {
+TEST(UtilsTest,ToBase64EncodesBytesWithPadding) {
   for(const auto & binToBase64: binaryToBase64) {
     std::string base64Output;
     Tobase64(binToBase64.first,base64Output);
@@ -793,7 +793,7 @@ TEST(UtilsTest,tobase64) {
   }
 }
 
-TEST(UtilsTest,frombase64ToBytes) {
+TEST(UtilsTest,Base64ToBytesDecodesPaddedBase64) {
   for(const auto & binToBase64: binaryToBase64) {
     std::vector<uint8_t> output;
     base64ToBytes(binToBase64.second,output);
@@ -807,7 +807,7 @@ static inline const std::pair<std::string,std::string> b64ToHex[] {
   {"+l8FpQ==","fa5f05a5"},
 };
 
-TEST(UtilsTest, base64DecodeEncodeHex) {
+TEST(UtilsTest, Base64DecodeHexConvertsBase64ToHexAndBack) {
   for(const auto & b64ToH: b64ToHex) {
     std::string output;
     base64DecodeHex(b64ToH.first, output);
@@ -855,7 +855,7 @@ static inline const std::tuple<std::string, ssize_t> contentLengthCases[] {
   {"99999999999999999999",        -3},
 };
 
-TEST(HeaderUtilsTest, parseContentLength) {
+TEST(HeaderUtilsTest, ParseContentLengthAcceptsDigitsAndRejectsSignsAndOverflow) {
   for (const auto & [input, expected] : contentLengthCases) {
     ssize_t res = XrdHttpHeaderUtils::parseContentLength(input);
     ASSERT_EQ(expected, res) << "input was: \"" << input << "\"";
@@ -899,7 +899,7 @@ static inline const std::pair<std::string, int> transferEncodingCases[] {
   {", ,",                         -1},
 };
 
-TEST(HeaderUtilsTest, parseTransferEncoding) {
+TEST(HeaderUtilsTest, ParseTransferEncodingRequiresChunkedAsTheLastToken) {
   for (const auto & [input, expected] : transferEncodingCases) {
     int res = XrdHttpHeaderUtils::parseTransferEncoding(input);
     ASSERT_EQ(expected, res) << "input was: \"" << input << "\"";

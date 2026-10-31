@@ -39,7 +39,7 @@ static void checkResult(CephFile a, CephFile b)
   EXPECT_EQ(a.objectSize, b.objectSize);
 }
 
-TEST(PosixTest, Parameters)
+TEST(PosixTest, FillCephFileParamsParsesUserPoolAndStripeValues)
 {
   std::map<std::string, CephFile> inputs;
 
@@ -62,7 +62,7 @@ TEST(PosixTest, Parameters)
     checkResult(parseParam(it->first), it->second);
 }
 
-TEST(PosixTest, File)
+TEST(PosixTest, FillCephFileSplitsTheParametersAndTheFileName)
 {
   std::vector<std::string> filenames;
   std::map<std::string, CephFile> inputs;
