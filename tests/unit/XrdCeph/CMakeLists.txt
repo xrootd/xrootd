@@ -2,7 +2,7 @@ if(NOT BUILD_CEPH)
   return()
 endif()
 
-add_executable(xrdceph-unit-tests XrdCeph.cc)
+add_executable(xrdceph-unit-tests XrdCephPosix.cc)
 
 target_link_libraries(xrdceph-unit-tests
   XrdCephPosix GTest::gtest GTest::gtest_main)

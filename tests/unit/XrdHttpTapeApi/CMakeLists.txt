@@ -2,7 +2,7 @@ if(NOT TARGET XrdHttpTapeApiStore)
   return()
 endif()
 
-add_executable(xrd-http-tape-api-unit-tests XrdHttpTapeApiStoreTest.cc)
+add_executable(xrd-http-tape-api-unit-tests XrdHttpTapeApiStore.cc)
 
 target_link_libraries(xrd-http-tape-api-unit-tests
   XrdHttpTapeApiStore GTest::gtest_main)

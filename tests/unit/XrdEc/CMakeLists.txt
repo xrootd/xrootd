@@ -2,7 +2,7 @@ if(NOT BUILD_XRDEC)
   return()
 endif()
 
-add_executable(xrdec-unit-tests XrdEcTests.cc)
+add_executable(xrdec-unit-tests XrdEc.cc)
 
 target_link_libraries(xrdec-unit-tests
   XrdEc XrdTestUtils GTest::gtest GTest::gtest_main ${ISAL_LIBRARIES})

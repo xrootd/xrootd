@@ -1,4 +1,4 @@
-add_executable(xrdsysstatx-unit-tests XrdSysStatxTests.cc)
+add_executable(xrdsysstatx-unit-tests XrdSysStatx.cc)
 
 target_link_libraries(xrdsysstatx-unit-tests GTest::gtest GTest::gtest_main)
 

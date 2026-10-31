@@ -1,4 +1,4 @@
-add_executable(xrdscheduler-unit-tests XrdSchedulerTests.cc)
+add_executable(xrdscheduler-unit-tests XrdScheduler.cc)
 
 target_link_libraries(xrdscheduler-unit-tests
   XrdUtils
