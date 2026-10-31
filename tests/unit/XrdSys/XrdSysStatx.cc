@@ -8,7 +8,7 @@ using namespace testing;
 
 class StatxTest : public Test {};
 
-TEST_F(StatxTest, Stat2StatxBasicFields) {
+TEST_F(StatxTest, Stat2StatxCopiesTheBasicFields) {
   struct stat st;
   memset(&st, 0, sizeof(st));
 
@@ -48,7 +48,7 @@ TEST_F(StatxTest, Stat2StatxBasicFields) {
 #endif
 }
 
-TEST_F(StatxTest, Statx2StatBasicFields) {
+TEST_F(StatxTest, Statx2StatReversesStat2StatxForBasicFields) {
   struct stat st_orig;
   memset(&st_orig, 0, sizeof(st_orig));
 
@@ -80,7 +80,7 @@ TEST_F(StatxTest, Statx2StatBasicFields) {
 }
 
 #ifdef __linux__
-TEST_F(StatxTest, Statx2StatTimestamps) {
+TEST_F(StatxTest, Statx2StatCopiesTheTimestamps) {
   XrdSysStatx stx;
   memset(&stx, 0, sizeof(stx));
 
@@ -106,7 +106,7 @@ TEST_F(StatxTest, Statx2StatTimestamps) {
   EXPECT_EQ(st.st_ctim.tv_nsec, 333);
 }
 
-TEST_F(StatxTest, Statx2StatDeviceNumbers) {
+TEST_F(StatxTest, Statx2StatCombinesTheDeviceNumbers) {
   XrdSysStatx stx;
   memset(&stx, 0, sizeof(stx));
 
@@ -127,7 +127,7 @@ TEST_F(StatxTest, Statx2StatDeviceNumbers) {
 #endif
 
 #ifdef __linux__
-TEST_F(StatxTest, Stat2StatxTimestamps) {
+TEST_F(StatxTest, Stat2StatxCopiesTheTimestamps) {
   struct stat st;
   memset(&st, 0, sizeof(st));
 
@@ -149,7 +149,7 @@ TEST_F(StatxTest, Stat2StatxTimestamps) {
   EXPECT_EQ(stx.stx_ctime.tv_nsec, 333);
 }
 
-TEST_F(StatxTest, Stat2StatxDeviceNumbers) {
+TEST_F(StatxTest, Stat2StatxSplitsTheDeviceNumbers) {
   struct stat st;
   memset(&st, 0, sizeof(st));
 
@@ -165,7 +165,7 @@ TEST_F(StatxTest, Stat2StatxDeviceNumbers) {
   EXPECT_EQ(stx.stx_rdev_minor, (uint32_t)0);
 }
 
-TEST_F(StatxTest, Stat2StatxZeroInitializesUnmappedFields) {
+TEST_F(StatxTest, Stat2StatxSetsUnmappedFieldsToZero) {
   struct stat st;
   memset(&st, 0, sizeof(st));
   st.st_size = 100;
@@ -180,7 +180,7 @@ TEST_F(StatxTest, Stat2StatxZeroInitializesUnmappedFields) {
 }
 #endif
 
-TEST_F(StatxTest, StatxT2StatT) {
+TEST_F(StatxTest, StatxT2StatTCopiesSecondsAndNanoseconds) {
   statx_timestamp stx_T;
   stx_T.tv_sec  = 1700000000;
   stx_T.tv_nsec = 123456789;
@@ -193,7 +193,7 @@ TEST_F(StatxTest, StatxT2StatT) {
   EXPECT_EQ(sta_T.tv_nsec, 123456789);
 }
 
-TEST_F(StatxTest, StatT2StatxT) {
+TEST_F(StatxTest, StatT2StatxTCopiesSecondsAndNanoseconds) {
   struct timespec sta_T;
   sta_T.tv_sec  = 1700000000;
   sta_T.tv_nsec = 987654321;

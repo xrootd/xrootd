@@ -56,7 +56,7 @@ class UtilsTest : public ::testing::Test {};
 //------------------------------------------------------------------------------
 // Any test
 //------------------------------------------------------------------------------
-TEST(UtilsTest, AnyTest)
+TEST(UtilsTest, AnyObjectDeletesOnlyTheObjectItOwns)
 {
   bool destructorCalled1 = false;
   bool destructorCalled2 = false;
@@ -139,7 +139,7 @@ class TestTask2: public XrdCl::Task
 //------------------------------------------------------------------------------
 // Task Manager test
 //------------------------------------------------------------------------------
-TEST(UtilsTest, TaskManagerTest)
+TEST(UtilsTest, TaskManagerRunsTasksUntilTheyStopOrAreUnregistered)
 {
   using namespace XrdCl;
 
@@ -166,7 +166,7 @@ TEST(UtilsTest, TaskManagerTest)
 //------------------------------------------------------------------------------
 // SID Manager test
 //------------------------------------------------------------------------------
-TEST(UtilsTest, SIDManagerTest)
+TEST(UtilsTest, SIDManagerAllocatesUniqueSIDsAndTracksTimedOutOnes)
 {
   using namespace XrdCl;
   std::shared_ptr<SIDManager> manager = SIDMgrPool::Instance().GetSIDMgr( "root://fake:1094//dir/file" );
@@ -202,7 +202,7 @@ TEST(UtilsTest, SIDManagerTest)
 //------------------------------------------------------------------------------
 // Property List test
 //------------------------------------------------------------------------------
-TEST(UtilsTest, PropertyListTest)
+TEST(UtilsTest, PropertyListReturnsTheValuesThatWereSet)
 {
   using namespace XrdCl;
   PropertyList l;

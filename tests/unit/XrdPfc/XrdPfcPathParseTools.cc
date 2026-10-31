@@ -17,7 +17,7 @@ protected:
 
 using namespace XrdPfc;
 
-TEST_F(PathParseToolsTest, SplitParser)
+TEST_F(PathParseToolsTest, SplitParserCountsAndReturnsTheTokensOfAPath)
 {
     for (int i = 0; i < n_dirs; ++i)
     {
@@ -33,7 +33,7 @@ TEST_F(PathParseToolsTest, SplitParser)
     }
 }
 
-TEST_F(PathParseToolsTest, PathTokenizer)
+TEST_F(PathParseToolsTest, PathTokenizerSplitsDirectoriesUpToTheMaximumDepth)
 {
     int  max_depth;
     bool parse_as_lfn;

@@ -98,7 +98,7 @@ TEST(Calccrc32Test, FinalIsBigEndianZlibCrc32)
    EXPECT_EQ(Bytes(calc.Calc(data.data(), data.size())), BigEndian(expect));
 }
 
-TEST(Calccrc32Test, IsCombinable)
+TEST(Calccrc32Test, IsCombinableWithAFourByteDigest)
 {
    XrdCksCalccrc32 calc;
    int csSz = 0;
@@ -151,7 +151,7 @@ TEST(Calccrc32CTest, FinalIsBigEndianCrc32C)
    EXPECT_EQ(Bytes(calc.Calc(data.data(), data.size())), BigEndian(expect));
 }
 
-TEST(Calccrc32CTest, IsCombinable)
+TEST(Calccrc32CTest, IsCombinableWithAFourByteDigest)
 {
    XrdCksCalccrc32C calc;
    int csSz = 0;
@@ -218,12 +218,12 @@ static void CombineThreeSegments()
    EXPECT_EQ(Bytes(calc.Final()), expect);
 }
 
-TEST(Calccrc32Test,  CombineThreeSegments)
+TEST(Calccrc32Test,  CombineThreeSegmentsMatchesWhole)
 {
    CombineThreeSegments<XrdCksCalccrc32>();
 }
 
-TEST(Calccrc32CTest, CombineThreeSegments)
+TEST(Calccrc32CTest, CombineThreeSegmentsMatchesWhole)
 {
    CombineThreeSegments<XrdCksCalccrc32C>();
 }
