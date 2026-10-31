@@ -40,14 +40,14 @@ void ExpectSequentialChecksum(const XrdClHttp::ChecksumInfo &checksums,
 }
 }
 
-TEST(HeaderParser, RejectsInvalidResponseFieldNames)
+TEST(HeaderParserTest, RejectsInvalidResponseFieldNames)
 {
   XrdClHttp::HeaderParser parser;
   EXPECT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
   EXPECT_FALSE(parser.Parse("application/type: json\r\n"));
 }
 
-TEST(HeaderParser, ParsesSupportedDigestAlgorithms)
+TEST(HeaderParserTest, ParsesSupportedDigestAlgorithms)
 {
   XrdClHttp::ChecksumInfo checksums;
   XrdClHttp::HeaderParser::ParseDigest(
@@ -68,7 +68,7 @@ TEST(HeaderParser, ParsesSupportedDigestAlgorithms)
   ExpectSequentialChecksum(checksums, XrdClHttp::ChecksumType::kSHA256, 32);
 }
 
-TEST(HeaderParser, AcceptsAdlerDigestAlias)
+TEST(HeaderParserTest, AcceptsAdlerDigestAlias)
 {
   XrdClHttp::ChecksumInfo checksums;
   XrdClHttp::HeaderParser::ParseDigest("adler=00010203", checksums);
@@ -76,7 +76,7 @@ TEST(HeaderParser, AcceptsAdlerDigestAlias)
     checksums, XrdClHttp::ChecksumType::kADLER32, 4);
 }
 
-TEST(HeaderParser, AcceptsBase64Crc32Digest)
+TEST(HeaderParserTest, AcceptsBase64Crc32Digest)
 {
   XrdClHttp::ChecksumInfo checksums;
   XrdClHttp::HeaderParser::ParseDigest("crc32=AAECAw==", checksums);
@@ -84,7 +84,7 @@ TEST(HeaderParser, AcceptsBase64Crc32Digest)
     checksums, XrdClHttp::ChecksumType::kCRC32, 4);
 }
 
-TEST(HeaderParser, PreservesShortHexCrc32WhenBase64IsAmbiguous)
+TEST(HeaderParserTest, PreservesShortHexCrc32WhenBase64IsAmbiguous)
 {
   XrdClHttp::ChecksumInfo checksums;
   XrdClHttp::HeaderParser::ParseDigest("crc32=AAAAAA", checksums);
@@ -97,7 +97,7 @@ TEST(HeaderParser, PreservesShortHexCrc32WhenBase64IsAmbiguous)
   EXPECT_EQ(value[3], 0xaa);
 }
 
-TEST(HeaderParser, UsesPaddingToDisambiguateBase64Crc32)
+TEST(HeaderParserTest, UsesPaddingToDisambiguateBase64Crc32)
 {
   XrdClHttp::ChecksumInfo checksums;
   XrdClHttp::HeaderParser::ParseDigest("crc32=AAAAAA==", checksums);
@@ -110,7 +110,7 @@ TEST(HeaderParser, UsesPaddingToDisambiguateBase64Crc32)
   EXPECT_EQ(value[3], 0);
 }
 
-TEST(HeaderParser, RejectsMalformedCrc32Digest)
+TEST(HeaderParserTest, RejectsMalformedCrc32Digest)
 {
   for(const auto *digest : {"crc32=", "crc32=0001020300", "crc32=AAEC?w==",
                            "crc32=AAECAw", "crc32=AAECAw=", "crc32=AAECAw===",
@@ -122,7 +122,7 @@ TEST(HeaderParser, RejectsMalformedCrc32Digest)
   }
 }
 
-TEST(HeaderParser, BuildsChecksumNegotiationValues)
+TEST(HeaderParserTest, BuildsChecksumNegotiationValues)
 {
   EXPECT_EQ(XrdClHttp::GetTypeFromString("adler"),
             XrdClHttp::ChecksumType::kADLER32);
@@ -133,7 +133,7 @@ TEST(HeaderParser, BuildsChecksumNegotiationValues)
             "adler32,crc32,CRC32c,MD5,SHA,SHA-256");
 }
 
-TEST(HeaderParser, ParsesLastModifiedAsUtc)
+TEST(HeaderParserTest, ParsesLastModifiedAsUtc)
 {
   XrdClHttp::HeaderParser parser;
   ASSERT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));

@@ -25,7 +25,7 @@ namespace
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 
-class TapeApiStoreTest : public testing::Test
+class StoreTest : public testing::Test
 {
   protected:
     void SetUp() override
@@ -62,7 +62,7 @@ class TapeApiStoreTest : public testing::Test
     std::unique_ptr<XrdHttpTapeApiStore> m_store;
 };
 
-TEST_F(TapeApiStoreTest, PersistsStageAndReportsLocality)
+TEST_F(StoreTest, PersistsStageAndReportsLocality)
 {
   Archive("/store/file", "tape contents");
 
@@ -103,7 +103,7 @@ TEST_F(TapeApiStoreTest, PersistsStageAndReportsLocality)
   EXPECT_EQ(m_store->GetStage(requestId, status).code, 404);
 }
 
-TEST_F(TapeApiStoreTest, RecordsPerFileStageFailures)
+TEST_F(StoreTest, RecordsPerFileStageFailures)
 {
   std::string requestId;
   ASSERT_TRUE(m_store->CreateStage(
@@ -115,7 +115,7 @@ TEST_F(TapeApiStoreTest, RecordsPerFileStageFailures)
   EXPECT_EQ(status["files"][0]["error"], "file is not stored on tape");
 }
 
-TEST_F(TapeApiStoreTest, ValidatesBulkRequestMembershipBeforeMutation)
+TEST_F(StoreTest, ValidatesBulkRequestMembershipBeforeMutation)
 {
   Archive("/store/file", "tape contents");
   std::string requestId;
@@ -128,7 +128,7 @@ TEST_F(TapeApiStoreTest, ValidatesBulkRequestMembershipBeforeMutation)
   EXPECT_TRUE(fs::is_regular_file(m_root / "disk/store/file"));
 }
 
-TEST_F(TapeApiStoreTest, RejectsPathsOutsideTheStorageRoot)
+TEST_F(StoreTest, RejectsPathsOutsideTheStorageRoot)
 {
   std::string requestId;
   ASSERT_TRUE(m_store->CreateStage(

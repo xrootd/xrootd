@@ -38,7 +38,7 @@ std::string ToHex(const char *b, int l)
 
 } // namespace
 
-TEST(XrdSecgsiRtag, GeneratedTagIsValid)
+TEST(RtagTest, GeneratedTagIsValid)
 {
    XrdOucString rtag;
    ASSERT_EQ(XrdSutRndm::GetRndmTag(rtag), 0);
@@ -46,20 +46,20 @@ TEST(XrdSecgsiRtag, GeneratedTagIsValid)
    EXPECT_TRUE(XrdSecgsiRtagIsValid(rtag.c_str(), rtag.length()));
 }
 
-TEST(XrdSecgsiRtag, DigestInfoIsRejected)
+TEST(RtagTest, DigestInfoIsRejected)
 {
    EXPECT_FALSE(XrdSecgsiRtagIsValid((const char *) kDigestInfo,
                                      sizeof(kDigestInfo)));
 }
 
-TEST(XrdSecgsiRtag, MalformedTagsAreRejected)
+TEST(RtagTest, MalformedTagsAreRejected)
 {
    EXPECT_FALSE(XrdSecgsiRtagIsValid(nullptr, kXRSrtagLen));
    EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdefg", 7));   // too short
    EXPECT_FALSE(XrdSecgsiRtagIsValid("abcdefghi", 9)); // too long
 }
 
-TEST(XrdSecgsiRtag, DigestIsContextBoundSha256)
+TEST(RtagTest, DigestIsContextBoundSha256)
 {
    XrdCryptoFactory *cf = XrdCryptoFactory::GetCryptoFactory("ssl");
    ASSERT_NE(cf, nullptr);
@@ -75,7 +75,7 @@ TEST(XrdSecgsiRtag, DigestIsContextBoundSha256)
    EXPECT_EQ(ToHex(md, lmd), kSha256OfCtxAbcdefgh);
 }
 
-TEST(XrdSecgsiRtag, DigestRejectsBadInput)
+TEST(RtagTest, DigestRejectsBadInput)
 {
    XrdCryptoFactory *cf = XrdCryptoFactory::GetCryptoFactory("ssl");
    ASSERT_NE(cf, nullptr);
