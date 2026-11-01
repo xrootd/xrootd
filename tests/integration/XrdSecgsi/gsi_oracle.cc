@@ -13,6 +13,9 @@
 //         it, and that the raw signature recovers the tag under the host
 //         public key. This proves an old client still authenticates a new
 //         server.
+// Test C: send an 8 byte random tag in the dCache (xrootd4j) format, with
+//         NUL and control bytes, and check it as in Test B. This proves a
+//         dCache client still authenticates a new server.
 //
 // Usage: xrd-gsi-oracle <host> <port> <host-cert.pem>
 // Exit code 0 means the server is safe, 1 means a check failed, 2 means the
@@ -268,6 +271,34 @@ static bool oneRound(const char *host, const char *port,
 }
 
 //______________________________________________________________________________
+static int checkSigned(const char *name, const char *peer, const char *host,
+                       const char *port, XrdCryptoRSA *pub, const char *rtag,
+                       int rtaglen)
+{
+   // Check that the server signs rtag and that the raw signature recovers
+   // it under the host public key. Return 0 on success, 1 if the check
+   // failed, 2 if the handshake did not complete.
+
+   std::string sig;
+   if (!oneRound(host, port, "", rtag, rtaglen, sig)) {
+      fprintf(stderr, "%s: could not complete the handshake\n", name);
+      return 2;
+   }
+   if (sig.empty()) {
+      printf("%s: FAIL - server did not sign a valid random tag, "
+             "%s would not authenticate\n", name, peer);
+      return 1;
+   }
+   if (recoverSignature(pub, sig) != std::string(rtag, rtaglen)) {
+      printf("%s: FAIL - recovered value does not match the sent tag\n", name);
+      return 1;
+   }
+   printf("%s: server signed the random tag and it recovers to the "
+          "sent value - interoperability with %s OK\n", name, peer);
+   return 0;
+}
+
+//______________________________________________________________________________
 int main(int argc, char **argv)
 {
    if (argc != 4) {
@@ -319,25 +350,17 @@ int main(int argc, char **argv)
 
    // Test B: a well formed random tag, old client interoperability
    const char rtag[8] = {'A', 'b', '3', '.', '/', 'x', 'Y', 'z'};
-   sig.clear();
-   if (!oneRound(host, port, "", rtag, (int)sizeof(rtag), sig)) {
-      fprintf(stderr, "Test B: could not complete the handshake\n");
-      return 2;
-   }
-   if (sig.empty()) {
-      printf("Test B: FAIL - server did not sign a valid random tag, "
-             "an old client would not authenticate\n");
-      ok = false;
-   } else {
-      std::string recovered = recoverSignature(pub, sig);
-      if (recovered == std::string(rtag, sizeof(rtag))) {
-         printf("Test B: server signed the random tag and it recovers to the "
-                "sent value - old client interoperability OK\n");
-      } else {
-         printf("Test B: FAIL - recovered value does not match the sent tag\n");
-         ok = false;
-      }
-   }
+   int rc = checkSigned("Test B", "an old client", host, port, pub, rtag,
+                        (int)sizeof(rtag));
+   if (rc == 2) return 2;
+   ok = ok && rc == 0;
+
+   // Test C: a dCache random tag, dCache client interoperability
+   const char dtag[8] = {0x00, 0x01, 0x1f, ' ', '~', 0x7e, 'a', '/'};
+   rc = checkSigned("Test C", "a dCache client", host, port, pub, dtag,
+                    (int)sizeof(dtag));
+   if (rc == 2) return 2;
+   ok = ok && rc == 0;
 
    delete cert;
    return ok ? 0 : 1;
