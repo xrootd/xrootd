@@ -123,7 +123,7 @@ void LocalFileHandlerTest::readTestFunc(bool offsetRead, uint32_t offset){
 
 }
 
-TEST_F(LocalFileHandlerTest, SyncTest){
+TEST_F(LocalFileHandlerTest, SyncOfAnOpenFileSucceeds){
    using namespace XrdCl;
    std::string targetURL = m_tmpdir + "/lfilehandlertestfilesync";
    CreateTestFileFunc( targetURL );
@@ -141,7 +141,7 @@ TEST_F(LocalFileHandlerTest, SyncTest){
    delete file;
 }
 
-TEST_F(LocalFileHandlerTest, OpenCloseTest){
+TEST_F(LocalFileHandlerTest, OpenFailsForAMissingFileAndCloseForAClosedFile){
    using namespace XrdCl;
    std::string targetURL = m_tmpdir + "/lfilehandlertestfileopenclose";
    CreateTestFileFunc( targetURL );
@@ -170,7 +170,7 @@ TEST_F(LocalFileHandlerTest, OpenCloseTest){
    delete file;
 }
 
-TEST_F(LocalFileHandlerTest, WriteTest){
+TEST_F(LocalFileHandlerTest, WriteStoresTheBytesInTheFile){
    using namespace XrdCl;
    std::string targetURL = m_tmpdir + "/lfilehandlertestfilewrite";
    std::string toBeWritten = "tenBytes1\0";
@@ -201,7 +201,7 @@ TEST_F(LocalFileHandlerTest, WriteTest){
    delete file;
 }
 
-TEST_F(LocalFileHandlerTest, WriteWithOffsetTest){
+TEST_F(LocalFileHandlerTest, WriteAtAnOffsetKeepsTheBytesBeforeIt){
    using namespace XrdCl;
    std::string targetURL = m_tmpdir + "/lfilehandlertestfilewriteoffset";
    std::string toBeWritten = "tenBytes10";
@@ -235,7 +235,7 @@ TEST_F(LocalFileHandlerTest, WriteWithOffsetTest){
    delete file;
 }
 
-TEST_F(LocalFileHandlerTest, WriteMkdirTest){
+TEST_F(LocalFileHandlerTest, OpenWithMakePathCreatesTheParentDirectories){
    using namespace XrdCl;
    std::string targetURL = m_tmpdir + "/testdir/further/muchfurther/evenfurther/lfilehandlertestfilewrite";
    std::string toBeWritten = "tenBytes10";
@@ -266,14 +266,14 @@ TEST_F(LocalFileHandlerTest, WriteMkdirTest){
    delete file;
 }
 
-TEST_F(LocalFileHandlerTest, ReadTests){
+TEST_F(LocalFileHandlerTest, ReadReturnsTheBytesFromTheStartAndFromAnOffset){
    // Normal read test
    readTestFunc(false, 0);
    // Read with offset test
    readTestFunc(true, 3);
 }
 
-TEST_F(LocalFileHandlerTest, TruncateTest){
+TEST_F(LocalFileHandlerTest, TruncateSetsTheSizeOfTheFile){
    using namespace XrdCl;
    //----------------------------------------------------------------------------
    // Initialize
@@ -305,7 +305,7 @@ TEST_F(LocalFileHandlerTest, TruncateTest){
    delete[] buffer;
 }
 
-TEST_F(LocalFileHandlerTest, VectorReadTest)
+TEST_F(LocalFileHandlerTest, VectorReadReturnsTheChunksWithAndWithoutABuffer)
 {
    using namespace XrdCl;
 
@@ -366,7 +366,7 @@ TEST_F(LocalFileHandlerTest, VectorReadTest)
    delete info;
 }
 
-TEST_F(LocalFileHandlerTest, VectorWriteTest)
+TEST_F(LocalFileHandlerTest, VectorWriteStoresEachChunkAtItsOffset)
 {
    using namespace XrdCl;
 
@@ -419,7 +419,7 @@ TEST_F(LocalFileHandlerTest, VectorWriteTest)
    EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 }
 
-TEST_F(LocalFileHandlerTest, WriteVTest)
+TEST_F(LocalFileHandlerTest, WriteVStoresTheBuffersOneAfterTheOther)
 {
   using namespace XrdCl;
 
@@ -458,7 +458,7 @@ TEST_F(LocalFileHandlerTest, WriteVTest)
   EXPECT_EQ( remove( targetURL.c_str() ), 0 );
 }
 
-TEST_F(LocalFileHandlerTest, XAttrTest)
+TEST_F(LocalFileHandlerTest, ExtendedAttributesCanBeSetReadDeletedAndListed)
 {
   using namespace XrdCl;
 
