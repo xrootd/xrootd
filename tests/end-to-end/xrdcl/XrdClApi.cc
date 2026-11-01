@@ -12,19 +12,29 @@
 #include "XrdCl/XrdClCheckpointOperation.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClPollerBuiltIn.hh"
+#include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 
+#include <arpa/inet.h>
+#include <csignal>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <atomic>
+#include <cerrno>
 #include <condition_variable>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <random>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -637,6 +647,617 @@ int OpenUsers( const std::vector<std::string> &args )
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Transport: the XRootD handshake over a raw Socket
+//------------------------------------------------------------------------------
+
+constexpr uint32_t HandShakeResponseSize = 16;
+
+ClientInitHandShake HandShake()
+{
+  ClientInitHandShake hs{};
+  hs.fourth = htonl( 4 );
+  hs.fifth  = htonl( 2012 );
+  return hs;
+}
+
+// Print the protocol version and the server type of a handshake response
+void PrintHandShake( const char *response )
+{
+  ServerInitHandShake body;
+  memcpy( &body, response + 4, sizeof( body ) );
+  std::cout << "msglen=" << ntohl( body.msglen )
+            << " protover=" << std::hex << ntohl( body.protover ) << std::dec
+            << " type=" << ntohl( body.msgval ) << '\n';
+}
+
+void Connect( Socket &socket, const std::string &host, const std::string &port,
+              int family = AF_INET6 )
+{
+  Check( socket.Initialize( family ), "socket" );
+  Check( socket.Connect( host, ToNumber( port ) ), "connect" );
+
+  // the second call returns the name which the first one stored
+  const std::string name = socket.GetSockName();
+  if( name.empty() || socket.GetSockName() != name )
+    throw Failure{ ExitError, "the connected socket has no stable name" };
+}
+
+// socket <host> <port> [ipv4]: send the handshake with Socket::WriteRaw, read
+// the response with Socket::ReadRaw, and print it. The socket is of the IPv6
+// family, which also connects to IPv4 addresses, or of the IPv4 family.
+int SocketHandShake( const std::vector<std::string> &args )
+{
+  if( args.size() < 2 || args.size() > 3 || ( args.size() == 3 && args[2] != "ipv4" ) )
+    Usage( "socket <host> <port> [ipv4]" );
+
+  Socket socket;
+  Connect( socket, args[0], args[1], args.size() == 3 ? AF_INET : AF_INET6 );
+
+  ClientInitHandShake hs = HandShake();
+  char response[HandShakeResponseSize];
+  uint32_t bytes = 0;
+
+  Check( socket.WriteRaw( &hs, sizeof( hs ), 10, bytes ), "write handshake" );
+  Check( socket.ReadRaw( response, sizeof( response ), 10, bytes ), "read response" );
+
+  PrintHandShake( response );
+  socket.Close();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Transport: random data through a raw Socket and the Poller. An xrootd server
+// cannot send random data to a raw socket, thus a peer on the loopback address
+// runs in a thread of this process.
+//------------------------------------------------------------------------------
+
+constexpr size_t MaxPacket = 50000;
+
+// The number of bytes and the CRC32C checksum of the data of one direction
+struct Transfer
+{
+  uint64_t bytes = 0;
+  uint32_t crc   = 0;
+
+  void Add( const char *data, size_t size )
+  {
+    crc = XrdOucCRC::Calc32C( data, size, crc );
+    bytes += size;
+  }
+
+  bool operator==( const Transfer &other ) const
+  {
+    return bytes == other.bytes && crc == other.crc;
+  }
+};
+
+void RandomBytes( std::mt19937 &rng, char *data, size_t size )
+{
+  for( size_t i = 0; i < size; ++i )
+    data[i] = static_cast<char>( rng() & 0xff );
+}
+
+// Write all bytes to a blocking descriptor of the peer, in slices of random
+// size with short pauses, thus the client gets the data in many parts
+bool PeerWrite( int fd, const char *data, size_t size, std::mt19937 &rng )
+{
+  std::uniform_int_distribution<size_t> slice( 1, 4096 );
+  while( size > 0 )
+  {
+    ssize_t n = ::write( fd, data, std::min( size, slice( rng ) ) );
+    if( n < 0 && errno == EINTR ) continue;
+    if( n <= 0 ) return false;
+    data += n;
+    size -= n;
+    if( rng() % 8 == 0 ) std::this_thread::sleep_for( std::chrono::microseconds( 200 ) );
+  }
+  return true;
+}
+
+bool PeerRead( int fd, char *data, size_t size )
+{
+  while( size > 0 )
+  {
+    ssize_t n = ::read( fd, data, size );
+    if( n < 0 && errno == EINTR ) continue;
+    if( n <= 0 ) return false;
+    data += n;
+    size -= n;
+  }
+  return true;
+}
+
+// The port of the local end of a descriptor
+int LocalPort( int fd )
+{
+  sockaddr_in addr{};
+  socklen_t len = sizeof( addr );
+  if( ::getsockname( fd, reinterpret_cast<sockaddr*>( &addr ), &len ) != 0 )
+    throw Failure{ ExitError, "getsockname failed" };
+  return ntohs( addr.sin_port );
+}
+
+// A listening socket on 127.0.0.1, on a port which the system chooses
+class Listener
+{
+  public:
+    Listener()
+    {
+      fd = ::socket( AF_INET, SOCK_STREAM, 0 );
+      sockaddr_in addr{};
+      addr.sin_family      = AF_INET;
+      addr.sin_addr.s_addr = htonl( INADDR_LOOPBACK );
+      if( fd < 0 || ::bind( fd, reinterpret_cast<sockaddr*>( &addr ), sizeof( addr ) ) != 0 ||
+          ::listen( fd, 128 ) != 0 )
+        throw Failure{ ExitError, "cannot listen on the loopback address" };
+      port = LocalPort( fd );
+    }
+
+    ~Listener() { if( fd >= 0 ) ::close( fd ); }
+
+    // Accept a connection; return the descriptor and the port of the client
+    int Accept( int &clientPort )
+    {
+      sockaddr_in addr{};
+      socklen_t len = sizeof( addr );
+      int conn;
+      do conn = ::accept( fd, reinterpret_cast<sockaddr*>( &addr ), &len );
+      while( conn < 0 && errno == EINTR );
+      clientPort = conn < 0 ? 0 : ntohs( addr.sin_port );
+      return conn;
+    }
+
+    int fd   = -1;
+    int port = 0;
+};
+
+const char *StatusName( Socket::SocketStatus status )
+{
+  switch( status )
+  {
+    case Socket::Disconnected: return "disconnected";
+    case Socket::Connected:    return "connected";
+    case Socket::Connecting:   return "connecting";
+  }
+  return "unknown";
+}
+
+// socket-transfer [packets]: the peer sends a 4-byte count of packets, then
+// each packet as a 4-byte size and up to 50000 random bytes; the client reads
+// them with Socket::ReadRaw. Then the client sends as many packets with
+// Socket::WriteRaw, which the peer reads. Compare the number of bytes and the
+// CRC32C checksum of each direction, and print the status of the socket
+// before the connection, after it, and after the close.
+int SocketTransfer( const std::vector<std::string> &args )
+{
+  if( args.size() > 1 ) Usage( "socket-transfer [packets]" );
+  const uint32_t packets = args.empty() ? 100 : ToNumber( args[0] );
+
+  // a write of the peer to a closed socket must fail, not stop the process
+  std::signal( SIGPIPE, SIG_IGN );
+
+  const auto seed = std::random_device{}();
+  Listener listener;
+  Transfer peerSent, peerReceived;
+  bool peerOK = false;
+
+  std::thread peer( [&]
+  {
+    int clientPort;
+    int fd = listener.Accept( clientPort );
+    if( fd < 0 ) return;
+    std::mt19937 rng( seed );
+    std::uniform_int_distribution<uint32_t> size( 0, MaxPacket );
+    std::vector<char> buffer( MaxPacket );
+    uint32_t n = htonl( packets ), count = 0;
+    bool ok = PeerWrite( fd, reinterpret_cast<char*>( &n ), 4, rng );
+    for( uint32_t i = 0; ok && i < packets; ++i )
+    {
+      uint32_t len = size( rng ), nlen = htonl( len );
+      RandomBytes( rng, buffer.data(), len );
+      ok = PeerWrite( fd, reinterpret_cast<char*>( &nlen ), 4, rng ) &&
+           PeerWrite( fd, buffer.data(), len, rng );
+      if( ok ) peerSent.Add( buffer.data(), len );
+    }
+    ok = ok && PeerRead( fd, reinterpret_cast<char*>( &count ), 4 );
+    count = ntohl( count );
+    for( uint32_t i = 0; ok && i < count; ++i )
+    {
+      uint32_t len;
+      ok = PeerRead( fd, reinterpret_cast<char*>( &len ), 4 ) &&
+           ( len = ntohl( len ) ) <= MaxPacket &&
+           PeerRead( fd, buffer.data(), len );
+      if( ok ) peerReceived.Add( buffer.data(), len );
+    }
+    peerOK = ok;
+    ::close( fd );
+  } );
+
+  // On an error, a connection wakes the peer if it waits in accept, and the
+  // close of the socket of the client below ends its reads and writes
+  struct PeerJoin
+  {
+    std::thread &t;
+    int          port;
+    ~PeerJoin()
+    {
+      if( !t.joinable() ) return;
+      Socket wake;
+      if( wake.Initialize( AF_INET ).IsOK() ) wake.Connect( "127.0.0.1", port );
+      wake.Close();
+      t.join();
+    }
+  } peerJoin{ peer, listener.port };
+
+  Socket socket;
+  std::string states = StatusName( socket.GetStatus() );
+  Check( socket.Initialize( AF_INET ), "socket" );
+  Check( socket.Connect( "127.0.0.1", listener.port ), "connect" );
+  states += std::string( " " ) + StatusName( socket.GetStatus() );
+
+  std::vector<char> buffer( MaxPacket );
+  Transfer received, sent;
+  uint32_t bytes = 0, count = 0;
+
+  {
+    Check( socket.ReadRaw( &count, 4, 60, bytes ), "read the count" );
+    count = ntohl( count );
+    for( uint32_t i = 0; i < count; ++i )
+    {
+      uint32_t len;
+      Check( socket.ReadRaw( &len, 4, 60, bytes ), "read a size" );
+      len = ntohl( len );
+      if( len > MaxPacket ) throw Failure{ ExitError, "a packet is too large" };
+      Check( socket.ReadRaw( buffer.data(), len, 60, bytes ), "read a packet" );
+      if( bytes != len ) throw Failure{ ExitError, "a short read of a packet" };
+      received.Add( buffer.data(), len );
+    }
+  }
+
+  {
+    std::mt19937 rng( seed + 1 );
+    std::uniform_int_distribution<uint32_t> size( 0, MaxPacket );
+    uint32_t n = htonl( packets );
+    Check( socket.WriteRaw( &n, 4, 60, bytes ), "write the count" );
+    for( uint32_t i = 0; i < packets; ++i )
+    {
+      uint32_t len = size( rng ), nlen = htonl( len );
+      RandomBytes( rng, buffer.data(), len );
+      Check( socket.WriteRaw( &nlen, 4, 60, bytes ), "write a size" );
+      Check( socket.WriteRaw( buffer.data(), len, 60, bytes ), "write a packet" );
+      if( bytes != len ) throw Failure{ ExitError, "a short write of a packet" };
+      sent.Add( buffer.data(), len );
+    }
+  }
+
+  // the peer reads all packets before it closes its end
+  char eof;
+  XRootDStatus st = socket.ReadRaw( &eof, 1, 60, bytes );
+  socket.Close();
+  states += std::string( " " ) + StatusName( socket.GetStatus() );
+  peer.join();
+
+  if( st.IsOK() || !peerOK )
+    throw Failure{ ExitError, "the peer did not complete the transfer (seed " + std::to_string( seed ) + ")" };
+  if( !( received == peerSent ) || !( sent == peerReceived ) )
+    throw Failure{ ExitError, "the data differs (seed " + std::to_string( seed ) + ")" };
+
+  std::cout << "packets=" << count << " received=" << received.bytes
+            << " sent=" << sent.bytes << " checksums match\n"
+            << "status: " << states << '\n';
+  return 0;
+}
+
+// Read the handshake responses of the sockets on read events of the poller
+class HandShakeReader : public SocketHandler
+{
+  public:
+    void Initialize( Poller *poller ) override { pPoller = poller; }
+
+    void Event( uint8_t type, Socket *socket ) override
+    {
+      std::lock_guard<std::mutex> lock( pMutex );
+      std::string &data = pData[socket];
+      if( pFinished[socket] ) return;
+
+      // a server which closes the connection early gives an end of file,
+      // which stays readable, thus the socket is done without its response
+      bool eof = false;
+      if( type & ReadyToRead )
+      {
+        char buffer[HandShakeResponseSize];
+        ssize_t n = -1;
+        while( data.size() < HandShakeResponseSize &&
+               ( n = ::read( socket->GetFD(), buffer,
+                             HandShakeResponseSize - data.size() ) ) > 0 )
+          data.append( buffer, n );
+        eof = ( n == 0 );
+      }
+
+      if( data.size() == HandShakeResponseSize || eof || ( type & ReadTimeOut ) )
+      {
+        pFinished[socket] = true;
+        pPoller->EnableReadNotification( socket, false );
+        ++pDone;
+        pDoneCV.notify_all();
+      }
+    }
+
+    // Wait until each socket has its response or a timeout
+    void Wait( size_t count )
+    {
+      std::unique_lock<std::mutex> lock( pMutex );
+      pDoneCV.wait( lock, [&] { return pDone >= count; } );
+    }
+
+    std::map<Socket*, std::string> pData;
+
+  private:
+    std::map<Socket*, bool>  pFinished;
+    Poller                  *pPoller = nullptr;
+    std::mutex               pMutex;
+    std::condition_variable  pDoneCV;
+    size_t                   pDone = 0;
+};
+
+// poller <host> <port> <sockets>: send the handshake on each socket, read the
+// responses on read events of the built-in poller, and print each response
+int PollerHandShake( const std::vector<std::string> &args )
+{
+  if( args.size() != 3 ) Usage( "poller <host> <port> <sockets>" );
+
+  PollerBuiltIn poller;
+  HandShakeReader reader;
+  std::vector<Socket> sockets( ToNumber( args[2] ) );
+
+  // Stop the thread of the poller before the reader and the sockets go, also
+  // on an error. Stop and Finalize do nothing the second time.
+  struct PollerStop
+  {
+    PollerBuiltIn &poller;
+    ~PollerStop() { poller.Stop(); poller.Finalize(); }
+  } pollerStop{ poller };
+
+  if( !poller.Initialize() || !poller.Start() )
+    throw Failure{ ExitError, "cannot start the poller" };
+
+  for( auto &socket : sockets )
+  {
+    Connect( socket, args[0], args[1] );
+
+    if( !poller.AddSocket( &socket, &reader ) ||
+        !poller.EnableReadNotification( &socket, true, 10 ) ||
+        !poller.IsRegistered( &socket ) )
+      throw Failure{ ExitError, "cannot register a socket" };
+
+    ClientInitHandShake hs = HandShake();
+    uint32_t bytes = 0;
+    Check( socket.WriteRaw( &hs, sizeof( hs ), 10, bytes ), "write handshake" );
+  }
+
+  reader.Wait( sockets.size() );
+
+  for( auto &socket : sockets )
+    if( !poller.RemoveSocket( &socket ) || poller.IsRegistered( &socket ) )
+      throw Failure{ ExitError, "cannot remove a socket" };
+
+  poller.Stop();
+  poller.Finalize();
+
+  for( auto &socket : sockets )
+  {
+    const std::string &response = reader.pData[&socket];
+    if( response.size() != HandShakeResponseSize )
+      throw Failure{ ExitError, "no complete response on " + socket.GetSockName() };
+    PrintHandShake( response.data() );
+    socket.Close();
+  }
+
+  return 0;
+}
+
+// Read all data of the peer on the read events of the poller, until the peer
+// closes its end, and count the events of each socket
+class DataReader : public SocketHandler
+{
+  public:
+    struct State
+    {
+      Transfer received;
+      size_t   events = 0;
+      bool     done   = false;
+      bool     ok     = false;
+    };
+
+    void Initialize( Poller *poller ) override { pPoller = poller; }
+
+    void Event( uint8_t type, Socket *socket ) override
+    {
+      std::lock_guard<std::mutex> lock( pMutex );
+      State &state = pState[socket];
+      if( state.done ) return;
+      ++state.events;
+
+      if( type & ReadyToRead )
+      {
+        ssize_t n;
+        while( ( n = ::read( socket->GetFD(), pBuffer.data(), pBuffer.size() ) ) > 0 ||
+               ( n < 0 && errno == EINTR ) )
+          if( n > 0 ) state.received.Add( pBuffer.data(), n );
+
+        if( n == 0 )
+          Finish( socket, state, true );
+        else if( errno != EAGAIN && errno != EWOULDBLOCK )
+          Finish( socket, state, false );
+      }
+
+      if( !state.done && ( type & ReadTimeOut ) )
+        Finish( socket, state, false );
+    }
+
+    // Wait until each socket has all its data, an error or a timeout
+    void Wait( size_t count )
+    {
+      std::unique_lock<std::mutex> lock( pMutex );
+      pDoneCV.wait( lock, [&] { return pDone >= count; } );
+    }
+
+    State Get( Socket *socket )
+    {
+      std::lock_guard<std::mutex> lock( pMutex );
+      return pState[socket];
+    }
+
+  private:
+    void Finish( Socket *socket, State &state, bool ok )
+    {
+      state.done = true;
+      state.ok   = ok;
+      pPoller->EnableReadNotification( socket, false );
+      ++pDone;
+      pDoneCV.notify_all();
+    }
+
+    Poller                   *pPoller = nullptr;
+    std::mutex                pMutex;
+    std::condition_variable   pDoneCV;
+    size_t                    pDone = 0;
+    std::map<Socket*, State>  pState;
+    std::vector<char>         pBuffer = std::vector<char>( MaxPacket );
+};
+
+// poller-transfer <sockets>: on each socket, the peer sends 50 to 100 packets
+// of up to 50000 random bytes, with a pause after each packet, then closes the
+// connection. The client reads the data on the read events of the built-in
+// poller. Compare the number of bytes and the CRC32C checksum of each socket,
+// and print the number of sockets, of bytes and of read events.
+int PollerTransfer( const std::vector<std::string> &args )
+{
+  if( args.size() != 1 ) Usage( "poller-transfer <sockets>" );
+  const size_t count = ToNumber( args[0] );
+
+  // a write of the peer to a closed socket must fail, not stop the process
+  std::signal( SIGPIPE, SIG_IGN );
+
+  const auto seed = std::random_device{}();
+  Listener listener;
+  std::mutex peerMutex;
+  std::map<int, Transfer> peerSent;
+  std::vector<std::thread> senders;
+  std::atomic<bool> stop{ false };
+
+  std::thread peer( [&]
+  {
+    for( size_t i = 0; i < count && !stop; ++i )
+    {
+      int clientPort;
+      int fd = listener.Accept( clientPort );
+      if( fd < 0 || stop ) { if( fd >= 0 ) ::close( fd ); return; }
+      senders.emplace_back( [&, fd, clientPort, i]
+      {
+        std::mt19937 rng( seed + i );
+        std::uniform_int_distribution<uint32_t> size( 0, MaxPacket );
+        std::vector<char> buffer( MaxPacket );
+        Transfer sent;
+        const uint32_t packets = 50 + rng() % 51;
+        bool ok = true;
+        for( uint32_t p = 0; ok && p < packets; ++p )
+        {
+          uint32_t len = size( rng );
+          RandomBytes( rng, buffer.data(), len );
+          ok = PeerWrite( fd, buffer.data(), len, rng );
+          if( ok ) sent.Add( buffer.data(), len );
+          std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) );
+        }
+        ::close( fd );
+        std::lock_guard<std::mutex> lock( peerMutex );
+        peerSent[clientPort] = sent;
+      } );
+    }
+  } );
+
+  // On an error, a connection wakes the peer if it waits in accept, and the
+  // close of the sockets of the client below ends the writes of the senders
+  struct PeerJoin
+  {
+    std::thread              &peer;
+    std::vector<std::thread> &senders;
+    std::atomic<bool>        &stop;
+    int                       port;
+    ~PeerJoin()
+    {
+      if( peer.joinable() )
+      {
+        stop = true;
+        Socket wake;
+        if( wake.Initialize( AF_INET ).IsOK() ) wake.Connect( "127.0.0.1", port );
+        wake.Close();
+        peer.join();
+      }
+      for( auto &sender : senders )
+        if( sender.joinable() ) sender.join();
+    }
+  } peerJoin{ peer, senders, stop, listener.port };
+
+  PollerBuiltIn poller;
+  DataReader reader;
+  std::vector<Socket> sockets( count );
+
+  // Stop the thread of the poller before the reader and the sockets go, also
+  // on an error. Stop and Finalize do nothing the second time.
+  struct PollerStop
+  {
+    PollerBuiltIn &poller;
+    ~PollerStop() { poller.Stop(); poller.Finalize(); }
+  } pollerStop{ poller };
+
+  if( !poller.Initialize() || !poller.Start() )
+    throw Failure{ ExitError, "cannot start the poller" };
+
+  for( auto &socket : sockets )
+  {
+    Check( socket.Initialize( AF_INET ), "socket" );
+    Check( socket.Connect( "127.0.0.1", listener.port ), "connect" );
+
+    if( !poller.AddSocket( &socket, &reader ) ||
+        !poller.EnableReadNotification( &socket, true, 60 ) ||
+        !poller.IsRegistered( &socket ) )
+      throw Failure{ ExitError, "cannot register a socket" };
+  }
+
+  reader.Wait( sockets.size() );
+
+  for( auto &socket : sockets )
+    if( !poller.RemoveSocket( &socket ) || poller.IsRegistered( &socket ) )
+      throw Failure{ ExitError, "cannot remove a socket" };
+
+  poller.Stop();
+  poller.Finalize();
+  peer.join();
+  for( auto &sender : senders ) sender.join();
+
+  uint64_t bytes = 0;
+  size_t events = 0;
+  for( auto &socket : sockets )
+  {
+    DataReader::State state = reader.Get( &socket );
+    const int port = LocalPort( socket.GetFD() );
+    if( !state.ok )
+      throw Failure{ ExitError, "no end of the data on " + socket.GetSockName() };
+    if( !( state.received == peerSent[port] ) )
+      throw Failure{ ExitError, "the data differs on " + socket.GetSockName() +
+                                " (seed " + std::to_string( seed ) + ")" };
+    bytes  += state.received.bytes;
+    events += state.events;
+    socket.Close();
+  }
+
+  std::cout << "sockets=" << sockets.size() << " bytes=" << bytes
+            << " events=" << events << " checksums match\n";
+  return 0;
+}
+
 const std::map<std::string, std::function<int( const std::vector<std::string>& )>> Commands =
 {
   { "read",       Read            },
@@ -659,6 +1280,10 @@ const std::map<std::string, std::function<int( const std::vector<std::string>& )
   { "threads",    Threads         },
   { "fork",       Fork            },
   { "open-users", OpenUsers       },
+  { "socket",     SocketHandShake },
+  { "poller",     PollerHandShake },
+  { "socket-transfer", SocketTransfer },
+  { "poller-transfer", PollerTransfer },
 };
 
 } // namespace
