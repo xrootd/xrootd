@@ -212,6 +212,14 @@ require_ipv6() {
     fi || skip 'the host has no IPv6 address for the client'
 }
 
+# Skip the test when the kernel has no IPv6, thus no socket of the IPv6 family
+# can exist (Linux with ipv6.disable=1). Such a socket also connects to IPv4
+# addresses, thus it needs no IPv6 address, unlike require_ipv6.
+require_ipv6_socket() {
+    python3 -c 'import socket; socket.socket(socket.AF_INET6, socket.SOCK_DGRAM).close()' 2>/dev/null ||
+        skip 'the kernel has no IPv6 sockets'
+}
+
 # Write a file with the given number of random bytes.
 make_random_file() {
     local path=$1 size=$2
