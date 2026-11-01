@@ -601,6 +601,9 @@ namespace XrdCl
 
       inline static size_t NbPgPerRsp( uint64_t offset, uint32_t dlen )
       {
+        // a response at the end of the file can have no data, thus no page
+        if( dlen == 0 )
+          return 0;
         uint32_t pgcnt = 0;
         uint32_t remainder = offset % XrdSys::PageSize;
         if( remainder > 0 )
