@@ -7,6 +7,7 @@ add_unit_tests(
     XrdClTPFallBackCopyJob.cc
     XrdClURL.cc
     XrdClUtils.cc
+    XrdClXRootDResponses.cc
   LIBRARIES
     XrdCl
     XrdTestUtils
