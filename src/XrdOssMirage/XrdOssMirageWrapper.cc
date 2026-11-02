@@ -120,6 +120,11 @@ int XrdOssMirageWrapper::Mkdir(const char *path, mode_t mode, int mkpath, XrdOuc
     return route(path).Mkdir(path, mode, mkpath, envP);
 }
 
+int XrdOssMirageWrapper::Reloc(const char *tident, const char *path, const char *cgName, const char *anchor)
+{
+    return route(path).Reloc(tident, path, cgName, anchor);
+}
+
 int XrdOssMirageWrapper::Remdir(const char *path, int Opts, XrdOucEnv *envP)
 {
     return route(path).Remdir(path, Opts, envP);
@@ -140,6 +145,33 @@ int XrdOssMirageWrapper::Stat(const char *path, struct stat *buff, int opts, Xrd
     return route(path).Stat(path, buff, opts, envP);
 }
 
+int XrdOssMirageWrapper::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *envP)
+{
+    return route(path).StatFS(path, buff, blen, envP);
+}
+
+int XrdOssMirageWrapper::StatPF(const char *path, struct stat *buff, int opts)
+{
+    return route(path).StatPF(path, buff, opts);
+}
+
+int XrdOssMirageWrapper::StatPF(const char *path, struct stat *buff)
+{
+    return route(path).StatPF(path, buff);
+}
+
+int XrdOssMirageWrapper::StatXA(const char *path, char *buff, int &blen, XrdOucEnv *envP)
+{
+    return route(path).StatXA(path, buff, blen, envP);
+}
+
+int XrdOssMirageWrapper::StatXP(const char *path, unsigned long long &attr, XrdOucEnv *envP)
+{
+    // Export attributes come from the server configuration, not from the
+    // mirage content, so the stacked plugin always answers.
+    return wrapPI.StatXP(path, attr, envP);
+}
+
 int XrdOssMirageWrapper::Truncate(const char *path, unsigned long long fsize, XrdOucEnv *envP)
 {
     return route(path).Truncate(path, fsize, envP);
@@ -148,4 +180,37 @@ int XrdOssMirageWrapper::Truncate(const char *path, unsigned long long fsize, Xr
 int XrdOssMirageWrapper::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
     return route(path).Unlink(path, Opts, envP);
+}
+
+void XrdOssMirageWrapper::Connect(XrdOucEnv &env)
+{
+    wrapPI.Connect(env);
+    mirage.Connect(env);
+}
+
+void XrdOssMirageWrapper::Disc(XrdOucEnv &env)
+{
+    wrapPI.Disc(env);
+    mirage.Disc(env);
+}
+
+void XrdOssMirageWrapper::EnvInfo(XrdOucEnv *envP)
+{
+    wrapPI.EnvInfo(envP);
+    mirage.EnvInfo(envP);
+}
+
+uint64_t XrdOssMirageWrapper::Features()
+{
+    return wrapPI.Features() | mirage.Features();
+}
+
+bool XrdOssMirageWrapper::getErrMsg(std::string &eText)
+{
+    return wrapPI.getErrMsg(eText) || mirage.getErrMsg(eText);
+}
+
+int XrdOssMirageWrapper::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
+{
+    return route(path).StatLS(env, path, buff, blen);
 }

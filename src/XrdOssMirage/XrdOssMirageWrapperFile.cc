@@ -24,6 +24,21 @@ int XrdOssMirageWrapperFile::StatRet(struct stat *buff)
     return active->StatRet(buff);
 }
 
+int XrdOssMirageWrapperFile::Clone(XrdOssDF &srcFile)
+{
+    return active->Clone(srcFile);
+}
+
+int XrdOssMirageWrapperFile::Clone(const std::vector<XrdOucCloneSeg> &cVec)
+{
+    return active->Clone(cVec);
+}
+
+void XrdOssMirageWrapperFile::Flush()
+{
+    active->Flush();
+}
+
 int XrdOssMirageWrapperFile::Fchmod(mode_t mode)
 {
     return active->Fchmod(mode);
@@ -47,6 +62,16 @@ int XrdOssMirageWrapperFile::Fsync(XrdSfsAio *aiop)
 int XrdOssMirageWrapperFile::Ftruncate(unsigned long long flen)
 {
     return active->Ftruncate(flen);
+}
+
+off_t XrdOssMirageWrapperFile::getMmap(void **addr)
+{
+    return active->getMmap(addr);
+}
+
+int XrdOssMirageWrapperFile::isCompressed(char *cxidp)
+{
+    return active->isCompressed(cxidp);
 }
 
 ssize_t XrdOssMirageWrapperFile::pgRead(void *buffer, off_t offset, size_t rdlen, uint32_t *csvec, uint64_t opts)
@@ -74,6 +99,11 @@ ssize_t XrdOssMirageWrapperFile::Read(off_t offset, size_t size)
     return active->Read(offset, size);
 }
 
+ssize_t XrdOssMirageWrapperFile::Read(XrdOucRangeList &rlist)
+{
+    return active->Read(rlist);
+}
+
 ssize_t XrdOssMirageWrapperFile::Read(void *buffer, off_t offset, size_t size)
 {
     return active->Read(buffer, offset, size);
@@ -89,6 +119,11 @@ ssize_t XrdOssMirageWrapperFile::ReadRaw(void *buffer, off_t offset, size_t size
     return active->ReadRaw(buffer, offset, size);
 }
 
+ssize_t XrdOssMirageWrapperFile::ReadV(XrdOucIOVec *readV, int rdvcnt)
+{
+    return active->ReadV(readV, rdvcnt);
+}
+
 ssize_t XrdOssMirageWrapperFile::Write(const void *buffer, off_t offset, size_t size)
 {
     return active->Write(buffer, offset, size);
@@ -99,9 +134,24 @@ int XrdOssMirageWrapperFile::Write(XrdSfsAio *aiop)
     return active->Write(aiop);
 }
 
+ssize_t XrdOssMirageWrapperFile::WriteV(XrdOucIOVec *writeV, int wrvcnt)
+{
+    return active->WriteV(writeV, wrvcnt);
+}
+
 int XrdOssMirageWrapperFile::Close(long long *retsz)
 {
     return active->Close(retsz);
+}
+
+int XrdOssMirageWrapperFile::Fctl(int cmd, int alen, const char *args, char **resp)
+{
+    return active->Fctl(cmd, alen, args, resp);
+}
+
+bool XrdOssMirageWrapperFile::getErrMsg(std::string &eText)
+{
+    return active->getErrMsg(eText);
 }
 
 int XrdOssMirageWrapperFile::getFD()

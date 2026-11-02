@@ -33,3 +33,23 @@ int XrdOssMirageWrapperDir::Close(long long *retsz)
 {
     return active->Close(retsz);
 }
+
+void XrdOssMirageWrapperDir::Flush()
+{
+    active->Flush();
+}
+
+int XrdOssMirageWrapperDir::Fctl(int cmd, int alen, const char *args, char **resp)
+{
+    return active->Fctl(cmd, alen, args, resp);
+}
+
+bool XrdOssMirageWrapperDir::getErrMsg(std::string &eText)
+{
+    return active->getErrMsg(eText);
+}
+
+int XrdOssMirageWrapperDir::getFD()
+{
+    return active->getFD();
+}

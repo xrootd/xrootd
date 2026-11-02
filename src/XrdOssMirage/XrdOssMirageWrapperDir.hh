@@ -27,6 +27,10 @@ public:
     virtual int Readdir(char *buff, int blen) override;
     virtual int StatRet(struct stat *buff) override;
     virtual int Close(long long *retsz=0) override;
+    virtual void Flush() override;
+    virtual int Fctl(int cmd, int alen, const char *args, char **resp=0) override;
+    virtual bool getErrMsg(std::string &eText) override;
+    virtual int getFD() override;
 };
 
 #endif
