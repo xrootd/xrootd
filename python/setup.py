@@ -3,8 +3,6 @@ import platform
 import subprocess
 import sys
 
-from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
 from subprocess import check_call, check_output
 
 try:
@@ -75,6 +73,15 @@ def get_version():
     version = version.replace('-', '.')
 
     return version
+
+# Version does not need setuptools. CMake asks for it before a wheel build,
+# and a Homebrew Python often has no setuptools installed yet.
+if __name__ == "__main__" and sys.argv[1:] == ["--version"]:
+    print(get_version())
+    raise SystemExit(0)
+
+from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext
 
 class CMakeExtension(Extension):
     def __init__(self, name, src=srcdir, sources=[], **kwa):

@@ -539,6 +539,8 @@ fi
 %{_libdir}/libXrdSecsss-6.so
 %{_libdir}/libXrdSecunix-6.so
 %{_libdir}/libXrdSecztn-6.so
+%{_libdir}/libXrdSecssh-6.so
+%doc src/XrdSecssh/README.md
 %license COPYING* LICENSE
 
 %files devel
