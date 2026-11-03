@@ -57,6 +57,7 @@
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLinkCtl.hh"
+#include "Xrd/XrdLinkXeq.hh"
 #include "XrdXrootd/XrdXrootdAioFob.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -93,6 +94,22 @@
 /******************************************************************************/
 
 extern XrdSysTrace  XrdXrootdTrace;
+
+namespace
+{
+class XrdXrootdOffloadJob : public XrdJob
+{
+public:
+   XrdXrootdOffloadJob(XrdLink *link)
+      : XrdJob("xroot offload"), link((XrdLinkXeq *)link), instance(link->Inst()) {}
+
+   void DoIt() override {link->DoItPinned(instance); delete this;}
+
+private:
+   XrdLinkXeq  *link;
+   unsigned int instance;
+};
+}
 
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
@@ -1361,13 +1378,18 @@ int XrdXrootdProtocol::do_Offload(int (XrdXrootdProtocol::*Invoke)(),int pathID)
           pp->Resume   = &XrdXrootdProtocol::do_OffloadIO;
           pp->ResumePio= Invoke;
           pp->isActive = true;
-          pp->newPio   = true;
+          pp->newPio   = false; // Setup is not yet safe to cancel.
           pp->reTry    = &isAvail;
+          pp->offloadLink = Link;
           pp->Response.Set(streamID);
           pp->streamMutex.UnLock();
           Link->setRef(1);
           IO.File->Ref(1);
-          Sched->Schedule((XrdJob *)(pp->Link));
+          pp->streamMutex.Lock();
+          pp->newPio = true;
+          Sched->Schedule(new XrdXrootdOffloadJob(pp->Link));
+          if (pp->endNote) pp->endNote->Signal();
+          pp->streamMutex.UnLock();
           isAvail.Wait();
           return 0;
          }
@@ -1410,6 +1432,10 @@ int XrdXrootdProtocol::do_OffloadIO()
 // we need to post the session thread so that it can pick up the next request.
 //
    streamMutex.Lock();
+   if (!isActive || (!newPio && !isLinkWT))
+      {streamMutex.UnLock();
+       return -EINPROGRESS;
+      }
    isLinkWT = false;
    if (newPio)
       {newPio = false;
@@ -1428,6 +1454,7 @@ int XrdXrootdProtocol::do_OffloadIO()
              {ResumePio = Resume;
               Resume = &XrdXrootdProtocol::do_OffloadIO;
               isLinkWT = true;
+              if (endNote) endNote->Signal();
               streamMutex.UnLock();
               return rc;
              }
@@ -1448,7 +1475,8 @@ int XrdXrootdProtocol::do_OffloadIO()
 //
    if (rc) isNOP = true;
    isActive = false;
-   Stream[0]->Link->setRef(-1);
+   offloadLink->setRef(-1);
+   offloadLink = 0;
    if (reTry) {reTry->Post(); reTry = 0;}
    if (endNote) endNote->Signal();
    streamMutex.UnLock();
