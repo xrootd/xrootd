@@ -297,7 +297,7 @@ int XrdXrootdProtocol::do_Bind()
 // The link may have escaped so we need to hold this link and try again
 //
    lp->Hold(1);
-   if (lp != XrdLinkCtl::fd2link(sp->FD, sp->Inst))
+   if (!lp->isInstance(sp->Inst))
       {lp->Hold(0);
        return Response.Send(kXR_NotFound, "session just closed");
       }
