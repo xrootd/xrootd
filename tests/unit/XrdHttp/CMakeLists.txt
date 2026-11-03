@@ -5,8 +5,10 @@ endif()
 
 add_unit_tests(
   SOURCES
-    XrdHttp.cc
-    ${PROJECT_SOURCE_DIR}/src/XrdHttpCors/XrdHttpCorsHandler.cc
+    XrdHttpChecksumHandler.cc
+    XrdHttpHeaderUtils.cc
+    XrdHttpReadRangeHandler.cc
+    XrdHttpUtils.cc
   LIBRARIES
     XrdHttpUtils
     XrdUtils

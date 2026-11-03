@@ -8,6 +8,7 @@ endif()
 add_unit_tests(
   SOURCES
     XrdXrootdFileStats.cc
+    XrdXrootdMonitor.cc
     XrdXrootdRedirHelper.cc
   LIBRARIES
     XrdServer
@@ -25,7 +26,7 @@ add_unit_tests(monfile
 # The transfer map tests need the "xfr" option and the largest buffers, which
 # are global to the process, so they have their own executable too.
 add_unit_tests(monxfr
-  SOURCES XrdXrootdMonXfr.cc
+  SOURCES XrdXrootdMonFileXfr.cc
   LIBRARIES XrdServer XrdUtils
   NO_MAIN
 )
