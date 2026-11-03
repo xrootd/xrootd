@@ -434,7 +434,12 @@ XrdTlsTempCA::BuildCAStore(const std::string &ca_fname, const std::string &crl_f
     // sorts lazily on first use -- under a write lock, while every other thread
     // verifying against this store waits.  Sorting here means the concurrent
     // verifications that follow a reload only ever need the read lock.
+    // OpenSSL 4.0 keeps the objects in a hash table and looks them up under the
+    // read lock without a sort. There, X509_STORE_get0_objects() is deprecated,
+    // and it would also move the objects from the hash table back to a stack.
+#if OPENSSL_VERSION_NUMBER < 0x40000000L
     sk_X509_OBJECT_sort(X509_STORE_get0_objects(store.get()));
+#endif
 
     return store;
 }
