@@ -206,11 +206,6 @@ class RandomHandlerFactory: public ClientHandlerFactory
 };
 
 //------------------------------------------------------------------------------
-// SocketTest class declaration
-//------------------------------------------------------------------------------
-class SocketTest : public ::testing::Test {};
-
-//------------------------------------------------------------------------------
 // Test the transfer
 //------------------------------------------------------------------------------
 TEST(SocketTest, ReadRawAndWriteRawTransferAllDataBothWays)

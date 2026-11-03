@@ -14,8 +14,6 @@
 
 #include <gtest/gtest.h>
 
-class UtilsTest : public ::testing::Test {};
-
 TEST(UtilsTest, JoinUrlAddsOneSlashBetweenParts)
 {
   EXPECT_EQ(XrdOucUtils::JoinUrl("https://example.org", "/api/v1"),

@@ -12,8 +12,6 @@ using namespace testing;
 
 // Test that XrdCl::URL conforms to RFC1738 (https://www.rfc-editor.org/rfc/rfc1738)
 
-class URLTest : public ::testing::Test {};
-
 TEST(URLTest, ParsesLocalUrlsAsFilesOnLocalhost)
 {
   char url[MAXPATHLEN];
