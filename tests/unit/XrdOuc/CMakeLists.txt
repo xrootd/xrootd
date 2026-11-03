@@ -1,6 +1,6 @@
 add_unit_tests(
   SOURCES
-    XrdOucCRC.cc
+    XrdOucCRCCombine.cc
     XrdOucHashVal.cc
     XrdOucUtils.cc
   LIBRARIES

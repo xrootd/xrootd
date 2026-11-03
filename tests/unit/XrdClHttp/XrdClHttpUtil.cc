@@ -24,9 +24,16 @@
 
 #include "XrdClHttp/XrdClHttpUtil.hh"
 
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClURL.hh>
+
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <ctime>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace
 {
@@ -142,4 +149,47 @@ TEST(HeaderParserTest, ParsesLastModifiedAsUtc)
   struct tm expected{};
   ASSERT_NE(strptime("Wed, 21 Aug 2024 11:02:53", "%a, %d %b %Y %H:%M:%S", &expected), nullptr);
   EXPECT_EQ(parser.GetModTime(), timegm(&expected));
+}
+
+TEST(UtilTest, ShouldUseBearerTokenWhenZtnIsTheFirstAvailableProtocol)
+{
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("", true, true));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("gsi,ztn", true, true));
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("ztn,gsi", true, true));
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("gsi, ztn", false, true));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("ztn,gsi", true, false));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("unix", false, true));
+}
+
+TEST(UtilTest, InjectBearerTokenAddsTheTokenWhenZtnIsSelectedAndNoTokenIsGiven)
+{
+  auto env = XrdCl::DefaultEnv::GetEnv();
+  ASSERT_NE(env, nullptr);
+  ASSERT_TRUE(env->PutString("BearerToken", "test-token"));
+  ASSERT_TRUE(env->PutInt("HttpDisableX509", 0));
+  ASSERT_TRUE(env->PutString("HttpClientCertFile", "/tmp/test-cert"));
+
+  ASSERT_EQ(setenv("XrdSecPROTOCOL", "ztn,gsi", 1), 0);
+  XrdCl::URL url("https://storage.example.org/store/file");
+  std::vector<std::pair<std::string, std::string>> headers;
+  XrdClHttp::InjectBearerToken(url, headers);
+  ASSERT_EQ(headers.size(), 1u);
+  EXPECT_EQ(headers[0].first, "Authorization");
+  EXPECT_EQ(headers[0].second, "Bearer test-token");
+
+  headers = {{"Authorization", "Bearer explicit-token"}};
+  XrdClHttp::InjectBearerToken(url, headers);
+  ASSERT_EQ(headers.size(), 1u);
+  EXPECT_EQ(headers[0].second, "Bearer explicit-token");
+
+  XrdCl::URL authzUrl(
+    "https://storage.example.org/store/file?authz=explicit-token");
+  headers.clear();
+  XrdClHttp::InjectBearerToken(authzUrl, headers);
+  EXPECT_TRUE(headers.empty());
+
+  ASSERT_EQ(setenv("XrdSecPROTOCOL", "gsi,ztn", 1), 0);
+  headers.clear();
+  XrdClHttp::InjectBearerToken(url, headers);
+  EXPECT_TRUE(headers.empty());
 }

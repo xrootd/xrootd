@@ -24,7 +24,7 @@ target_include_directories(XrdThrottleTestLib
 
 add_unit_tests(
   SOURCES
-    XrdThrottleUserLimits.cc
+    XrdThrottleManagerUserLimits.cc
   LIBRARIES
     XrdThrottleTestLib
     XrdUtils
