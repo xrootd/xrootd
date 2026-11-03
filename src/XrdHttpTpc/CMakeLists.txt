@@ -25,6 +25,7 @@ add_library(${XrdHttpTPC} MODULE
   XrdHttpTpcState.cc         XrdHttpTpcState.hh
   XrdHttpTpcStream.cc        XrdHttpTpcStream.hh
   XrdHttpTpcTPC.cc           XrdHttpTpcTPC.hh
+  XrdHttpTpcTPCCheck.cc      XrdHttpTpcTPCCheck.hh
   XrdHttpTpcUtils.cc         XrdHttpTpcUtils.hh
 )
 

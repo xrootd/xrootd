@@ -184,6 +184,7 @@ void State::SetupHeadersForHEAD(XrdHttpExtReq &req) {
 
   if (list != nullptr) {
     curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, list);
+    m_headers = list;
   }
 }
 
