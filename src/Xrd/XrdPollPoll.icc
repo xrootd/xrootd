@@ -168,7 +168,7 @@ void XrdPollPoll::Disable(XrdPollInfo &pInfo, const char *etxt)
    if (myerrno) Log.Emsg("Poll", myerrno, "disable link", pInfo.Link.ID);
       else {mySem.Wait();
             if (etxt && Finish(pInfo, etxt))
-               Sched.Schedule((XrdJob *)&pInfo.Link);
+               Sched.Schedule(XrdPollDispatchJob::Alloc(&pInfo));
            }
 }
   
