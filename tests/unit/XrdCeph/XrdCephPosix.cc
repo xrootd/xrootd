@@ -13,8 +13,6 @@ void fillCephFileParams(const std::string &params, XrdOucEnv *env,
 
 using namespace testing;
 
-class PosixTest : public ::testing::Test {};
-
 static CephFile parseParam(std::string param, XrdOucEnv *env = NULL)
 {
   CephFile cf;
