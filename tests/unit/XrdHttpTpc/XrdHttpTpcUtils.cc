@@ -11,8 +11,6 @@
 
 using namespace testing;
 
-class UtilsTest : public Test {};
-
 TEST(UtilsTest, PrepareOpenUrlMovesAuthzToHeaderAndAddsMappedHeaders) {
   std::string resource = "/eos/test/file.txt";
   std::map<std::string,std::string> empty {};
