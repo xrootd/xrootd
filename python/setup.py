@@ -1,5 +1,6 @@
 import os
 import platform
+import shutil
 import subprocess
 import sys
 
@@ -34,7 +35,7 @@ if not srcdir.startswith('$'):
     # client library and tracks its dependencies. All that is left to do here
     # is to pick it up from where CMake left it and package it into a wheel.
 
-    prebuilt = '${CMAKE_CURRENT_BINARY_DIR}/extension'
+    prebuilt = '${PYXROOTD_PAYLOAD_DIR}'
 
     cmake = None
 else:
@@ -88,10 +89,13 @@ class CMakeBuild(build_ext):
             destdir = os.path.join(extdir, ext.name)
 
             if prebuilt is not None:
-                self.mkpath(destdir)
-
-                for entry in sorted(os.listdir(prebuilt)):
-                    self.copy_file(os.path.join(prebuilt, entry), destdir)
+                if os.path.isdir(destdir):
+                    shutil.rmtree(destdir)
+                # The payload includes native executables and client plugins
+                # when built by the main project, or just the standalone
+                # module.
+                shutil.copytree(prebuilt, destdir)
+                self.copy_file(srcdir + '/src/__init__.py', destdir)
 
                 continue
 
@@ -125,6 +129,14 @@ class CMakeBuild(build_ext):
             check_call([cmake, ext.src, '-B', self.build_temp] + cmake_args)
             check_call([cmake, '--build', self.build_temp])
 
+# Configured by the enclosing CMake build. Standalone bindings deliberately
+# continue to use the externally installed XRootD commands and libraries.
+client_commands = '${PYXROOTD_COMMANDS}'
+if client_commands.startswith('$'):
+    client_commands = []
+else:
+    client_commands = client_commands.split()
+
 version = get_version()
 
 setup(name='xrootd',
@@ -149,6 +161,10 @@ setup(name='xrootd',
       },
       ext_modules= [ CMakeExtension('pyxrootd') ],
       cmdclass={ 'build_ext': CMakeBuild },
+      entry_points={'console_scripts': [
+          '{}=XRootD._cli:{}'.format(name, name)
+          for name in client_commands
+      ]},
       zip_safe=False,
       classifiers=[
           "Intended Audience :: Information Technology",

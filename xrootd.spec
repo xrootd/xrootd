@@ -356,7 +356,7 @@ doxygen Doxyfile
 
 %{__python3} -m pip install \
 	--no-deps --ignore-installed --disable-pip-version-check --verbose \
-	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/python/dist/*.whl
+	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/python/native-bindings/dist/*.whl
 
 rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/direct_url.json
 rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/RECORD

@@ -60,7 +60,7 @@ override_dh_auto_install:
 	dh_auto_install
 	python3 -m pip install --target debian/tmp/usr/lib/python3/dist-packages \
 		--no-deps --disable-pip-version-check --verbose \
-		--ignore-installed obj-$(DEB_HOST_MULTIARCH)/python/dist/*.whl
+		--ignore-installed obj-$(DEB_HOST_MULTIARCH)/python/native-bindings/dist/*.whl
 
 	rm -f debian/tmp/usr/bin/xrdshmap
 	rm -f debian/tmp/usr/lib/*/libXrd*Test*

@@ -1,5 +1,6 @@
 import os
 import platform
+import shutil
 import subprocess
 import sys
 
@@ -72,8 +73,10 @@ class CMakeBuild(build_ext):
                 '-DPython_EXECUTABLE={}'.format(sys.executable),
                 '-DCMAKE_BUILD_WITH_INSTALL_RPATH=TRUE',
                 '-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY={}/{}'.format(self.build_temp, ext.name),
-                '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}/{}'.format(extdir, ext.name),
-                '-DENABLE_PYTHON=1', '-DENABLE_XRDCL=1', '-DXRDCL_LIB_ONLY=1', '-DPYPI_BUILD=1'
+                '-DPYXROOTD_PAYLOAD_DIR={}'.format(
+                    os.path.abspath(os.path.join(self.build_temp, 'payload'))),
+                '-DENABLE_PYTHON=1', '-DENABLE_XRDCL=1',
+                '-DXRDCL_ONLY=1', '-DPYPI_BUILD=1', '-DENABLE_READLINE=0'
             ]
 
             if sys.platform == 'darwin':
@@ -87,7 +90,18 @@ class CMakeBuild(build_ext):
                 os.makedirs(self.build_temp)
 
             check_call([cmake, ext.src, '-B', self.build_temp] + cmake_args)
-            check_call([cmake, '--build', self.build_temp])
+            check_call([cmake, '--build', self.build_temp,
+                        '--target', 'PyXRootDClientPayload'])
+            # Honor the payload path resolved by CMake from CMAKE_ARGS.
+            with open(os.path.join(self.build_temp, 'CMakeCache.txt')) as cache:
+                payload = next(line.split('=', 1)[1].rstrip('\n')
+                               for line in cache
+                               if line.startswith('PYXROOTD_PAYLOAD_DIR:'))
+            destdir = os.path.join(extdir, ext.name)
+            if os.path.isdir(destdir):
+                shutil.rmtree(destdir)
+            shutil.copytree(payload, destdir)
+            self.copy_file('python/src/__init__.py', destdir)
 
 version = get_version()
 
@@ -113,6 +127,10 @@ setup(name='xrootd',
       },
       ext_modules= [ CMakeExtension('pyxrootd') ],
       cmdclass={ 'build_ext': CMakeBuild },
+      entry_points={'console_scripts': [
+          '{}=XRootD._cli:{}'.format(name, name)
+          for name in ('xrdfs', 'xrdcp', 'xrdcopy')
+      ]},
       zip_safe=False,
       classifiers=[
           "Intended Audience :: Information Technology",
