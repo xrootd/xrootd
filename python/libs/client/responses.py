@@ -17,6 +17,9 @@
 #-------------------------------------------------------------------------------
 from __future__ import absolute_import, division, print_function
 
+import errno
+import re
+
 try:
   from urllib.parse import urlparse
 except ImportError:
@@ -253,6 +256,65 @@ def raise_on_error(status):
   if not isinstance(status, XRootDStatus):
     status = XRootDStatus(status)
   return status.raise_on_error()
+
+
+def raise_as_oserror(status, path):
+  """Raise a standard ``OSError`` subclass for a failed XRootD operation.
+
+  The original status is available on ``error.xrootd_status``. This helper is
+  intended for higher-level Python file and filesystem interfaces; the native
+  status-tuple API and :func:`raise_on_error` keep their existing behavior.
+  """
+  if not isinstance(status, XRootDStatus):
+    status = XRootDStatus(status)
+  error = status.exception()
+  if error is None:
+    return status
+  if isinstance(error, XRootDNotFoundError):
+    result = FileNotFoundError(errno.ENOENT, status.message, path)
+  elif status.code == status.errErrorResponse and status.errno == 3018:
+    # kXR_ItExists from XProtocol.hh.
+    result = FileExistsError(errno.EEXIST, status.message, path)
+  elif isinstance(error, XRootDAuthorizationError):
+    result = PermissionError(errno.EACCES, status.message, path)
+  elif isinstance(error, XRootDTimeoutError):
+    result = TimeoutError(errno.ETIMEDOUT, status.message, path)
+  else:
+    result = OSError(errno.EIO, status.message, path)
+  result.xrootd_status = status
+  raise result from error
+
+
+def parse_checksum(response, algorithm=None):
+  """Parse a CHECKSUM query into ``(algorithm, value)``.
+
+  The server chooses the checksum algorithm. When ``algorithm`` is supplied,
+  reject a different one rather than silently returning an unexpected digest.
+  """
+  if isinstance(response, bytes):
+    response = response.decode('ascii')
+  parts = response.strip('\x00').strip().split()
+  if len(parts) != 2:
+    raise OSError('Invalid XRootD checksum response: %r' % response)
+  if algorithm is not None and parts[0].lower() != algorithm.lower():
+    raise OSError('Expected %s checksum, server returned %s' %
+                  (algorithm, parts[0]))
+  return parts[0], parts[1]
+
+
+def checksum_query_path(path, algorithm=None):
+  """Select a checksum type without disturbing other XRootD CGI parameters."""
+  if algorithm is None:
+    return path
+  if not isinstance(algorithm, str) or not re.fullmatch(r'[A-Za-z0-9_-]+',
+                                                        algorithm):
+    raise ValueError('Invalid XRootD checksum algorithm: %r' % algorithm)
+  base, separator, params = path.partition('?')
+  if separator:
+    params = '&'.join(part for part in params.split('&')
+                      if part.partition('=')[0] != 'cks.type')
+  return base + '?' + (params + '&' if params else '') + \
+      'cks.type=' + algorithm
 
 
 class TapeEndpoint(Struct):

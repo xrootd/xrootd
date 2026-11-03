@@ -10,6 +10,8 @@ Class Reference
 
 .. autoclass:: XRootD.client.CopyProcess
 
+.. automethod:: XRootD.client.CopyProcess.copy_one
+
 Methods
 *******
 
