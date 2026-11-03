@@ -159,7 +159,7 @@ very important to explain not only _what_ your code does, but also _why_
 it does it.
 
 The first line of the commit message should be a short description of up
-to about 50 characters (soft limit, hard limit at 80 characters), and
+to about 50 characters (soft limit, hard limit at 72 characters), and
 should skip the full stop. It is encouraged, although not necessary, to
 include a tag which identifies the general area of code being modified,
 for example "[Server]", "[XrdHttp]", etc. If in doubt, please check the
