@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d O u c C R C . c c                           */
+/*                   X r d O u c C R C C o m b i n e . c c                    */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */

@@ -7,6 +7,7 @@ add_unit_tests(
   SOURCES
     XrdClS3DownloadHandler.cc
     XrdClS3Factory.cc
+    XrdClS3File.cc
   LIBRARIES
     XrdClS3Obj
 )
