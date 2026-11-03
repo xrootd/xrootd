@@ -72,6 +72,7 @@ private:
        bool  Process();
 
 static const int disFD = 0x80000000;
+static const int delFD = -3-Channel::allEvents; // MiFD cancel; -2-events caches.
 
 XrdSysRecMutex      pollMutex;
 struct pollfd      *pollTab;
@@ -482,13 +483,21 @@ bool XrdSys::IOEvents::PollPoll::Process()
 // Get the pipe request and check out actions of interest.
 //
   while(GetRequest())
-       {switch(reqBuff.req)
-              {case PipeData::MdFD: FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
+       {int &pFD = (reqBuff.ent < pollMax ? pollTab : pnewTab)[reqBuff.ent].fd;
+        switch(reqBuff.req)
+              {case PipeData::MdFD: if (pFD == delFD) break;
+                                    if (pFD < 0 && pFD > delFD)
+                                       pFD = -2-(unsigned char)reqBuff.evt;
+                                       else FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
                                     break;
-               case PipeData::MiFD: FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
+               case PipeData::MiFD: if (pFD == delFD) FDRem(reqBuff.ent);
+                                       else FDMod(reqBuff.ent, reqBuff.fd,
+                                                  pFD < -1 && pFD > delFD
+                                                  ? -2-pFD : reqBuff.evt);
                                     reqBuff.theSem->Post();
                                     break;
-               case PipeData::RmFD: FDRem(reqBuff.ent);
+               case PipeData::RmFD: if (pFD < 0 && pFD >= delFD) pFD = delFD;
+                                       else FDRem(reqBuff.ent);
                                     reqBuff.theSem->Post();
                                     break;
                case PipeData::NoOp: break;
