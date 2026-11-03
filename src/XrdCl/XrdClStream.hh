@@ -418,6 +418,8 @@ namespace XrdCl
 
     private:
 
+      friend class AsyncMsgReader;
+      bool HasIncomingTimeout( uint16_t subStream ) const;
       //------------------------------------------------------------------------
       //! Check if message is a partial response
       //------------------------------------------------------------------------
@@ -466,7 +468,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void OnFatalError( uint16_t           subStream,
                          XRootDStatus       status,
-                         StreamMutexHelper &lock );
+                         StreamMutexHelper &lock,
+                         bool               reportTimeout = false );
 
       //------------------------------------------------------------------------
       //! Inform the monitoring about disconnection
