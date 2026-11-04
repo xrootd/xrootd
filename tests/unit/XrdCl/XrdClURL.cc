@@ -12,9 +12,7 @@ using namespace testing;
 
 // Test that XrdCl::URL conforms to RFC1738 (https://www.rfc-editor.org/rfc/rfc1738)
 
-class URLTest : public ::testing::Test {};
-
-TEST(URLTest, LocalURLs)
+TEST(URLTest, ParsesLocalUrlsAsFilesOnLocalhost)
 {
   char url[MAXPATHLEN];
   for (const auto& protocol : { "", "file://" }) {
@@ -44,7 +42,7 @@ TEST(URLTest, LocalURLs)
   }
 }
 
-TEST(URLTest, RemoteURLs)
+TEST(URLTest, ParsesAllPartsOfRemoteUrls)
 {
   char url[MAXPATHLEN];
   char path_params[MAXPATHLEN];
@@ -114,7 +112,7 @@ TEST(URLTest, RemoteURLs)
   EXPECT_EQ(params["mgm.replicahead"], "1");
 }
 
-TEST(URLTest, InvalidURLs)
+TEST(URLTest, RejectsMalformedUrls)
 {
   const char *invalid_urls[] = {
     "root://",

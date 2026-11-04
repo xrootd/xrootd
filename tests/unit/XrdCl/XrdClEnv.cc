@@ -9,7 +9,7 @@
 
 using XrdCl::Env;
 
-class XrdClEnvTest : public ::testing::Test {
+class EnvTest : public ::testing::Test {
 protected:
   void SetUp() override {
     XrdCl::DefaultEnv::SetLogLevel("Dump");
@@ -23,7 +23,7 @@ protected:
   Env e;
 };
 
-TEST_F(XrdClEnvTest, Int) {
+TEST_F(EnvTest, StoresIntsAndKeepsTheValuesImportedFromTheEnvironment) {
   // get by default value
   int ParallelEvtLoop = 0;
   EXPECT_TRUE(e.GetDefaultIntValue("ParallelEvtLoop", ParallelEvtLoop));
@@ -56,7 +56,7 @@ TEST_F(XrdClEnvTest, Int) {
   EXPECT_FALSE(e.ImportInt("test_string", "XRD_TEST_STRING"));
 }
 
-TEST_F(XrdClEnvTest, String) {
+TEST_F(EnvTest, StoresStringsAndKeepsTheValuesImportedFromTheEnvironment) {
   std::string str;
 
   // get by default value
@@ -96,7 +96,7 @@ TEST_F(XrdClEnvTest, String) {
   EXPECT_EQ(str, "valid");
 }
 
-TEST_F(XrdClEnvTest, Pointer) {
+TEST_F(EnvTest, GetPtrReturnsThePointerThatPutPtrStored) {
   void *ptr = nullptr;
 
   EXPECT_FALSE(e.GetPtr("XRD_TEST_INVALID", ptr));

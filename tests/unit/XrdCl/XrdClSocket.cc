@@ -206,14 +206,9 @@ class RandomHandlerFactory: public ClientHandlerFactory
 };
 
 //------------------------------------------------------------------------------
-// SocketTest class declaration
-//------------------------------------------------------------------------------
-class SocketTest : public ::testing::Test {};
-
-//------------------------------------------------------------------------------
 // Test the transfer
 //------------------------------------------------------------------------------
-TEST(SocketTest, TransferTest)
+TEST(SocketTest, ReadRawAndWriteRawTransferAllDataBothWays)
 {
   using namespace XrdCl;
   srandom( time(0) );

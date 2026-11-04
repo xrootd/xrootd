@@ -1,0 +1,195 @@
+/******************************************************************************/
+/*                                                                            */
+/*                     X r d C l H t t p U t i l . c c                      */
+/*                                                                            */
+/* (c) 2026 by the XRootD Collaboration                                       */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/******************************************************************************/
+
+#include "XrdClHttp/XrdClHttpUtil.hh"
+
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClURL.hh>
+
+#include <gtest/gtest.h>
+
+#include <cstdlib>
+#include <ctime>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace
+{
+void ExpectSequentialChecksum(const XrdClHttp::ChecksumInfo &checksums,
+                              XrdClHttp::ChecksumType type, std::size_t size)
+{
+  ASSERT_TRUE(checksums.IsSet(type));
+  const auto &value = checksums.Get(type);
+  for(std::size_t index = 0; index < size; ++index)
+    EXPECT_EQ(value[index], index);
+}
+}
+
+TEST(HeaderParserTest, RejectsInvalidResponseFieldNames)
+{
+  XrdClHttp::HeaderParser parser;
+  EXPECT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  EXPECT_FALSE(parser.Parse("application/type: json\r\n"));
+}
+
+TEST(HeaderParserTest, ParsesSupportedDigestAlgorithms)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest(
+    "adler32=00010203, crc32=00010203, CRC32c=AAECAw==, "
+    "MD5=AAECAwQFBgcICQoLDA0ODw==, "
+    "SHA=AAECAwQFBgcICQoLDA0ODxAREhM=, "
+    "SHA-256=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    checksums);
+
+  ExpectSequentialChecksum(
+    checksums, XrdClHttp::ChecksumType::kADLER32, 4);
+  ExpectSequentialChecksum(
+    checksums, XrdClHttp::ChecksumType::kCRC32, 4);
+  ExpectSequentialChecksum(
+    checksums, XrdClHttp::ChecksumType::kCRC32C, 4);
+  ExpectSequentialChecksum(checksums, XrdClHttp::ChecksumType::kMD5, 16);
+  ExpectSequentialChecksum(checksums, XrdClHttp::ChecksumType::kSHA1, 20);
+  ExpectSequentialChecksum(checksums, XrdClHttp::ChecksumType::kSHA256, 32);
+}
+
+TEST(HeaderParserTest, AcceptsAdlerDigestAlias)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest("adler=00010203", checksums);
+  ExpectSequentialChecksum(
+    checksums, XrdClHttp::ChecksumType::kADLER32, 4);
+}
+
+TEST(HeaderParserTest, AcceptsBase64Crc32Digest)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest("crc32=AAECAw==", checksums);
+  ExpectSequentialChecksum(
+    checksums, XrdClHttp::ChecksumType::kCRC32, 4);
+}
+
+TEST(HeaderParserTest, PreservesShortHexCrc32WhenBase64IsAmbiguous)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest("crc32=AAAAAA", checksums);
+
+  ASSERT_TRUE(checksums.IsSet(XrdClHttp::ChecksumType::kCRC32));
+  const auto &value = checksums.Get(XrdClHttp::ChecksumType::kCRC32);
+  EXPECT_EQ(value[0], 0);
+  EXPECT_EQ(value[1], 0xaa);
+  EXPECT_EQ(value[2], 0xaa);
+  EXPECT_EQ(value[3], 0xaa);
+}
+
+TEST(HeaderParserTest, UsesPaddingToDisambiguateBase64Crc32)
+{
+  XrdClHttp::ChecksumInfo checksums;
+  XrdClHttp::HeaderParser::ParseDigest("crc32=AAAAAA==", checksums);
+
+  ASSERT_TRUE(checksums.IsSet(XrdClHttp::ChecksumType::kCRC32));
+  const auto &value = checksums.Get(XrdClHttp::ChecksumType::kCRC32);
+  EXPECT_EQ(value[0], 0);
+  EXPECT_EQ(value[1], 0);
+  EXPECT_EQ(value[2], 0);
+  EXPECT_EQ(value[3], 0);
+}
+
+TEST(HeaderParserTest, RejectsMalformedCrc32Digest)
+{
+  for(const auto *digest : {"crc32=", "crc32=0001020300", "crc32=AAEC?w==",
+                           "crc32=AAECAw", "crc32=AAECAw=", "crc32=AAECAw===",
+                           "crc32=AAECAwA="})
+  {
+    XrdClHttp::ChecksumInfo checksums;
+    XrdClHttp::HeaderParser::ParseDigest(digest, checksums);
+    EXPECT_FALSE(checksums.IsSet(XrdClHttp::ChecksumType::kCRC32)) << digest;
+  }
+}
+
+TEST(HeaderParserTest, BuildsChecksumNegotiationValues)
+{
+  EXPECT_EQ(XrdClHttp::GetTypeFromString("adler"),
+            XrdClHttp::ChecksumType::kADLER32);
+  EXPECT_EQ(XrdClHttp::GetTypeFromString("adler32"),
+            XrdClHttp::ChecksumType::kADLER32);
+  EXPECT_EQ(XrdClHttp::HeaderParser::ChecksumTypeToDigestName(
+              XrdClHttp::ChecksumType::kAll),
+            "adler32,crc32,CRC32c,MD5,SHA,SHA-256");
+}
+
+TEST(HeaderParserTest, ParsesLastModifiedAsUtc)
+{
+  XrdClHttp::HeaderParser parser;
+  ASSERT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  ASSERT_TRUE(parser.Parse("Last-Modified: Wed, 21 Aug 2024 11:02:53 GMT\r\n"));
+
+  struct tm expected{};
+  ASSERT_NE(strptime("Wed, 21 Aug 2024 11:02:53", "%a, %d %b %Y %H:%M:%S", &expected), nullptr);
+  EXPECT_EQ(parser.GetModTime(), timegm(&expected));
+}
+
+TEST(UtilTest, ShouldUseBearerTokenWhenZtnIsTheFirstAvailableProtocol)
+{
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("", true, true));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("gsi,ztn", true, true));
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("ztn,gsi", true, true));
+  EXPECT_TRUE(XrdClHttp::ShouldUseBearerToken("gsi, ztn", false, true));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("ztn,gsi", true, false));
+  EXPECT_FALSE(XrdClHttp::ShouldUseBearerToken("unix", false, true));
+}
+
+TEST(UtilTest, InjectBearerTokenAddsTheTokenWhenZtnIsSelectedAndNoTokenIsGiven)
+{
+  auto env = XrdCl::DefaultEnv::GetEnv();
+  ASSERT_NE(env, nullptr);
+  ASSERT_TRUE(env->PutString("BearerToken", "test-token"));
+  ASSERT_TRUE(env->PutInt("HttpDisableX509", 0));
+  ASSERT_TRUE(env->PutString("HttpClientCertFile", "/tmp/test-cert"));
+
+  ASSERT_EQ(setenv("XrdSecPROTOCOL", "ztn,gsi", 1), 0);
+  XrdCl::URL url("https://storage.example.org/store/file");
+  std::vector<std::pair<std::string, std::string>> headers;
+  XrdClHttp::InjectBearerToken(url, headers);
+  ASSERT_EQ(headers.size(), 1u);
+  EXPECT_EQ(headers[0].first, "Authorization");
+  EXPECT_EQ(headers[0].second, "Bearer test-token");
+
+  headers = {{"Authorization", "Bearer explicit-token"}};
+  XrdClHttp::InjectBearerToken(url, headers);
+  ASSERT_EQ(headers.size(), 1u);
+  EXPECT_EQ(headers[0].second, "Bearer explicit-token");
+
+  XrdCl::URL authzUrl(
+    "https://storage.example.org/store/file?authz=explicit-token");
+  headers.clear();
+  XrdClHttp::InjectBearerToken(authzUrl, headers);
+  EXPECT_TRUE(headers.empty());
+
+  ASSERT_EQ(setenv("XrdSecPROTOCOL", "gsi,ztn", 1), 0);
+  headers.clear();
+  XrdClHttp::InjectBearerToken(url, headers);
+  EXPECT_TRUE(headers.empty());
+}
