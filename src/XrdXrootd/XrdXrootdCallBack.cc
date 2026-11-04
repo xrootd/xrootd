@@ -41,6 +41,8 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
+#include "XrdXrootd/XrdXrootdMonData.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -198,6 +200,20 @@ XrdXrootdFile *XrdXrootdCBJob::DoClose(XrdOucErrInfo *eInfo)
        eInfo->setErrInfo(kXR_FSError, "Internal error; file close forced");
       }
 
+// XrdXrootdFileTable::Del() did not send the f-stream close record, because
+// the result was not known. Keep a close error and send the record now. This
+// job can run before do_Close() calls Del(), so first wait for do_Close() to
+// drop its reference. Then Del() has added the pgread and pgwrite totals to
+// the statistics and has sent the close on the main stream.
+//
+   fP->Serialize();
+   if (fP->Stats.MonEnt != -1)
+      {if (Result == SFS_ERROR)
+          fP->Stats.setErr(XProtocol::mapError(eInfo->getErrInfo()),
+                           XrdXrootdMonStatERR::errClose);
+       XrdXrootdMonFile::Close(&fP->Stats, false);
+      }
+
 // Send appropriate response (OK or error)
 //
    if (Result == SFS_OK) cbFunc->sendResp(eInfo, kXR_ok);
@@ -311,6 +327,9 @@ void XrdXrootdCallBack::sendError(int            rc,
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+       // A deferred open fails here and not in XrdXrootdProtocol::fsError()
+       if (Path && Opcode == XROOTD_MON_OPENR)
+          XrdXrootdMonFile::OpenErr(Path, eInfo->getErrMid(), rc);
        sendResp(eInfo, kXR_error, &rc, eMsg, eInfo->getErrTextLen()+1);
        return;
       }
