@@ -842,7 +842,9 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 
 // The login reply was built before this redirector was on the notify list, so
 // it may have missed a state change. Send the current state if it differs.
+// Hold the table lock so this cannot interleave with a Monitor() notification.
 //
+   RTable.Lock();
    const int isSuspended = (CmsState.Suspended ? 1 : 0);
    if (wasSuspended != isSuspended)
       {CmsStatusRequest newState = {{0, kYR_status, 0, 0}};
@@ -853,6 +855,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
                }
        myNode->Send((char *)&newState, sizeof(newState));
       }
+   RTable.UnLock();
 
 // Login succeeded
 //
