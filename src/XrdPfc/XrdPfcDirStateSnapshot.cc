@@ -1,6 +1,7 @@
 #include "XrdPfcDirStateSnapshot.hh"
 #include "XrdPfcPathParseTools.hh"
 #include "XrdPfc.hh"
+#include "XrdPfcInfo.hh"
 #include "XrdPfcTrace.hh"
 
 #include "XrdOuc/XrdOucJson.hh"

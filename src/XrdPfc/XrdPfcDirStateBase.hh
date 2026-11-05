@@ -1,7 +1,7 @@
 #ifndef __XRDPFC_DIRSTATEBASE_HH__
 #define __XRDPFC_DIRSTATEBASE_HH__
 
-#include <XrdPfc/XrdPfcStats.hh>
+#include <algorithm>
 #include <ctime>
 #include <string>
 
@@ -35,14 +35,6 @@ struct DirUsage
       m_NFiles        (a.m_NFiles       + b.m_NFiles),
       m_NDirectories  (a.m_NDirectories + b.m_NDirectories)
    {}
-
-   void update_from_stats(const DirStats& s)
-   {
-      m_StBlocks     += s.m_StBlocksAdded       - s.m_StBlocksRemoved;
-      m_NFilesOpen   += s.m_NFilesOpened        - s.m_NFilesClosed;
-      m_NFiles       += s.m_NFilesCreated       - s.m_NFilesRemoved;
-      m_NDirectories += s.m_NDirectoriesCreated - s.m_NDirectoriesRemoved;
-   }
 
    void update_last_times(const DirUsage& u)
    {

@@ -1,6 +1,7 @@
 #include "XrdPfcFsTraversal.hh"
 #include "XrdPfcDirState.hh"
 #include "XrdPfc.hh"
+#include "XrdPfcInfo.hh"
 #include "XrdPfcTrace.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"

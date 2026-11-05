@@ -4,6 +4,7 @@
 class XrdSysTrace;
 
 #include "XrdPfc.hh"
+#include "XrdPfcFile.hh"
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysRAtomic.hh"
 
