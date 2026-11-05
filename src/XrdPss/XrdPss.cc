@@ -30,7 +30,7 @@
 /******************************************************************************/
 /*                             I n c l u d e s                                */
 /******************************************************************************/
-  
+
 #include <unistd.h>
 #include <cerrno>
 #include <string>
@@ -136,7 +136,7 @@ using namespace XrdProxy;
 /******************************************************************************/
 
 XrdVERSIONINFO(XrdOssGetStorageSystem2,XrdPss);
-  
+
 // This function is called by the OFS layer to retrieve the Storage System
 // object. We return our proxy storage system object if configuration succeeded.
 //
@@ -155,24 +155,24 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
    return (XrdProxySS.Init(Logger, cFN, envP) ? 0 : (XrdOss *)&XrdProxySS);
 }
 }
- 
+
 /******************************************************************************/
 /*                      o o s s _ S y s   M e t h o d s                       */
 /******************************************************************************/
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
+
 XrdPssSys::XrdPssSys() : HostArena(0), LocalRoot(0), theN2N(0), DirFlags(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
                          myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|
-                         XRDOSS_HASNOSF|XRDOSS_HASXERT)
+                         XRDOSS_HASNOSF|XRDOSS_HASXERT), fSess(-1)
                          {}
 
 /******************************************************************************/
 /*                                  i n i t                                   */
 /******************************************************************************/
-  
+
 /*
   Function: Initialize proxy subsystem
 
@@ -206,7 +206,7 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN, XrdOucEnv *envP)
 //
    return NoGo;
 }
-  
+
 /******************************************************************************/
 /*                                 C h m o d                                  */
 /******************************************************************************/
@@ -277,7 +277,7 @@ int XrdPssSys::Create(const char *tident, const char *path, mode_t Mode,
 
    return -ENOTSUP;
 }
-  
+
 /******************************************************************************/
 /*                                  D i s c                                   */
 /******************************************************************************/
@@ -301,7 +301,7 @@ void XrdPssSys::Disc(XrdOucEnv &theEnv)
 /******************************************************************************/
 /*                               E n v I n f o                                */
 /******************************************************************************/
-  
+
 void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
 {
 // We only need to extract the scheduler pointer from the environment. Propogate
@@ -312,7 +312,7 @@ void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
        XrdPosixConfig::EnvInfo(*envP);
       }
 }
-  
+
 /******************************************************************************/
 /*                                 F S c t l                                  */
 /******************************************************************************/
@@ -366,11 +366,11 @@ int XrdPssSys::FSctl(int cmd, int alen, const char *args, char **resp)
       }
     return XrdOssOK;
 }
-  
+
 /******************************************************************************/
 /*                             g e t E r r M s g                              */
 /******************************************************************************/
-  
+
 bool        XrdPssSys::getErrMsg(std::string& eText)
 {
 // Return what we have but make sure to reset whatever we have
@@ -379,11 +379,11 @@ bool        XrdPssSys::getErrMsg(std::string& eText)
    XrdProxy::ecMsg.Get(eText);
    return true;
 }
-  
+
 /******************************************************************************/
 /*                               L f n 2 P f n                                */
 /******************************************************************************/
-  
+
 int         XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen)
 {
     if (theN2N) return -(theN2N->lfn2pfn(oldp, newp, blen));
@@ -442,7 +442,7 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 //
    return (XrdPosixXrootd::Mkdir(pbuff, mode) ? Info(errno) : XrdOssOK);
 }
-  
+
 /******************************************************************************/
 /*                                R e m d i r                                 */
 /******************************************************************************/
@@ -597,7 +597,7 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
-  
+
 /* Function: Return statistics.
 
   Input:    buff        - Pointer to buffer for statistics data.
@@ -653,7 +653,7 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
 //
    return (XrdPosixXrootd::Truncate(pbuff, flen) ? Info(errno) : XrdOssOK);
 }
-  
+
 /******************************************************************************/
 /*                                U n l i n k                                 */
 /******************************************************************************/
@@ -707,7 +707,7 @@ int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 /******************************************************************************/
 /*                               o p e n d i r                                */
 /******************************************************************************/
-  
+
 /*
   Function: Open the directory `path' and prepare for reading.
 
@@ -813,7 +813,7 @@ int XrdPssDir::StatRet(struct stat *buff)
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
-  
+
 /*
   Function: Close the directory associated with this object.
 
@@ -842,11 +842,11 @@ int XrdPssDir::Close(long long *retsz)
 //
    return -XRDOSS_E8002;
 }
-  
+
 /******************************************************************************/
 /*                             g e t E r r M s g                              */
 /******************************************************************************/
-  
+
 bool XrdPssDir::getErrMsg(std::string& eText)
 {
 // Return what we have but make sure to reset whatever we have
@@ -857,7 +857,7 @@ bool XrdPssDir::getErrMsg(std::string& eText)
    lastEtrc = 0;
    return true;
 }
-  
+
 /******************************************************************************/
 /*                     o o s s _ F i l e   M e t h o d s                      */
 /******************************************************************************/
@@ -968,6 +968,15 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    XrdPssUrlInfo uInfo(&Env, path, Cgi, ucgiOK);
    uInfo.setID();
 
+// Handle file sessions
+//
+   if (XrdPssSys::prtyQ)
+      {char buff[80];
+       prtyQnum = XrdPssSys::prtyQ->Assign();
+       int n = snprintf(buff, sizeof(buff), "xrdcl.intent=pss%d", prtyQnum);
+       if (n < (int)sizeof(buff)) uInfo.Extend(buff, n);
+      }
+
 // Convert path to URL
 //
    if ((rc = XrdPssSys::P2URL(pbuff, PBsz, uInfo, XrdPssSys::xLfn2Pfn)))
@@ -1026,6 +1035,13 @@ int XrdPssFile::Close(long long *retsz)
 //
     if (retsz) *retsz = 0;
 
+// Handle pririty queue
+//
+   if (prtyQnum >= 0 && XrdPssSys::prtyQ)
+      {XrdPssSys::prtyQ->unAssign(prtyQnum);
+       prtyQnum = -1;
+      }
+
 // If the file is not open, then this may be OK if it is a 3rd party copy
 //
     if (fd < 0)
@@ -1044,11 +1060,11 @@ int XrdPssFile::Close(long long *retsz)
     lastEtrc = XrdPosixXrootd::QueryError(lastEtext);
     return rc;
 }
-  
+
 /******************************************************************************/
 /*                             g e t E r r M s g                              */
 /******************************************************************************/
-  
+
 bool XrdPssFile::getErrMsg(std::string& eText)
 {
 // Return what we have but make sure to reset whatever we have
@@ -1317,7 +1333,7 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
         }
      return (ssize_t)retval;
 }
-  
+
 /******************************************************************************/
 /*                                  F c t l                                   */
 /******************************************************************************/
@@ -1492,7 +1508,7 @@ int XrdPssFile::Fsync(void)
   Notes:    If 'flen' is smaller than the current size of the file, the file
             is made smaller and the data past 'flen' is discarded. If 'flen'
             is larger than the current size of the file, a hole is created
-            (i.e., the file is logically extended by filling the extra bytes 
+            (i.e., the file is logically extended by filling the extra bytes
             with zeroes).
 
             If compiled w/o large file support, only lower 32 bits are used.
@@ -1509,7 +1525,7 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
     lastEtrc = XrdPosixXrootd::QueryError(lastEtext, fd);
     return (ssize_t)rc;
 }
-  
+
 /******************************************************************************/
 /*                      I n t e r n a l   M e t h o d s                       */
 /******************************************************************************/
@@ -1522,7 +1538,7 @@ int XrdPssSys::Info(int rc)
    XrdProxy::ecMsg.Set(n, psxMsg);
    return -rc;
 }
-  
+
 /******************************************************************************/
 /*                                 P 2 D S T                                  */
 /******************************************************************************/
@@ -1553,7 +1569,7 @@ int XrdPssSys::P2DST(int &retc, char *hBuff, int hBlen, XrdPssSys::PolAct pEnt,
 /******************************************************************************/
 /*                                 P 2 O U T                                  */
 /******************************************************************************/
-  
+
 int XrdPssSys::P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo)
 {  const char *theID = uInfo.getID();
    const char *pname, *path, *thePath;
@@ -1578,7 +1594,7 @@ int XrdPssSys::P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo)
 // Objectid must be handled differently as they have not been refalgomized
 //
    if (*thePath != '/')
-      {if (*path == '/') 
+      {if (*path == '/')
           {path++;
            if (*path == '/') theID = "";
           }
@@ -1617,7 +1633,7 @@ int XrdPssSys::P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo)
 /******************************************************************************/
 /*                                 P 2 U R L                                  */
 /******************************************************************************/
-  
+
 int XrdPssSys::P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo, bool doN2N)
 {
 
