@@ -41,7 +41,7 @@
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
-  
+
 bool XrdPssUrlInfo::MapID = false;
 
 /******************************************************************************/
@@ -87,7 +87,7 @@ int copyCGI(const char *cgi, char *Buff, int Blen)
 // See if we have the end to copy
 //
    if (beg)
-      {n = strlen(beg) + 1;
+      {n = strlen(beg);
        if (n < Blen)
           {strncpy(bP, beg, Blen);
            bP += n;
@@ -101,7 +101,7 @@ int copyCGI(const char *cgi, char *Buff, int Blen)
    return bP - Buff;
 }
 }
-  
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -147,7 +147,7 @@ XrdPssUrlInfo::XrdPssUrlInfo(XrdOucEnv  *envP, const char *path,
           else *CgiSfx = 0;
       }
 }
-  
+
 /******************************************************************************/
 /*                                a d d C G I                                 */
 /******************************************************************************/
@@ -158,7 +158,7 @@ bool XrdPssUrlInfo::addCGI(const char *prot, char *buff, int blen)
 
 // Short circuit all of this if there is no cgi
 //
-   if (!CgiUsz && (!CgiSsz || forXrd))
+   if (!CgiUsz && (!CgiSsz || !forXrd))
       {*buff = 0;
        return true;
       }
@@ -194,7 +194,7 @@ bool XrdPssUrlInfo::addCGI(const char *prot, char *buff, int blen)
 //std::cerr <<"Final URL: '" <<prot <<"' " <<strlen(prot) <<'\n' <<std::flush;
    return true;
 }
-  
+
 /******************************************************************************/
 /*                                E x t e n d                                 */
 /******************************************************************************/
@@ -210,11 +210,11 @@ bool XrdPssUrlInfo::Extend(const char *cgi, int cgiln)
    CgiSsz += n;
    return true;
 }
-  
+
 /******************************************************************************/
 /*                                 s e t I D                                  */
 /******************************************************************************/
-  
+
 void XrdPssUrlInfo::setID(const char *tid)
 {
    const char *atP, *colon;
