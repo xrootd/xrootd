@@ -30,6 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <climits>
 #include <set>
 #include <utility>
 #include <string.h>
@@ -41,7 +42,10 @@ class XrdPssPrtyQ
 public:
 
 int   Assign() {XrdSysMutexHelper mHelp(pqMtx);
-                if (pqAll) return pqAll++;
+                if (pqAll)
+                   {if (pqAll == INT_MAX) pqAll = 1; // Possible after ~6 years
+                    return pqAll++;
+                   }
                 auto nh = pqSet.extract(pqSet.begin());
                 int kn = nh.value().second;
                 nh.value().first = ++pqVec[kn];
