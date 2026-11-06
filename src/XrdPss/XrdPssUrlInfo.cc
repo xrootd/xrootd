@@ -136,7 +136,7 @@ XrdPssUrlInfo::XrdPssUrlInfo(XrdOucEnv  *envP, const char *path,
 
 // Generate additional cgi information as needed
 //
-   if (xtra && *xtra != '&') amp2 = "&";
+   if (*xtra && *xtra != '&') amp2 = "&";
    if (CgiUsz) amp1 = "&";
 
    if (addident)

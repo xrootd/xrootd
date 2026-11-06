@@ -899,6 +899,15 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 //
    if (fd >= 0 || tpcPath) return -XRDOSS_E8003;
 
+// It is possible that we assigned a priority and then the close failed and
+// the caller simply called us again. If so, unassign the priority
+//
+   if (prtyQnum >= 0 && XrdPssSys::prtyQ)
+      {XrdPssSys::prtyQ->unAssign(prtyQnum);
+       prtyQnum = -1;
+      }
+
+
 // If we are opening this in r/w mode make sure we actually can
 //
    if (rwMode)
@@ -1035,7 +1044,7 @@ int XrdPssFile::Close(long long *retsz)
 //
     if (retsz) *retsz = 0;
 
-// Handle pririty queue
+// Handle priority queue.
 //
    if (prtyQnum >= 0 && XrdPssSys::prtyQ)
       {XrdPssSys::prtyQ->unAssign(prtyQnum);
@@ -1043,6 +1052,8 @@ int XrdPssFile::Close(long long *retsz)
       }
 
 // If the file is not open, then this may be OK if it is a 3rd party copy
+// Note that this may be a forced call via the destructor to cleanup the
+// priority queue. Returning an error is ignored in this case.
 //
     if (fd < 0)
        {if (!tpcPath) return -XRDOSS_E8004;

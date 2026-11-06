@@ -122,7 +122,7 @@ int     Write(XrdSfsAio *aiop) override;
                      rpInfo(0), tpcPath(0), entity(0), lastEtrc(0),
                      prtyQnum(-1) {}
 
-virtual ~XrdPssFile() {if (fd >= 0) Close();
+virtual ~XrdPssFile() {if (fd >= 0 || prtyQnum >= 0) Close();
                        if (rpInfo) delete(rpInfo);
                        if (tpcPath) free(tpcPath);
                       }
@@ -145,7 +145,7 @@ struct tprInfo
 const XrdSecEntity *entity;
 std::string         lastEtext;
 int                 lastEtrc;
-int                 prtyQnum; // Assigned >0 when XrdPssSys::prtyQ is not null
+int                 prtyQnum; // Assigned >= 0 when XrdPssSys::prtyQ != null
 };
 
 /******************************************************************************/

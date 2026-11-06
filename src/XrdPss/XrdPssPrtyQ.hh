@@ -46,11 +46,10 @@ int   Assign() {XrdSysMutexHelper mHelp(pqMtx);
                 int kn = nh.value().second;
                 nh.value().first = ++pqVec[kn];
                 pqSet.insert(std::move(nh));
-                pqMtx.UnLock();
                 return kn;
                }
 
-void  unAssign(int kn) {if (!pqAll)
+void  unAssign(int kn) {if (!pqAll) // Either always 0 or never 0, nolock OK
                            {pqMtx.Lock();
                             auto it = pqSet.find({pqVec[kn], kn});
                             if (it != pqSet.end())
@@ -74,7 +73,7 @@ void  unAssign(int kn) {if (!pqAll)
                      }
                  }
 
-     ~XrdPssPrtyQ() {delete pqVec;}
+     ~XrdPssPrtyQ() {delete[] pqVec;}
 
 
 private:
