@@ -113,6 +113,7 @@ setup(name='xrootd',
       },
       ext_modules= [ CMakeExtension('pyxrootd') ],
       cmdclass={ 'build_ext': CMakeBuild },
+      python_requires='>=3.6',
       zip_safe=False,
       classifiers=[
           "Intended Audience :: Information Technology",
