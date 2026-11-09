@@ -96,6 +96,7 @@ if(COVERAGE)
   if(NOT CTEST_COVERAGE_COMMAND)
     message(FATAL_ERROR "Could not find gcov command")
   endif()
+  set(CTEST_COVERAGE_EXTRA_FLAGS "--hash-filenames")
   set(COVERAGE_FLAGS "--coverage -fprofile-update=atomic -DENABLE_COVERAGE")
   list(PREPEND CMAKE_C_FLAGS "${COVERAGE_FLAGS}")
   list(PREPEND CMAKE_CXX_FLAGS "${COVERAGE_FLAGS}")
@@ -371,9 +372,11 @@ else()
         ${GCOVR} --gcov-executable ${CTEST_COVERAGE_COMMAND}
           -r ${CTEST_SOURCE_DIRECTORY} ${CTEST_BINARY_DIRECTORY}
           --gcov-ignore-parse-errors negative_hits.warn
-          --html-details ${CTEST_BINARY_DIRECTORY}/coverage/ ERROR_VARIABLE ERROR)
-      if(ERROR)
-        message(SEND_ERROR "Failed to generate coverage report:\n${ERROR}")
+          --exclude ${CTEST_SOURCE_DIRECTORY}/vendor/.*
+          --html-details ${CTEST_BINARY_DIRECTORY}/coverage/
+          RESULT_VARIABLE GCOVR_RESULT ERROR_VARIABLE GCOVR_ERROR)
+      if(NOT GCOVR_RESULT EQUAL 0)
+        message(SEND_ERROR "Failed to generate coverage report:\n${GCOVR_ERROR}")
       endif()
     endif()
     ctest_coverage()
