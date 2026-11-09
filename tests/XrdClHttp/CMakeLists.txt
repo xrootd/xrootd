@@ -72,7 +72,7 @@ set_tests_properties(XrdClHttp::teardown
 add_test(NAME XrdClHttp::test
   COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/test.sh" curl)
 
-add_bats_test(XrdClHttp::tape tape.bats)
+add_bats_tests(XrdClHttp::tape tape.bats)
 
 list(APPEND CURL_TEST_LOGS ${CMAKE_BINARY_DIR}/tests/curl/origin.log)
 list(APPEND CURL_TEST_LOGS ${CMAKE_BINARY_DIR}/tests/curl/cache.log)
