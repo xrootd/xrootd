@@ -35,8 +35,8 @@ connections() {
 		cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | awk -v port=":$(printf '%04X' "$port")" \
 			'substr($3, length($3) - 4) == port && ($4 == "01" || $4 == "08")'
 	else
-		netstat -an -p tcp | awk -v port=".$port" \
-			'substr($5, length($5) - length(port) + 1) == port && ($6 == "ESTABLISHED" || $6 == "CLOSE_WAIT")'
+		lsof -nP -a -iTCP:"$port" -sTCP:ESTABLISHED,CLOSE_WAIT | awk -v port=":$port" \
+			'$9 ~ /->/ && substr($9, length($9) - length(port) + 1) == port'
 	fi
 }
 
