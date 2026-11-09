@@ -380,7 +380,7 @@ TEST(WorkflowTest, OperationFailureTest){
 
     try
     {
-      statresp.get();
+      (void) statresp.get();
     }
     catch( PipelineException &ex )
     {
@@ -389,7 +389,7 @@ TEST(WorkflowTest, OperationFailureTest){
 
     try
     {
-      readresp.get();
+      (void) readresp.get();
     }
     catch( PipelineException &ex )
     {
