@@ -31,12 +31,13 @@ endif()
 configure_file(setup.py setup.py)
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/VERSION "${XRootD_VERSION_STRING}")
 
-# On macOS, the name of the wheel depends on the deployment target: the wheel
-# builder inspects the compiled module and raises the platform tag to match
-# its minimum OS version. When a deployment target is set, pass it on to the
-# tag prediction below and to the wheel build, so that the two agree.
+# On macOS, the name of the wheel depends on the deployment target, so we
+# need to set one if it's not already set.
 
-if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET)
+if(APPLE)
+  if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET ${CMAKE_SYSTEM_VERSION})
+  endif()
   set(PYXROOTD_ENV ${CMAKE_COMMAND} -E env
     "MACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
