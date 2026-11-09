@@ -1,4 +1,4 @@
-function(add_bats_test name script)
+function(add_bats_tests name script)
   set(environment
     "BATS_LIB_PATH=${PROJECT_SOURCE_DIR}/vendor/bats/lib/bats"
     "BINARY_DIR=${CMAKE_BINARY_DIR}"
