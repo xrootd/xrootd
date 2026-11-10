@@ -174,7 +174,12 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadMore:
             {
+              if( inmsg->GetCursor() > inmsgsize &&
+                  strm.HasIncomingTimeout( substrmnb ) )
+                return XRootDStatus( stError, errOperationExpired );
               XRootDStatus st = xrdTransport.GetMore( *inmsg, &socket );
+              if( st.code == suRetry && strm.HasIncomingTimeout( substrmnb ) )
+                return XRootDStatus( stError, errOperationExpired );
               if( !st.IsOK() || st.code == suRetry )
                 return st;
               inmsgsize = inmsg->GetCursor();
@@ -191,11 +196,16 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadRawData:
             {
+              if( inmsgsize > inmsg->GetCursor() &&
+                  strm.HasIncomingTimeout( substrmnb ) )
+                return XRootDStatus( stError, errOperationExpired );
               uint32_t bytesRead = 0;
               XRootDStatus st = inhandler->ReadMessageBody( inmsg.get(), &socket, bytesRead );
               if( !st.IsOK() )
                 return st;
               inmsgsize += bytesRead;
+              if( st.code == suRetry && strm.HasIncomingTimeout( substrmnb ) )
+                return XRootDStatus( stError, errOperationExpired );
               if( st.code == suRetry )
                 return st;
               //----------------------------------------------------------------
@@ -209,7 +219,12 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadMsgBody:
             {
+              if( inmsg->GetCursor() > inmsgsize &&
+                  strm.HasIncomingTimeout( substrmnb ) )
+                return XRootDStatus( stError, errOperationExpired );
               XRootDStatus st = xrdTransport.GetBody( *inmsg, &socket );
+              if( st.code == suRetry && strm.HasIncomingTimeout( substrmnb ) )
+                return XRootDStatus( stError, errOperationExpired );
               if( !st.IsOK() || st.code == suRetry )
                 return st;
               inmsgsize = inmsg->GetCursor();
