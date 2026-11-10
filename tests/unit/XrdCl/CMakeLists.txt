@@ -30,3 +30,9 @@ target_link_libraries(xrdcl-unit-tests
 
 gtest_discover_tests(xrdcl-unit-tests TEST_PREFIX unit::XrdCl::
   PROPERTIES DISCOVERY_TIMEOUT 10)
+
+add_executable(xrdcl-timeout-tests-unit ClientTimeoutTests.cc)
+target_link_libraries(xrdcl-timeout-tests-unit
+  GTest::gtest GTest::gtest_main XrdCl XrdUtils)
+gtest_discover_tests(xrdcl-timeout-tests-unit
+  PROPERTIES DISCOVERY_TIMEOUT 10)
