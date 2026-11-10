@@ -225,16 +225,10 @@ class SocketHandler: public XrdCl::SocketHandler
 
 
 //------------------------------------------------------------------------------
-// PollerTest class declaration
-//------------------------------------------------------------------------------
-
-class PollerTest : public ::testing::Test {};
-
-//------------------------------------------------------------------------------
 // Test the functionality the built-in poller
 //------------------------------------------------------------------------------
 
-TEST(PollerTest, FunctionTest)
+TEST(PollerTest, BuiltInPollerReadsAllDataThatTheServerSends)
 {
   XrdCl::Poller *poller = new XrdCl::PollerBuiltIn(); // only uses built-in poller
 

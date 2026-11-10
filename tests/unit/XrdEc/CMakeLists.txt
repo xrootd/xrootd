@@ -2,12 +2,13 @@ if(NOT BUILD_XRDEC)
   return()
 endif()
 
-add_executable(xrdec-unit-tests XrdEcTests.cc)
-
-target_link_libraries(xrdec-unit-tests
-  XrdEc XrdTestUtils GTest::gtest GTest::gtest_main ${ISAL_LIBRARIES})
-
-target_include_directories(xrdec-unit-tests PRIVATE ${ISAL_INCLUDE_DIRS})
-
-gtest_discover_tests(xrdec-unit-tests TEST_PREFIX unit::XrdEc::
-  PROPERTIES DISCOVERY_TIMEOUT 10)
+add_unit_tests(
+  SOURCES
+    XrdEc.cc
+  LIBRARIES
+    XrdEc
+    XrdTestUtils
+    ${ISAL_LIBRARIES}
+  INCLUDE_DIRECTORIES
+    ${ISAL_INCLUDE_DIRS}
+)
