@@ -44,6 +44,8 @@
 #include "XrdOuc/XrdOucSid.hh"
 #include "XrdOss/XrdOss.hh"
 
+#include "XrdPss/XrdPssPrtyQ.hh"
+
 /******************************************************************************/
 /*                             X r d P s s D i r                              */
 /******************************************************************************/
@@ -74,7 +76,7 @@ private:
     std::string    lastEtext;
          int       lastEtrc;
 };
-  
+
 /******************************************************************************/
 /*                            X r d P s s F i l e                             */
 /******************************************************************************/
@@ -82,7 +84,7 @@ private:
 struct XrdOucIOVec;
 class  XrdSecEntity;
 class  XrdSfsAio;
-  
+
 class XrdPssFile : public XrdOssDF
 {
 public:
@@ -113,13 +115,14 @@ ssize_t ReadV(XrdOucIOVec *readV, int n) override;
 ssize_t ReadRaw(    void *, off_t, size_t) override;
 ssize_t Write(const void *, off_t, size_t) override;
 int     Write(XrdSfsAio *aiop) override;
- 
+
          // Constructor and destructor
          XrdPssFile(const char *tid)
                    : XrdOssDF(tid, XrdOssDF::DF_isFile|XrdOssDF::DF_isProxy),
-                     rpInfo(0), tpcPath(0), entity(0), lastEtrc(0) {}
+                     rpInfo(0), tpcPath(0), entity(0), lastEtrc(0),
+                     prtyQnum(-1) {}
 
-virtual ~XrdPssFile() {if (fd >= 0) Close();
+virtual ~XrdPssFile() {if (fd >= 0 || prtyQnum >= 0) Close();
                        if (rpInfo) delete(rpInfo);
                        if (tpcPath) free(tpcPath);
                       }
@@ -142,12 +145,13 @@ struct tprInfo
 const XrdSecEntity *entity;
 std::string         lastEtext;
 int                 lastEtrc;
+int                 prtyQnum; // Assigned >= 0 when XrdPssSys::prtyQ != null
 };
 
 /******************************************************************************/
 /*                             X r d P s s S y s                              */
 /******************************************************************************/
-  
+
 class XrdNetSecurity;
 class XrdOucEnv;
 class XrdOucStream;
@@ -210,6 +214,7 @@ XrdOucPListAnchor   XPList;        // Exported path list
 
 static XrdNetSecurity *Police[PolNum];
 static XrdOucTList *ManList;
+static XrdPssPrtyQ *prtyQ;         // file Session priority queue
 static       char  *fileOrgn;
 static const char  *protName;
 static const char  *hdrData;
@@ -237,6 +242,7 @@ unsigned long long DirFlags; // Defaults for exports
 XrdVersionInfo    *myVersion;// -> Compilation version
 XrdSecsssID       *idMapper; // -> Auth ID mapper
 uint64_t          myFeatures;// Our feature set
+int                fSess;    // fsessions value -1 means default
 
 int    Configure(const char *, XrdOucEnv *);
 int    ConfigProc(const char *ConfigFN);
@@ -245,6 +251,7 @@ int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
 int    xdca( XrdSysError *errp,   XrdOucStream &Config);
 int    xexp( XrdSysError *Eroute, XrdOucStream &Config);
+int    xfses(XrdSysError *Eroute, XrdOucStream &Config);
 int    xperm(XrdSysError *errp,   XrdOucStream &Config);
 int    xpers(XrdSysError *errp,   XrdOucStream &Config);
 int    xorig(XrdSysError *errp,   XrdOucStream &Config);
