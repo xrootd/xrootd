@@ -1,39 +1,74 @@
 ## Configuring and Running XRootD tests with CTest
 
-XRootD tests are divided into two main categories: unit and integration
-tests that can be run directly with CTest, and containerized tests that
-are required to be run from within a container built with docker or podman.
-This document describes how to run the former, that is, the tests that are
-run just with CTest. This document assumes you are already familiar with
-how to build XRootD from source. If you need instructions on how to do that,
-please see the [INSTALL.md](INSTALL.md) file. There you will also find a full
-list of optional features and which dependencies are required to enable them.
+This document describes how to build XRootD and run the test suite with the
+CTest script [test.cmake](../test.cmake). The file
+[tests/README.md](../tests/README.md) gives the layout of the tests, and the
+rules to follow when writing new tests for XRootD. The file
+[docker/README.md](../docker/README.md) tells how to build and test XRootD in
+containers of other distributions.
+
+This document assumes that you know how to build XRootD from source. The file
+[INSTALL.md](INSTALL.md) gives the instructions, if needed, and lists the
+optional features, and the dependencies of each feature, as well as how to
+install the dependencies.
+
+### Contents
+
+- [Enabling tests during CMake configuration](#enabling-tests-during-cmake-configuration)
+- [Running all steps with `test.cmake`](#running-all-steps-with-testcmake)
+  - [Running a subset of the tests](#running-a-subset-of-the-tests)
+  - [Conditions for the tests which start a server](#conditions-for-the-tests-which-start-a-server)
+- [Customizing the Build](#customizing-the-build)
+  - [Selecting a build type, compile flags, optional features, etc](#selecting-a-build-type-compile-flags-optional-features-etc)
+  - [Building with a sanitizer](#building-with-a-sanitizer)
+  - [Enabling coverage, memory checking, and static analysis](#enabling-coverage-memory-checking-and-static-analysis)
+- [Dependencies Required for Coverage, Memory Checking, and Static Analysis](#dependencies-required-for-coverage-memory-checking-and-static-analysis)
+  - [RPM-based distributions](#rpm-based-distributions)
+  - [DEB-based distributions](#deb-based-distributions)
 
 ### Enabling tests during CMake configuration
 
-XRootD unit and integration tests are enabled via the CMake configuration option
-`-DENABLE_TESTS=ON`. Unit and integration tests may depend on GoogleTest.
-Therefore, the development packages for GoogleTest are needed in order to enable
-all available tests. When the Python bindings are enabled as well, the test
-suite includes the tests for the bindings, which are driven by
-[pytest](https://pytest.org). It must be importable by the Python interpreter
-used for the build, and configuration fails when it is not, so install pytest,
-or disable the tests that need it with `-DENABLE_PYTHON=OFF` or
-`-DENABLE_SERVER_TESTS=OFF`. Here we discuss how to use the [test.cmake](../test.cmake)
-CTest script to run all steps to configure and build the project, then run all
-tests using CTest. The script [test.cmake](../test.cmake) can be generically
-called from the top directory of the repository as shown below
+The CMake option `-DENABLE_TESTS=ON` enables the tests. The unit tests and the
+integration tests use [GoogleTest](https://github.com/google/googletest) and
+[GoogleMock](https://github.com/google/googletest/tree/main/googlemock) from
+[vendor/googletest](../vendor/googletest). The end-to-end tests use
+[BATS](https://bats-core.readthedocs.io/) (Bash Automated Testing System) from
+[vendor/bats](../vendor/bats). Thus, the tests need no test framework from the
+system, and we do not recommend distributions to unbundle BATS or GoogleTest,
+as nothing that is installed depends on them, they are pure test dependencies.
+We bundle them to guarantee minimum versions for features used in XRootD tests.
+
+The option `ENABLE_SERVER_TESTS` (on by default) enables the tests which require
+a server. CMake turns it off in a build of the client only (`XRDCL_ONLY` or
+`XRDCL_LIB_ONLY`), and when the user is `root`, since `xrootd` and `cmsd`
+cannot be run as the `root` user.
+
+When the Python bindings are enabled as well, the test suite includes the
+tests for the bindings, which use [pytest](https://pytest.org). The Python
+interpreter of the build must import pytest, or the configuration fails.
+Install pytest, or disable these tests with `-DENABLE_PYTHON=OFF` or
+`-DENABLE_SERVER_TESTS=OFF`.
+
+### Running all steps with `test.cmake`
+
+The CTest script [test.cmake](../test.cmake) configures and builds the project,
+then runs all tests with CTest. Run it from the top directory of the repository:
 
 ```sh
+ctest -V -S test.cmake
+```
+
+Example:
+```sh
 xrootd $ ctest -V -S test.cmake
--- Using CMake cache file config.cmake
+Using CMake cache file config.cmake
 Run dashboard with model Experimental
    Source directory: xrootd
    Build directory: xrootd/build
    Reading ctest configuration file: xrootd/CTestConfig.cmake
    Site: example.cern.ch (Linux - x86_64)
-   Build name: Linux GCC 12.3.1 RelWithDebInfo
-   Use Experimental tag: 20230622-0712
+   Build name: Fedora Linux 42 GCC 15.1.1 Debug
+   Use Experimental tag: 20261103-0712
    Updating the repository: xrootd
    Use GIT repository type
    Old revision of repository is: 6fce466a5f9b369f45ef2592c2ae246de1f13103
@@ -51,133 +86,146 @@ Build project
    0 Compiler errors
    0 Compiler warnings
 Test project xrootd/build
-      Start  1: XrdCl::URLTest.LocalURLs
- 1/23 Test  #1: XrdCl::URLTest.LocalURLs .....................   Passed    0.01 sec
-      Start  2: XrdCl::URLTest.RemoteURLs
- 2/23 Test  #2: XrdCl::URLTest.RemoteURLs ....................   Passed    0.12 sec
-      Start  3: XrdCl::URLTest.InvalidURLs
- 3/23 Test  #3: XrdCl::URLTest.InvalidURLs ...................   Passed    0.01 sec
-      Start  4: XrdHttpTests.checksumHandlerTests
- 4/23 Test  #4: XrdHttpTests.checksumHandlerTests ............   Passed    0.01 sec
-      Start  5: XrdHttpTests.checksumHandlerSelectionTest
- 5/23 Test  #5: XrdHttpTests.checksumHandlerSelectionTest ....   Passed    0.01 sec
-      Start  6: XrdCl::Poller
- 6/23 Test  #6: XrdCl::Poller ................................   Passed    5.01 sec
-      Start  7: XrdCl::Socket
- 7/23 Test  #7: XrdCl::Socket ................................   Passed    0.02 sec
-      Start  8: XrdCl::Utils
- 8/23 Test  #8: XrdCl::Utils .................................   Passed    8.01 sec
-      Start  9: XrdEc::AlignedWriteTest
- 9/23 Test  #9: XrdEc::AlignedWriteTest ......................   Passed    0.06 sec
-      Start 10: XrdEc::SmallWriteTest
-10/23 Test #10: XrdEc::SmallWriteTest ........................   Passed    0.06 sec
-      Start 11: XrdEc::BigWriteTest
-11/23 Test #11: XrdEc::BigWriteTest ..........................   Passed    0.05 sec
-      Start 12: XrdEc::VectorReadTest
-12/23 Test #12: XrdEc::VectorReadTest ........................   Passed    0.06 sec
-      Start 13: XrdEc::IllegalVectorReadTest
-13/23 Test #13: XrdEc::IllegalVectorReadTest .................   Passed    0.06 sec
-      Start 14: XrdEc::AlignedWrite1MissingTest
-14/23 Test #14: XrdEc::AlignedWrite1MissingTest ..............   Passed    0.06 sec
-      Start 15: XrdEc::AlignedWrite2MissingTest
-15/23 Test #15: XrdEc::AlignedWrite2MissingTest ..............   Passed    0.05 sec
-      Start 16: XrdEc::AlignedWriteTestIsalCrcNoMt
-16/23 Test #16: XrdEc::AlignedWriteTestIsalCrcNoMt ...........   Passed    0.06 sec
-      Start 17: XrdEc::SmallWriteTestIsalCrcNoMt
-17/23 Test #17: XrdEc::SmallWriteTestIsalCrcNoMt .............   Passed    0.06 sec
-      Start 18: XrdEc::BigWriteTestIsalCrcNoMt
-18/23 Test #18: XrdEc::BigWriteTestIsalCrcNoMt ...............   Passed    0.06 sec
-      Start 19: XrdEc::AlignedWrite1MissingTestIsalCrcNoMt
-19/23 Test #19: XrdEc::AlignedWrite1MissingTestIsalCrcNoMt ...   Passed    0.06 sec
-      Start 20: XrdEc::AlignedWrite2MissingTestIsalCrcNoMt
-20/23 Test #20: XrdEc::AlignedWrite2MissingTestIsalCrcNoMt ...   Passed    0.06 sec
-      Start 21: XRootD::start
-21/23 Test #21: XRootD::start ................................   Passed    0.01 sec
-      Start 23: XRootD::smoke-test
-22/23 Test #23: XRootD::smoke-test ...........................   Passed    1.63 sec
-      Start 22: XRootD::stop
-23/23 Test #22: XRootD::stop .................................   Passed    1.00 sec
-
-100% tests passed, 0 tests failed out of 23
-
-Total Test time (real) =  16.55 sec
+...
 ```
 
-For full verbose output, use `-VV` instead of `-V`. We recommend using at least `-V`
-to add some verbosity. The output is too terse to be useful otherwise.
+Use at least `-V`, because the output without it is too short to be useful.
+Use `-VV` for the full output. Optionally, you can customize defaults using
+environment variables, as suggested in the example below, which you can copy
+into your `.bashrc`:
+
+```bash
+export CLICOLOR_FORCE=true
+export CMAKE_COLOR_DIAGNOSTICS=true
+export CMAKE_VERBOSE_MAKEFILE=true
+export CTEST_OUTPUT_ON_FAILURE=true
+export CTEST_PROGRESS_OUTPUT=true
+
+NCORES=$(getconf NPROCESSORS_ONLN)
+export CMAKE_BUILD_PARALLEL_LEVEL=${NCORES}
+export CTEST_PARALLEL_LEVEL=${NCORES}
+```
+
+The `test.cmake` script empties the build directory each time it runs, so for
+incremental work, build with `cmake --build build`, and run the tests with
+`ctest --test-dir build`. When you configure a build by hand, you can load the
+same cache file as `test.cmake` with `cmake -S . -B build -C .ci/config.cmake`.
+
+#### Running a subset of the tests
+
+The option `-R` of `ctest` selects the tests whose names match a regular
+expression, and `-N` lists the tests without running them. The name of a test
+starts with its category, thus `ctest -R '^unit::'` runs only the unit tests.
+The name of a unit test also contains its component, as in the example below:
+
+```sh
+ctest --test-dir build -R '^unit::XrdCl::URLTest\.'
+Test project xrootd/build
+    Start 48: unit::XrdCl::URLTest.ParsesLocalUrlsAsFilesOnLocalhost
+1/3 Test #48: unit::XrdCl::URLTest.ParsesLocalUrlsAsFilesOnLocalhost ...   Passed    0.02 sec
+    Start 49: unit::XrdCl::URLTest.ParsesAllPartsOfRemoteUrls
+2/3 Test #49: unit::XrdCl::URLTest.ParsesAllPartsOfRemoteUrls ..........   Passed    0.26 sec
+    Start 50: unit::XrdCl::URLTest.RejectsMalformedUrls
+3/3 Test #50: unit::XrdCl::URLTest.RejectsMalformedUrls ................   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   0.31 sec
+```
+
+The name of an end-to-end test contains the directory of its file. For example,
+`ctest --test-dir build -R '^end-to-end::cache::'` runs the tests in
+`tests/end-to-end/cache`. Add `--output-on-failure` to see the logs of a test
+which fails, or set `CTEST_OUTPUT_ON_FAILURE=true` in your environment to make
+this the default. The file [tests/README.md](../tests/README.md) tells how to
+run one file of end-to-end tests without CTest.
+
+#### Conditions for the tests which start a server
+
+- Install `bash`, `curl`, `openssl` and `python3` for the end-to-end tests.
+  Some tests use short Python scripts to check a server response, for
+  example a JSON document. Some tests also need `jq`, `getfattr`, `setfattr`, `md5sum`, `zip`,
+  `unzip`, or the programs of a Kerberos KDC (key distribution center), and
+  skip when they are not available. CMake registers the test of the progress
+  bar only when `script` is available. The FUSE tests need a FUSE device, and
+  run only with `-DENABLE_FUSE_TESTS=ON`.
+- Give the tests enough space in `TMPDIR`. The tests write their files below
+  `TMPDIR`, or below `/tmp` when `TMPDIR` is not set. The tests of
+  `xrdcl/cluster.bats` write a file of 2 GiB and about 400 MiB of other files.
+  Set `TMPDIR` to a directory with enough space when `/tmp` is a small tmpfs.
+- The admin path of `xrootd` is a Unix socket, and the path of a Unix socket
+  has a limit of about 100 characters. Thus, the tests put the admin path in
+  `TMPDIR` only when the path of `TMPDIR` is short, and in `/tmp` otherwise.
 
 ### Customizing the Build
 
 #### Selecting a build type, compile flags, optional features, etc
 
-Since the script is targeted for usage with continuous integration, it tries to
-load a configuration file from the `.ci` subdirectory in the source directory.
-The default configuration is in the `config.cmake` file. This file is used to
-pre-load the CMake cache. If found, it is passed to CMake during configuration
-via the `-C` option. This file is a CMake script that should only contain CMake
-`set()` commands using the `CACHE` option to populate the cache. Some effort is
-made to detect and use a more specific configuration file than the generic
-`config.cmake` that is used by default. For example, on Ubuntu, a file named
-`ubuntu.cmake` will be used if present. The script also tries to detect the
-version of the OS and use a more specific file if found for that version. For
-example, on Alma Linux 8, one could use `almalinux8.cmake` which would have
-higher precedence than `almalinux.cmake`. The default `config.cmake` file will
-enable as many options as possible without failing if the dependencies are not
-installed, so it should be sufficient in most cases.
+The `test.cmake` script loads a configuration file from the `.ci` directory of
+the source, and gives it to CMake with the option `-C` to fill the cache. The
+file is a CMake script with only `set()` commands with the option `CACHE`. The
+script uses the most specific file which it finds:
 
-The behavior of the [test.cmake](../test.cmake) script can also be influenced
-by environment variables like `CC`, `CXX`, `CXXFLAGS`, `CMAKE_ARGS`, `CMAKE_GENERATOR`,
-`CMAKE_BUILD_PARALLEL_LEVEL`, `CTEST_PARALLEL_LEVEL`, and `CTEST_CONFIGURATION_TYPE`.
-These are mostly self-explanatory and can be used to override the provided defaults.
-For example, to build with `clang` and use `ninja` as CMake generator, one can run:
+1. `<os><version>.cmake`, for example `almalinux8.cmake` on AlmaLinux 8.
+2. `<os>.cmake`, for example `ubuntu.cmake` on Ubuntu.
+3. `config.cmake`, the default.
+
+The default `config.cmake` enables as many options as possible, and does not
+fail when a dependency is not installed. Thus, it is sufficient in most cases.
+
+These environment variables also change the behavior of `test.cmake`: `CC`,
+`CXX`, `CXXFLAGS`, `CMAKE_ARGS`, `CMAKE_GENERATOR`, `CMAKE_BUILD_PARALLEL_LEVEL`,
+`CTEST_PARALLEL_LEVEL`, and `CTEST_CONFIGURATION_TYPE`. For example, to build with
+`clang` and use `ninja` as the CMake generator, run:
 
 ```sh
-xrootd $ env CC=clang CXX=clang++ CMAKE_GENERATOR=Ninja ctest -V -S test.cmake
+CC=clang CXX=clang++ CMAKE_GENERATOR=Ninja ctest -V -S test.cmake
 ```
 
-For performance analysis and profiling with `perf`, we recommend building with
+For performance analysis and profiling with `perf`, we recommend this build:
 
 ```sh
-xrootd $ CXXFLAGS='-fno-omit-frame-pointer' ctest -V -C RelWithDebInfo -S test.cmake
+CXXFLAGS='-fno-omit-frame-pointer' ctest -V -C RelWithDebInfo -S test.cmake
 ```
 
-For enabling link-time optimizations (LTO), we recommend using
+For link-time optimizations (LTO), we recommend these flags:
+
 ```
 CXXFLAGS='-flto -Werror=odr -Werror=lto-type-mismatch -Werror=strict-aliasing'
 ```
 
-This turns some important warnings into errors to avoid potential runtime issues
-with LTO. Please see GCC's manual page for descriptions of each of the warnings
-above. Extra CMake options can be given through `CMAKE_ARGS`, as shown below
+The flags change some important warnings into errors, to prevent problems at
+run time with LTO. The manual page of GCC describes each of these warnings.
+Give extra CMake options in `CMAKE_ARGS`, as shown below:
 
 ```sh
-$ env CMAKE_ARGS="-DENABLE_XRDEC=1" ctest -V -S test.cmake
+CMAKE_ARGS="-DENABLE_XRDEC=1" ctest -V -S test.cmake
 ```
 
-Note that options passed by setting `CMAKE_ARGS` in the environment have higher
-precedence than what is in the pre-loaded cache file, so this method can be used
-to override the defaults without having to edit the pre-loaded cache file.
+The options in `CMAKE_ARGS` have higher precedence than the options of the
+cache file. Thus, you can use `CMAKE_ARGS` to override the defaults without
+editing the cache file.
 
 #### Building with a sanitizer
 
 Use `-DSANITIZE=<type>` to build with a sanitizer, where `<type>` is what the
-compiler expects after `-fsanitize=`. The options `ENABLE_ASAN` and
-`ENABLE_TSAN` are gone. They added a compiler flag and nothing else, so none of
-the setup below applied to them.
+compiler expects after `-fsanitize=`.
 
 ```sh
-xrootd $ ctest -V -DSANITIZE=address -S test.cmake
-xrootd $ env CC=clang CXX=clang++ ctest -V -DSANITIZE=thread -S test.cmake
+ctest -V -DSANITIZE=address -S test.cmake
+CC=clang CXX=clang++ ctest -V -DSANITIZE=thread -S test.cmake
 ```
 
 `test.cmake` prepares the build and the environment for both GCC and Clang:
 
 - It selects the matching `CTEST_MEMORYCHECK_TYPE`, so that the tests run under
-  `ctest_memcheck` and the findings reach CDash.
+  `ctest_memcheck`, and the findings can be sent to CDash with `-DCDASH=1`.
 - It sets the options of the runtime in `ASAN_OPTIONS` and the other
   `<RUNTIME>_OPTIONS` variables. The undefined behavior sanitizer needs
-  `halt_on_error=1`, since it otherwise reports and continues, and the tests
-  pass even when it finds something.
+  `halt_on_error=1`. Without it, the sanitizer reports a finding and
+  continues, and the test passes.
+- It turns the leak detection of the address sanitizer off (`detect_leaks=0`).
+  Use `-DSANITIZE=leak` to find leaks.
 - It leaves out the `vptr` check of the undefined behavior sanitizer. That
   check refers to the type information of every polymorphic class it sees.
   `XrdUtils` only declares `XrdOss`, `XrdOssDF`, and `XrdSecProtector`, so the
@@ -188,22 +236,21 @@ xrootd $ env CC=clang CXX=clang++ ctest -V -DSANITIZE=thread -S test.cmake
   with undefined sanitizer symbols. A program which is not instrumented, like
   the interpreter which runs the tests for the Python bindings, cannot resolve
   them.
-- It sets `verify_asan_link_order=0`, since such a program receives the runtime
-  only when it opens one of the libraries, which the address sanitizer rejects
+- It sets `verify_asan_link_order=0`. Such a program receives the runtime only
+  when it opens one of the libraries, and the address sanitizer rejects this
   by default.
-- It raises the reserve of static TLS with `GLIBC_TUNABLES`. Without it, the
-  same program cannot open a library built with the thread or leak sanitizer,
-  and fails with `cannot allocate memory in static TLS block`.
+- It raises the reserve of static thread-local storage with `GLIBC_TUNABLES`.
+  Without it, the same program cannot open a library built with the thread or
+  leak sanitizer, and fails with `cannot allocate memory in static TLS block`.
 - With Clang, it leaves the sources under `vendor/` uninstrumented, through the
   special case list in [.ci/ignorelist.txt](../.ci/ignorelist.txt). GCC has no
   equivalent option.
 
 To silence a known finding, add an entry to `.ci/<runtime>.supp`, where
-`<runtime>` is `asan`, `lsan`, `msan`, `tsan`, or `ubsan`. `test.cmake` passes
-the file to the runtime with the `suppressions` option when it exists. Prefer a
-suppression over turning a whole check off, and prefer both over an entry in
-the special case list, which removes the instrumentation altogether. Only
-[.ci/lsan.supp](../.ci/lsan.supp) exists today.
+`<runtime>` is `asan`, `lsan`, `msan`, `tsan`, or `ubsan`. `test.cmake` gives
+the file to the runtime with the `suppressions` option when the file exists.
+Prefer a suppression to turning a whole check off. Prefer both to an entry in
+the special case list, which removes the instrumentation altogether.
 
 The address sanitizer runs with `detect_odr_violation=1`, which reports a
 global defined twice only when the two definitions have different sizes. A few
@@ -213,52 +260,46 @@ points. Those duplicates are normal, and level 2 reports all of them.
 
 #### Enabling coverage, memory checking, and static analysis
 
-The [test.cmake](../test.cmake) has are several options that allow the developer
-to customize the build being tested. The main options are shown in the table
-below:
+`test.cmake` has several options which change the build that it tests. The
+table below shows the main options:
 
 | Option                   | Description                                |
 |:------------------------:|:-------------------------------------------|
+| **-DCDASH=ON**           | Enables build result submission to CDash   |
 | **-DCOVERAGE=ON**        | Enables test coverage analysis with gcov   |
 | **-DMEMCHECK=ON**        | Enables memory checking with valgrind      |
 | **-DSTATIC_ANALYSIS=ON** | Enables static analysis with clang-tidy    |
 | **-DSANITIZE=<type>**    | Enables `<type>` sanitizer (e.g. thread)   |
 | **-DINSTALL=ON**         | Enables an extra step to call make install |
 
-When enabling coverage, a report is generated by default in the `html/`
-directory inside the build directory. The results can then be viewed by
-opening the file `html/coverage_details.html` in a web browser. The report
-generation step can be disabled by passing the option `-DGCOVR=0` to the
-script. If `gcovr` is not found, the step will be skipped automatically.
-It is recommended to use a debug build to generate the coverage analysis.
+With coverage enabled, `test.cmake` writes a report with `gcovr` to the
+`coverage/` directory inside the build directory. Open the file
+`coverage/index.html` in a web browser. Pass `-DGCOVR=0` to the script to
+skip the report. When `gcovr` is not found, the script also skips the report.
+Use a debug build for coverage. Debug is the default build type of `test.cmake`.
 
-The CMake build type can be specified directly on the command line with the
-`-C` option of `ctest`. For example, to run a coverage build in debug mode,
-showing test output when a test failure happens, one can run:
+Give the CMake build type with the option `-C` of `ctest`. For example, to run
+a coverage build in debug mode, and show the output of the failing tests, run:
 
 ```sh
-xrootd $ ctest -V --output-on-failure -C Debug -DCOVERAGE=ON -S test.cmake
+ctest -V --output-on-failure -C Debug -DCOVERAGE=ON -S test.cmake
 ```
 
-Memory checking is performed with `valgrind` when it is enabled. In this case,
-the tests are run twice, once as usual, and once with `valgrind`. The output
-logs from running the tests with `valgrind` can be found in the build directory 
-at `build/Testing/Temporary/MemoryChecker.<#>.log` where `<#>` corresponds to
-the test number as shown when running `ctest`.
+With memory checking enabled, the tests run under `valgrind`, instead of the
+normal run. The logs of `valgrind` are in the build directory at
+`build/Testing/Temporary/MemoryChecker.<#>.log`, where `<#>` is the number of
+the test in the output of `ctest`.
 
-Static analysis requires `clang-tidy` and is enabled by setting `CMAKE_CXX_CLANG_TIDY`
-for the build. If `clang-tidy` is not in the standard `PATH`, then it may be
-necessary to set it manually instead of using the option `-DSTATIC_ANALYSIS=ON`.
-For the moment XRootD does not provide yet its own configuration file for
-`clang-tidy`, so the defaults will be used for the build. Warnings and errors
-coming from static analysis will be shown as part of the regular build, so it is
-important to enable full verbosity when enabling static analysis to be able to
-see the output from `clang-tidy`.
+Static analysis needs `clang-tidy`. The option `-DSTATIC_ANALYSIS=ON` sets
+`CMAKE_CXX_CLANG_TIDY` for the build. If `clang-tidy` is not in `PATH`, set
+`CMAKE_CXX_CLANG_TIDY` by hand instead of using the option. XRootD has a simple
+configuration file for `clang-tidy`, with only `clang-analyzer-core.*` enabled.
+The warnings and errors of `clang-tidy` are part of the output of the build.
+Thus, use full verbosity with static analysis.
 
-The option `-DINSTALL=ON` will enable a step to perform a so-called staged
-installation inside the build directory. It can be used to check if the
-installation procedure is working as expected, by inspecting the contents of the
-`install/` directory inside the build directory after installation:
+The option `-DINSTALL=ON` adds a step which installs the build into the
+directory `install/` inside the build directory. Inspect the contents of this
+directory to make sure that the installation works as expected:
 
 ```sh
 xrootd $ ctest -DINSTALL=1 -S test.cmake
@@ -267,9 +308,9 @@ build/install
 └── usr
     ├── bin
     ├── include
-    │   └── xrootd
+    │   └── xrootd
     ├── lib
-    │   └── python3.11
+    │   └── python3.11
     ├── lib64
     └── share
         ├── man
@@ -280,120 +321,24 @@ build/install
 
 ### Dependencies Required for Coverage, Memory Checking, and Static Analysis
 
-#### RPM-based distributions: RedHat, Fedora, CentOS Stream, Alma, Rocky
+#### RPM-based distributions
 
-The [test.cmake](../test.cmake) script may also need some extra dependencies for
-some of its features. For memory checking, `valgrind` is needed, and for static
-analysis, `clang-tidy` is needed:
+For memory checking, `test.cmake` needs `valgrind`, and for static analysis,
+it needs `clang-tidy`:
 
 ```sh
-dnf install \
-    clang \
-    clang-tools-extra \
-    valgrind
+dnf install clang clang-tools-extra valgrind
 ```
 
-For coverage, you need to install `gcovr`. It is not available via `yum`/`dnf`,
-but can be installed with `pip`. See https://gcovr.com/en/stable/installation.html
+For coverage, install `gcov` and `gcovr` (optional). For `gcovr` specifically,
+if not available in your distro (it is available on Alma 10 and Fedora at least),
+you can install it with `pip`. See https://gcovr.com/en/stable/installation.html
 for more information.
 
-Dependencies to run containerized tests with `podman` on RHEL 8/9 and derivatives
-can be installed with `dnf groupinstall 'Container Management'`. A quick test to check
-if everything is correctly setup is to try to start a busybox image with:
+#### DEB-based distributions
+
+On Debian, Ubuntu, and derivatives, install the extra dependencies with:
 
 ```sh
-podman run --rm -it busybox
+apt install clang clang-tidy valgrind gcov gcovr
 ```
-
-#### DEB-based distributions: Debian 11, Ubuntu 22.04
-
-On Debian, Ubuntu, and derivatives, The extra dependencies to use with the [test.cmake](../test.cmake) script can be
-installed with:
-
-```sh
-apt install clang clang-tidy valgrind gcovr
-```
-
-Dependencies to run containerized tests can be installed with
-```sh
-apt install podman
-```
-
-## Running XRootD Tests on other platforms with Docker and/or Podman
-
-If you would like to run XRootD tests on other platforms, you can use
-the `xrd-docker` script and associated `Dockerfile`s in the `docker/`
-subdirectory. The steps needed are described below.
-
-### Create an XRootD tarball to build in the container
-
-The first thing that needs to be done is packaging a tarball with the version
-of XRootD to be used to build in the container image. The command `xrd-docker package`
-by default creates a tarball named `xrootd.tar.gz` in the current directory using the
-`HEAD` of the currently checked branch. We recommend changing directory to the `docker/`
-directory in the XRootD git repository in order to run these commands. Suppose
-we would like to run the tests for release v5.6.4. Then, we would run
-```sh
-$ xrd-docker package v5.6.4
-```
-to create the tarball that will be used to build the container image. The
-tarball created by this command is a standard tarball created with `git archive`.
-Inside it, the `VERSION` file contains the expanded version which is used by the
-new spec file to detect the version of XRootD being built. You can also create a
-source RPM with such tarballs, but they must be built with `rpmbuild --with git`
-as done in the CI builds and the `Dockerfile`s in the `docker/build/` subdirectory.
-
-### Build the container image
-
-The next step is to build the container image for the desired OS. It can be built
-with either `docker` or `podman`. The `xrd-docker` script has the `build` command
-to facilitate this. Currently, supported OSs for building are AlmaLinux 8, 9 and
-10, Fedora, Alpine, Debian, and Ubuntu. The command to build the image is simply
-```sh
-$ xrd-docker build <OS>
-```
-where `<OS>` is one of `alma9` (default), `alma8`, `fedora`, `alpine`, `debian`,
-or `ubuntu`. The name simply chooses which `Dockerfile` is used from the `build/`
-directory, as they are named `Dockerfile.<OS>` for each suported OS. It is possible
-to add new `Dockerfile`s following this same naming scheme to support custom setups
-and still use `xrd-docker build` command to build an image. The images built with
-`xrd-docker build` are named simply `xrootd` (latest being a default tag added
-by docker), and an extra `xrootd:<OS>` tag is added to allow having it built for
-multiple OSs at the same time. The current `Dockerfile`s use the spec file and
-build the image using the RPM packaging workflow, installing dependencies as
-declared in the spec file, in the first stage, building the RPMs in a second
-stage, then, in a third stage starting from a fresh image, the RPMs built in
-stage 2 are copied over and installed with `yum` or `dnf`.
-
-#### Switching between `docker` and `podman` if both are installed
-
-The `xrd-docker` script takes either `docker` or `podman` if available, in this
-order. If you have only one of the two installed, everything should work without
-any extra setup, but if you have both installed and would like to use `podman`
-instead of `docker` for building the images, it can be done by exporting an
-environment variable:
-```sh
-$ export DOCKER=$(command -v podman)
-$ xrd-docker build # uses podman from now on...
-```
-
-### Appendix
-
-#### Setting up `podman`
-
-Unlike `docker`, `podman` may not work out of the box after installing it. If it
-doesn't, make sure that you have subuids and subgids setup for your user by
-running, for example, the two commands below:
-
-```sh
-$ sudo usermod --add-subuids 1000000-1000999999 $(id -un)
-$ sudo usermod --add-subgids 1000000-1000999999 $(id -un)
-```
-
-You may also have to ensure that container registries in
-`/etc/containers/registries.conf`. Usually a usable configuration can be renamed
-from `/etc/containers/registries.conf.example`.
-
-Finally, you may want to try container runtimes other than the default. If you
-still have problems getting started, `podman`'s documentation can be found at
-`https://podman.io/docs`.
