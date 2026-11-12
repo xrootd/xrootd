@@ -367,6 +367,8 @@ char* Cache::RequestRAM(long long size)
          {
             // Report out of mem? Probably should report it at least the first time,
             // then periodically.
+            XrdSysMutexHelper lock(&m_RAM_mutex);
+            m_RAM_used -= size;
             return 0;
          }
          return buf;
