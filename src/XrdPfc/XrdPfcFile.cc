@@ -1653,6 +1653,9 @@ void File::ProcessBlockResponse(Block *b, int res)
 
          b->reset_error_and_set_io(rreq->m_io, rreq);
          b->m_chunk_reqs.swap( creqs_to_keep );
+         // Only Prefetch() counts prefetch blocks. Count the reissue on the new io, whose response decrements it.
+         if (b->m_prefetch)
+            ++rreq->m_io->m_active_prefetches;
          reissue = true;
       }
 
