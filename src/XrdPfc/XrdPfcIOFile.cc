@@ -123,7 +123,7 @@ void IOFile::DetachFinalize()
    Cache::GetInstance().ReleaseFile(m_file, this);
 
    if (( ! m_error_counts.empty() || m_incomplete_count > 0) && XRD_TRACE What >= TRACE_Error) {
-      char info[1024];
+      char info[1024] = "";
       int pos = 0, cap = 1024;
       bool truncated = false;
       for (auto [err, cnt] : m_error_counts) {
