@@ -193,3 +193,19 @@ TEST(UtilTest, InjectBearerTokenAddsTheTokenWhenZtnIsSelectedAndNoTokenIsGiven)
   XrdClHttp::InjectBearerToken(url, headers);
   EXPECT_TRUE(headers.empty());
 }
+
+TEST(UtilTest, TrimsEmptyAndWhitespaceOnlyValuesSafely)
+{
+  for (const auto value : {"", " ", "\t\r\n", "  \t  "}) {
+    EXPECT_TRUE(XrdClHttp::trim_view(value).empty());
+    EXPECT_TRUE(XrdClHttp::ltrim_view(value).empty());
+  }
+  EXPECT_EQ(XrdClHttp::trim_view(" \tvalue\r\n "), "value");
+  EXPECT_EQ(XrdClHttp::trim_view("value"), "value");
+}
+
+TEST(UtilTest, TrimmingPreservesNonAsciiBytes)
+{
+  EXPECT_EQ(XrdClHttp::trim_view(" \xff "), "\xff");
+  EXPECT_EQ(XrdClHttp::ltrim_view(" \xff "), "\xff ");
+}
