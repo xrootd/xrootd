@@ -59,7 +59,7 @@ function(add_unit_tests)
   endif()
 
   gtest_discover_tests(${target} TEST_PREFIX "unit::${component}::"
-    DISCOVERY_TIMEOUT 10 ${properties})
+    DISCOVERY_TIMEOUT 10 NO_PRETTY_VALUES ${properties})
 endfunction()
 
 add_subdirectory(example)
