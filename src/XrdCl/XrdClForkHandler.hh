@@ -78,6 +78,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void RegisterPostMaster( PostMaster *postMaster )
       {
+        XrdSysMutexHelper forkLock( pForkMutex );
         XrdSysMutexHelper scopedLock( pMutex );
         pPostMaster = postMaster;
       }
@@ -108,7 +109,18 @@ namespace XrdCl
       std::set<FileSystem*>        pFileSystemObjects;
       PostMaster                  *pPostMaster;
       FileTimer                   *pFileTimer;
+      //------------------------------------------------------------------------
+      // Guards the registered objects above. JobManager workers take it, e.g.
+      // ~FileStateHandler run from a response handler, so it must not be held
+      // while the PostMaster joins them.
+      //------------------------------------------------------------------------
       XrdSysMutex                  pMutex;
+      //------------------------------------------------------------------------
+      // Held by the forking thread from Prepare() until Parent() or Child(),
+      // serialising concurrent forks. RegisterPostMaster() also takes it, so
+      // pPostMaster does not change during a fork.
+      //------------------------------------------------------------------------
+      XrdSysMutex                  pForkMutex;
   };
 }
 

@@ -44,9 +44,18 @@ namespace XrdCl
     log->Debug( UtilityMsg, "Running the prepare fork handler for process %d",
                 pid );
 
-    pMutex.Lock();
+    pForkMutex.Lock();
+
+    //--------------------------------------------------------------------------
+    // Stopping the PostMaster joins the JobManager workers, which run jobs
+    // with cancellation disabled. A job may need pMutex to finish (e.g.
+    // ~FileStateHandler unregistering itself), so pMutex is taken only once
+    // the workers are gone.
+    //--------------------------------------------------------------------------
     if( pPostMaster )
       pPostMaster->Stop();
+
+    pMutex.Lock();
     pFileTimer->Lock();
 
     //--------------------------------------------------------------------------
@@ -90,10 +99,12 @@ namespace XrdCl
       (*itFs)->UnLock();
 
     pFileTimer->UnLock();
+    pMutex.UnLock();
+
     if( pPostMaster )
       pPostMaster->Start();
 
-    pMutex.UnLock();
+    pForkMutex.UnLock();
   }
 
   //------------------------------------------------------------------------
@@ -132,5 +143,6 @@ namespace XrdCl
     }
 
     pMutex.UnLock();
+    pForkMutex.UnLock();
   }
 }

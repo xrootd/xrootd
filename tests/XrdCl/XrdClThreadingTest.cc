@@ -22,7 +22,9 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include <pthread.h>
+#include <signal.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <sys/types.h>
@@ -348,4 +350,117 @@ TEST_F(ThreadingTest, ReadForkTestWithTTLTimeout)
   env->DelInt("TimeoutResolution");
   env->DelInt("LoadBalancerTTL");
   env->DelInt("DataServerTTL");
+}
+
+//------------------------------------------------------------------------------
+// Close handler that keeps its JobManager worker busy for a while after
+// notifying the caller
+//------------------------------------------------------------------------------
+class SlowCloseHandler: public XrdCl::ResponseHandler
+{
+  public:
+    SlowCloseHandler( XrdSysSemaphore &sem ): pSem( sem ) {}
+
+    void HandleResponse( XrdCl::XRootDStatus *status,
+                         XrdCl::AnyObject    *response ) override
+    {
+      delete status;
+      delete response;
+      pSem.Post();
+      usleep( 500000 );
+      delete this;
+    }
+
+  private:
+    XrdSysSemaphore &pSem;
+};
+
+//------------------------------------------------------------------------------
+// Fork while a JobManager worker is still handling a close response. Returns
+// the exit code for the process running it.
+//------------------------------------------------------------------------------
+static int forkDuringClose( const std::string &fileUrl )
+{
+  using namespace XrdCl;
+
+  File *file = new File();
+  if( !file->Open( fileUrl, OpenFlags::Read ).IsOK() )
+    return 1;
+
+  XrdSysSemaphore sem( 0 );
+  if( !file->Close( new SlowCloseHandler( sem ) ).IsOK() )
+    return 2;
+  sem.Wait();
+
+  //----------------------------------------------------------------------------
+  // The CloseHandler now holds the last reference to the FileStateHandler.
+  // When SlowCloseHandler returns, ~FileStateHandler runs on the worker and
+  // unregisters from the ForkHandler, while the fork handler below is
+  // stopping the workers.
+  //----------------------------------------------------------------------------
+  delete file;
+
+  pid_t pid = fork();
+  if( pid < 0 )
+    return 3;
+  if( !pid )
+    _exit( 0 );
+
+  int status;
+  if( waitpid( pid, &status, 0 ) == -1 )
+    return 4;
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Fork while a close response is being handled
+//------------------------------------------------------------------------------
+TEST_F(ThreadingTest, ForkDuringCloseTest)
+{
+  using namespace XrdCl;
+
+  Env *testEnv = XrdClTests::TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  EXPECT_TRUE( testEnv->GetString( "MainServerURL", address ) );
+  EXPECT_TRUE( testEnv->GetString( "DataPath", dataPath ) );
+
+  std::string fileUrl = address + "/" + dataPath +
+                        "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
+
+  Env *env = DefaultEnv::GetEnv();
+  env->PutInt( "RunForkHandler", 1 );
+
+  //----------------------------------------------------------------------------
+  // Run in a child process so that a hang can be detected and killed
+  //----------------------------------------------------------------------------
+  pid_t pid = fork();
+  ASSERT_NE( pid, -1 ) << strerror( errno );
+  if( !pid )
+    _exit( forkDuringClose( fileUrl ) );
+
+  int  status = 0;
+  bool exited = false;
+  for( int i = 0; i < 300 && !exited; ++i )
+  {
+    pid_t rc = waitpid( pid, &status, WNOHANG );
+    ASSERT_NE( rc, -1 ) << strerror( errno );
+    if( rc == pid )
+      exited = true;
+    else
+      usleep( 100000 );
+  }
+
+  if( !exited )
+  {
+    kill( pid, SIGKILL );
+    waitpid( pid, &status, 0 );
+  }
+
+  ASSERT_TRUE( exited ) << "fork() hung while a close response was being "
+                           "handled";
+  EXPECT_TRUE( WIFEXITED( status ) );
+  EXPECT_EQ( WEXITSTATUS( status ), 0 );
 }
