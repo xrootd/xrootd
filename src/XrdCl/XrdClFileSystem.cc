@@ -178,6 +178,15 @@ namespace
      return '&';
    }
   //----------------------------------------------------------------------------
+  // Get the opaque query with its delimiter, without parsing its contents.
+  //----------------------------------------------------------------------------
+  std::string PathQuery( const std::string &path )
+  {
+    const auto pos = path.find( '?' );
+    return pos == std::string::npos ? "" : path.substr( pos );
+  }
+
+  //----------------------------------------------------------------------------
   // Filters out client specific CGI
   //----------------------------------------------------------------------------
   std::string FilterXrdClCgi( const std::string &path )
@@ -507,10 +516,10 @@ namespace
                            XrdCl::ResponseHandler *handler, time_t expires ) :
                              finalst( 0 ), pending( 1 ),
                              dirList( new XrdCl::DirectoryList() ), expires( expires ),
-                             handler( handler ), flags( flags ),
+                             handler( handler ), flags( flags ), query( PathQuery( path ) ),
                              fs( new XrdCl::FileSystem( url ) )
       {
-        dirList->SetParentName( path );
+        dirList->SetParentName( XrdCl::URL( path ).GetPath() );
       }
 
       ~RecursiveDirListCtx()
@@ -526,13 +535,13 @@ namespace
 
         if( !finalst )
         {
-          finalst = st.IsOK() ? new XRootDStatus() : new XRootDStatus( st );
+          finalst = st.IsOK() && st.code != suPartial
+                    ? new XRootDStatus() : new XRootDStatus( st );
           return;
         }
 
-        // if they disagree set the status to partial
-        if( ( finalst->IsOK() && !st.IsOK() ) ||
-            ( !finalst->IsOK() && st.IsOK() ) )
+        // Preserve partial results and report a mix of successes and failures.
+        if( finalst->IsOK() != st.IsOK() || ( st.IsOK() && st.code == suPartial ) )
           *finalst = XRootDStatus( stOK, suPartial );
       }
 
@@ -542,6 +551,7 @@ namespace
       time_t                      expires;
       XrdCl::ResponseHandler     *handler;
       XrdCl::DirListFlags::Flags  flags;
+      const std::string          query;
       XrdCl::FileSystem          *fs;
       XrdSysMutex                 mtx;
   };
@@ -621,6 +631,12 @@ namespace
             // if it's a directory do a recursive call
             if( info->TestFlags( StatInfo::IsDir ) )
             {
+              const std::string child = parent + path;
+              if( child.find( '?' ) != std::string::npos )
+              {
+                pCtx->UpdateStatus( XRootDStatus( stOK, suPartial ) );
+                continue;
+              }
               // bump the pending counter
               ++pCtx->pending;
               // switch of the recursive flag, we will
@@ -644,8 +660,7 @@ namespace
                 }
               }
               // send the request
-              std::string child = parent + path;
-              XRootDStatus st = pCtx->fs->DirList( child, flags, handler, timeout );
+              XRootDStatus st = pCtx->fs->DirList( child + pCtx->query, flags, handler, timeout );
               if( !st.IsOK() )
               {
                 log->Error( FileMsg, "Recursive directory list operation for %s failed: %s",
@@ -1674,7 +1689,6 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->DirList( path, flags, handler, timeout );
 
-    URL url = URL( path );
     std::string fPath = FilterXrdClCgi( path );
 
     if( flags & DirListFlags::Zip )
@@ -1702,7 +1716,7 @@ namespace XrdCl
       req->options[0] = kXR_dstat | kXR_dcksm;
 
     if( flags & DirListFlags::Recursive )
-      handler = new RecursiveDirListHandler( *pImpl->fsdata->pUrl, url.GetPath(), flags, handler, timeout );
+      handler = new RecursiveDirListHandler( *pImpl->fsdata->pUrl, path, flags, handler, timeout );
 
     if( flags & DirListFlags::Merge )
       handler = new MergeDirListHandler( flags & DirListFlags::Chunked, handler );
@@ -1870,19 +1884,24 @@ namespace XrdCl
       return st;
 
     // The response parent omits CGI parameters, which the child stats may need.
-    const auto queryPos = path.find( '?' );
-    const std::string query = queryPos == std::string::npos ? "" : path.substr( queryPos );
+    const std::string query = PathQuery( path );
     uint32_t quota = response->GetSize() <= 1024 ? response->GetSize() : 1024;
     RequestSync sync( response->GetSize(), quota );
     for( uint32_t i = 0; i < response->GetSize(); ++i )
     {
-      std::string fullPath = response->GetParentName() + response->At(i)->GetName() + query;
-      ResponseHandler *handler = new DirListStatHandler( response, i, &sync );
-      st = Stat( fullPath, handler, timeout );
-      if( !st.IsOK() )
-      {
+      const auto &name = response->At(i)->GetName();
+      if( name.find( '?' ) != std::string::npos )
         sync.TaskDone( false );
-        delete handler;
+      else
+      {
+        std::string fullPath = response->GetParentName() + name + query;
+        ResponseHandler *handler = new DirListStatHandler( response, i, &sync );
+        const XRootDStatus statStatus = Stat( fullPath, handler, timeout );
+        if( !statStatus.IsOK() )
+        {
+          sync.TaskDone( false );
+          delete handler;
+        }
       }
       sync.WaitForQuota();
     }
@@ -1891,7 +1910,7 @@ namespace XrdCl
     if( sync.FailureCount() )
       return XRootDStatus( stOK, suPartial );
 
-    return XRootDStatus();
+    return st;
   }
 
   //----------------------------------------------------------------------------
