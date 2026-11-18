@@ -228,8 +228,8 @@ list(APPEND ENVIRON "XRDFS=$<TARGET_FILE:xrdfs>")
 list(APPEND ENVIRON "PYTHONDONTWRITEBYTECODE=1")
 
 foreach(test copy file filesystem glob threads url)
-  add_test(NAME PyXRootD::${test}
+  add_test(NAME python.${test}
     COMMAND ${Python_EXECUTABLE} -m pytest -p no:cacheprovider
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_${test}.py)
-  set_tests_properties(PyXRootD::${test} PROPERTIES ENVIRONMENT "${ENVIRON}")
+  set_tests_properties(python.${test} PROPERTIES ENVIRONMENT "${ENVIRON}")
 endforeach()

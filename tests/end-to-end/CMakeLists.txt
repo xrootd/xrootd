@@ -1,5 +1,7 @@
-# add_bats_tests(<script>) names the test end-to-end::<subdir>::<name> for the
-# file tests/end-to-end/<subdir>/<name>.bats, with :: for each / in <subdir>.
+# add_bats_tests(<script>) names the test end-to-end.<subdir>.<name> for the
+# file tests/end-to-end/<subdir>/<name>.bats, with . for each / in <subdir>.
+# A name has no ':': CMake (4.5 on the CI) warns about it, as the Makefile
+# generator cannot make the target test_prep/<test> for such a name.
 # add_bats_tests(<name> <script>) gives the name explicitly.
 # The credentials which all tests share, see setup/credentials.sh
 set(CREDENTIALS_DIR ${CMAKE_BINARY_DIR}/tests/credentials)
@@ -8,9 +10,9 @@ function(add_bats_tests)
   if(ARGC EQUAL 1)
     set(script ${ARGV0})
     file(RELATIVE_PATH subdir ${PROJECT_SOURCE_DIR}/tests/end-to-end ${CMAKE_CURRENT_SOURCE_DIR})
-    string(REPLACE "/" "::" subdir "${subdir}")
+    string(REPLACE "/" "." subdir "${subdir}")
     get_filename_component(stem ${script} NAME_WE)
-    set(name "end-to-end::${subdir}::${stem}")
+    set(name "end-to-end.${subdir}.${stem}")
   else()
     set(name ${ARGV0})
     set(script ${ARGV1})

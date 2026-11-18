@@ -5,7 +5,7 @@
 #
 # Make the executable tests-unit-<component>[-<qualifier>], where <component>
 # is the name of the current directory in lower case, and register its tests
-# in CTest as unit::<Component>::<Suite>.<Test>. Use a qualifier only for an
+# in CTest as unit.<Component>.<Suite>.<Test>. Use a qualifier only for an
 # additional executable of a component, and let it give the reason for the
 # separate executable, for example process-global state. NO_MAIN is for test
 # files that have their own main(). DEFINITIONS are compile definitions of the
@@ -58,7 +58,7 @@ function(add_unit_tests)
     set(properties PROPERTIES ${ARG_PROPERTIES})
   endif()
 
-  gtest_discover_tests(${target} TEST_PREFIX "unit::${component}::"
+  gtest_discover_tests(${target} TEST_PREFIX "unit.${component}."
     DISCOVERY_TIMEOUT 10 NO_PRETTY_VALUES ${properties})
 endfunction()
 
