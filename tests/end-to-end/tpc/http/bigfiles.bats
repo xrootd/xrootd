@@ -40,20 +40,14 @@ setup() {
 }
 
 @test "pull copy with 10 streams transfers a 1GB file" {
-	skip "known bug: the pull copy with --streams for big files fails - event=MULTISTREAM_FAIL"
-
 	run -0 xrdcp --streams 10 -T only $SRC_HTTP//file_1gb $DST_HTTP//file_dst$N
 }
 
 @test "pull copy with 10 streams transfers a 10GB file" {
-	skip "known bug: the pull copy with --streams for big files fails - event=MULTISTREAM_FAIL"
-
 	run -0 xrdcp --streams 10 -T only $SRC_HTTP//file_10gb $DST_HTTP//file_dst$N
 }
 
 @test "pull copy with 10 streams transfers a 25GB file" {
-	skip "known bug: the pull copy with --streams for big files fails - event=MULTISTREAM_FAIL"
-
 	run -0 xrdcp --streams 10 -T only $SRC_HTTP//file_25gb $DST_HTTP//file_dst$N
 }
 

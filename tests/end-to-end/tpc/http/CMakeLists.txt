@@ -5,6 +5,9 @@ add_bats_tests(plain.bats)
 add_bats_tests(protocol.bats)
 add_bats_tests(timeout.bats)
 
+# copies 3 files of up to 25 GB in 12 ways, which takes minutes in CI
+set_tests_properties(end-to-end.tpc.http.bigfiles PROPERTIES TIMEOUT 600)
+
 # The progress bar is printed only to a terminal, which script(1) provides
 find_program(SCRIPT_EXECUTABLE script)
 if(SCRIPT_EXECUTABLE)
