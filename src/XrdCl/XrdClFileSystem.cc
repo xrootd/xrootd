@@ -1869,11 +1869,14 @@ namespace XrdCl
     if( response->GetSize() && response->At(0)->GetStatInfo() )
       return st;
 
+    // The response parent omits CGI parameters, which the child stats may need.
+    const auto queryPos = path.find( '?' );
+    const std::string query = queryPos == std::string::npos ? "" : path.substr( queryPos );
     uint32_t quota = response->GetSize() <= 1024 ? response->GetSize() : 1024;
     RequestSync sync( response->GetSize(), quota );
     for( uint32_t i = 0; i < response->GetSize(); ++i )
     {
-      std::string fullPath = response->GetParentName()+response->At(i)->GetName();
+      std::string fullPath = response->GetParentName() + response->At(i)->GetName() + query;
       ResponseHandler *handler = new DirListStatHandler( response, i, &sync );
       st = Stat( fullPath, handler, timeout );
       if( !st.IsOK() )
