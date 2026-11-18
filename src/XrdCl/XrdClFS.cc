@@ -647,6 +647,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
   for( it = list->Begin(); it != list->End() && stats; ++it )
   {
     StatInfo *info = (*it)->GetStatInfo();
+    if( !info ) continue;
 
     std::string size = getSizeStr(info->GetSize(),human,base);
     uint32_t sizeWidthComp;
