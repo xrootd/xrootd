@@ -16,4 +16,4 @@ add_bats_tests(restart.bats)
 add_bats_tests(spaces.bats)
 
 # The purge runs each 60 s, and the test must wait for it.
-set_tests_properties(end-to-end::cache::purge PROPERTIES TIMEOUT 600 LABELS slow)
+set_tests_properties(end-to-end.cache.purge PROPERTIES TIMEOUT 600 LABELS slow)

@@ -11,4 +11,4 @@ add_bats_tests(transport.bats)
 # One file runs all tests of xrdcl-cluster-tests, after the start of the
 # cluster and the creation of 2 GiB of test data, thus it can take longer
 # than the default limit of 300 s on a slow host.
-set_tests_properties(end-to-end::xrdcl::cluster PROPERTIES TIMEOUT 1200 LABELS slow)
+set_tests_properties(end-to-end.xrdcl.cluster PROPERTIES TIMEOUT 1200 LABELS slow)
