@@ -208,9 +208,9 @@ namespace XrdCl
       std::string pId;
       uint64_t    pSize;
       uint32_t    pFlags;
-      uint64_t    pModifyTime;
-      uint64_t    pChangeTime;
-      uint64_t    pAccessTime;
+      int64_t     pModifyTime;
+      int64_t     pChangeTime;
+      int64_t     pAccessTime;
       std::string pMode;
       std::string pOwner;
       std::string pGroup;
@@ -237,7 +237,7 @@ namespace XrdCl
     pImpl->pId         = id;
     pImpl->pSize       = size;
     pImpl->pFlags      = flags;
-    pImpl->pModifyTime = modTime;
+    pImpl->pModifyTime = static_cast<int64_t>( modTime );
   }
 
   //------------------------------------------------------------------------
