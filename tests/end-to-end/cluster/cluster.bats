@@ -132,6 +132,15 @@ servers_of() {
     run -0 cmp local.dat copy.dat
 }
 
+# The meta manager looks up a file which no node told it about, thus the first
+# open waits (kXR_wait). The client must send the open again without
+# kXR_refresh, or the meta manager starts the lookup again at each try, and
+# the open waits until its timeout.
+@test "an open with refresh through the meta manager of a file of a data server succeeds" {
+    cp local.dat "$SRV1_DATA/$F"
+    run -0 xrdcl-api open "$METAMAN_URL/$F" refresh
+}
+
 @test "query checksum crc32c through the meta manager returns the checksum of the file" {
     cp local.dat "$SRV4_DATA/$F"
     run -0 xrdfs "$METAMAN_URL" query checksum "$F?cks.type=crc32c"
