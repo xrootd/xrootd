@@ -220,6 +220,19 @@ int ReadV( const std::vector<std::string> &args )
   return 0;
 }
 
+// open <url> [refresh]: File::Open for reading, with OpenFlags::Refresh when
+// given, then File::Close
+int Open( const std::vector<std::string> &args )
+{
+  if( args.empty() || args.size() > 2 || ( args.size() == 2 && args[1] != "refresh" ) )
+    Usage( "open <url> [refresh]" );
+
+  OpenFile f( args[0], args.size() == 2 ? OpenFlags::Read | OpenFlags::Refresh
+                                        : OpenFlags::Read );
+  f.Close();
+  return 0;
+}
+
 // stat <url> [force]: File::Stat, prints the size
 int Stat( const std::vector<std::string> &args )
 {
@@ -1263,6 +1276,7 @@ const std::map<std::string, std::function<int( const std::vector<std::string>& )
   { "read",       Read            },
   { "pgread",     PgRead          },
   { "readv",      ReadV           },
+  { "open",       Open            },
   { "stat",       Stat            },
   { "write",      Write           },
   { "pgwrite",    PgWrite         },
