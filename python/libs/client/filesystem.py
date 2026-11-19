@@ -26,20 +26,37 @@ from __future__ import absolute_import, division, print_function
 from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
+from XRootD.client.responses import ChecksumInfo
 from XRootD.client.utils import CallbackWrapper
-from XRootD.client.flags import AccessMode
+from XRootD.client.flags import AccessMode, MkDirFlags, QueryCode
+from XRootD.client.auth import AuthContext
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
   such as copying files, creating directories, changing file permissions,
   listing directories, etc.
 
-  :param url: The URL of the server to connect with
-  :type  url: string
+  :param  url: The URL of the server to connect with
+  :type   url: string
+  :param auth: Optional object-scoped authentication context
+  :type  auth: :class:`XRootD.client.AuthContext`
   """
 
-  def __init__(self, url):
+  def __init__(self, url, auth=None):
+    if auth is not None and not isinstance(auth, AuthContext):
+      raise TypeError('auth must be an AuthContext')
+    self.__auth = auth
+    if auth is not None:
+      url = auth.apply(url)
     self.__fs = client.FileSystem(url)
+
+  def __enter__(self):
+    """Return this filesystem instance for use in a ``with`` statement."""
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    """Exit a ``with`` statement without suppressing exceptions."""
+    return None
 
   @property
   def url(self):
@@ -65,6 +82,9 @@ class FileSystem(object):
     :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and None
     """
+    if self.__auth is not None:
+      source = self.__auth.apply(source)
+      target = self.__auth.apply(target)
     result = self.__fs.copy(source=source, target=target, force=force)[0]
     return XRootDStatus(result), None
 
@@ -141,6 +161,23 @@ class FileSystem(object):
     status, response = self.__fs.query(querycode, arg, timeout)
     return XRootDStatus(status), response
 
+  def checksum(self, path, timeout=0, callback=None):
+    """Obtain a structured checksum for a path.
+
+    :param path: path to the file
+    :type  path: string
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                 object and :mod:`XRootD.client.responses.ChecksumInfo` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, ChecksumInfo)
+      return XRootDStatus(self.__fs.query(QueryCode.CHECKSUM, path, timeout,
+                                          callback))
+
+    status, response = self.__fs.query(QueryCode.CHECKSUM, path, timeout)
+    if response: response = ChecksumInfo(response)
+    return XRootDStatus(status), response
+
   def truncate(self, path, size, timeout=0, callback=None):
     """Truncate a file.
 
@@ -196,6 +233,22 @@ class FileSystem(object):
 
     status, response = self.__fs.mkdir(path, flags, mode, timeout)
     return XRootDStatus(status), None
+
+  def mkdir_p(self, path, flags=0, mode=0, timeout=0, callback=None):
+    """Create a directory and any missing parent directories.
+
+    This is a convenience wrapper around :meth:`mkdir` using
+    :data:`XRootD.client.flags.MkDirFlags.MAKEPATH`.
+
+    :param  path: path to the directory to create
+    :type   path: string
+    :param flags: Additional `ORed` flags from
+                  :mod:`XRootD.client.flags.MkDirFlags`
+    :param  mode: the initial file access mode, an `ORed` combination of
+                  :mod:`XRootD.client.flags.AccessMode`
+    """
+    return self.mkdir(path, flags | MkDirFlags.MAKEPATH, mode, timeout,
+                      callback)
 
   def rmdir(self, path, timeout=0, callback=None):
     """Remove a directory.
@@ -372,6 +425,9 @@ class FileSystem(object):
     :type  path: string
     """
     source = self.__fs.url.hostid + '/' + path
+    if self.__auth is not None:
+      source = '{}://{}'.format(self.__fs.url.protocol, source)
+      source = self.__auth.apply(source)
     return self.__fs.cat(source)
 
   def set_xattr(self, path, attrs, timeout=0, callback=None):
