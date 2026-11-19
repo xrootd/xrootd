@@ -22,6 +22,7 @@ add_unit_tests(
   LIBRARIES
     XrdClHttpObj
     XrdCl
+    XrdXml
     CURL::libcurl
   INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_SOURCE_DIR}
