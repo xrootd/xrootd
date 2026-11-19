@@ -2008,7 +2008,7 @@ namespace XrdCl
       case kXR_open:
       {
         uint16_t refresh = kXR_refresh;
-        req->locate.options &= (~refresh);
+        req->open.options &= (~refresh);
         break;
       }
     }
@@ -2322,7 +2322,7 @@ namespace XrdCl
 
       case kXR_open:
       {
-        req->locate.options |= kXR_refresh;
+        req->open.options |= kXR_refresh;
         break;
       }
     }
