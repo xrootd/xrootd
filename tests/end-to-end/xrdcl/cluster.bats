@@ -52,10 +52,12 @@ gtest() {
 }
 
 @test "ThreadingTest.ReadForkTest" {
+    require_fork_handler
     gtest
 }
 
 @test "ThreadingTest.MultiStreamReadForkTest" {
+    require_fork_handler
     gtest
 }
 
@@ -64,6 +66,7 @@ gtest() {
 }
 
 @test "ThreadingTest.ReadForkTestWithTTLTimeout" {
+    require_fork_handler
     gtest
 }
 

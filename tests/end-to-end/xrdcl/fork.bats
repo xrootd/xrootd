@@ -11,6 +11,10 @@ load ../setup/server.bash
 # shellcheck disable=SC2034 # BATS reads it
 BATS_TEST_TIMEOUT=60
 
+setup_file() {
+    require_fork_handler
+}
+
 setup() {
     start_server
     make_random_file "$SERVER_DATA/ref.dat" 3000001

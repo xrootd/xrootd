@@ -204,6 +204,15 @@ require_ipv6_socket() {
         skip 'the kernel has no IPv6 sockets'
 }
 
+# Skip the test when a client which forks with the fork handler of XrdCl
+# (XRD_RUNFORKHANDLER=1) hangs. libsandbox.so of the Portage sandbox holds its
+# lock while it calls fork(), and its open() takes the same lock. The handler
+# opens the log file in the child, thus the child waits for the lock forever.
+require_fork_handler() {
+    [[ "${LD_PRELOAD:-}" != *libsandbox.so* ]] ||
+        skip 'the fork() of libsandbox.so in LD_PRELOAD blocks open() in a fork handler'
+}
+
 # Write a file with the given number of random bytes.
 make_random_file() {
     local path=$1 size=$2
