@@ -6,6 +6,19 @@
 
 load ../setup/server.bash
 
+# A library in LD_PRELOAD comes before the libraries of a program, thus its
+# functions hide the ones of XrdPosixPreload, which the helpers link. For
+# example, libsandbox.so of the Portage sandbox sends open() directly to libc.
+# Thus XrdPosixPreload must then come first in LD_PRELOAD too.
+if [[ -n "${LD_PRELOAD:-}" ]]; then
+    xrdposix-cat() {
+        LD_PRELOAD="libXrdPosixPreload.so:$LD_PRELOAD" command xrdposix-cat "$@"
+    }
+    xrdposix-statx() {
+        LD_PRELOAD="libXrdPosixPreload.so:$LD_PRELOAD" command xrdposix-statx "$@"
+    }
+fi
+
 setup_file() {
     # XrdPosix does not support musl libc yet
     ! { cc -dumpmachine 2>/dev/null | grep -q musl; } || skip 'XrdPosix does not support musl'
