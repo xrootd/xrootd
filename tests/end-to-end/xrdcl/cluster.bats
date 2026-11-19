@@ -7,6 +7,13 @@
 
 load gtest/cluster.bash
 
+# BATS stops a test and its processes after this time, thus a test which
+# hangs fails, and the next tests run. The tests use the default request
+# timeout of the client, 1800 s (see gtest below); the slowest test takes
+# about 20 s on a fast host.
+# shellcheck disable=SC2034 # BATS reads it
+BATS_TEST_TIMEOUT=600
+
 setup_file() {
     require_commands xrdcl-cluster-tests
     start_gtest_cluster
