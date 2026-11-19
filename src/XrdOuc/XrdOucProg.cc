@@ -256,16 +256,29 @@ int XrdOucProg::Run(char *outBuff, int outBsz,
 
 int XrdOucProg::RunDone(XrdOucStream &cmd) const
 {
-   int rc;
+   return Finish(cmd, true);
+}
+
+int XrdOucProg::WaitDone(XrdOucStream &cmd) const
+{
+   return Finish(cmd, false);
+}
+
+int XrdOucProg::Finish(XrdOucStream &cmd, bool terminate) const
+{
 
 // If this is an inline program then just return 0. There is no external process
 // and the return code was returned at the time the inline process was run.
 //
    if (myProc) return 0;
 
-// Drain the command
+// Reap the command, terminating its group only for callers that request it.
 //
-   rc = cmd.Drain();
+   int rc = terminate ? cmd.Drain() : cmd.Wait();
+   if (rc < 0)
+      {if (eDest) eDest->Emsg("Run", -rc, "wait for", Arg[0]);
+       return rc;
+      }
 
 // Determine ending status
 //

@@ -8,6 +8,7 @@
 #include <future>
 #include <sstream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -32,7 +33,8 @@ extern "C" XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments);
 // The test target links the implementation directly. Use its existing
 // admission lock to arrange wakeups without adding a production test API.
 namespace XrdOfsPrepGPIReal {
-extern XrdSysCondVar qryCond;
+extern std::mutex qryMutex;
+void WakeQueryWaitersForTest();
 extern int qryAllow;
 extern int qryWait;
 extern int maxFiles, maxResp;
@@ -146,19 +148,19 @@ protected:
     return result;
   }
 
-  bool lockQueryWaiter(XrdSysCondVarHelper &lock) {
+  bool lockQueryWaiter(std::unique_lock<std::mutex> &lock) {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     do {
-      lock.Lock(&XrdOfsPrepGPIReal::qryCond);
+      lock.lock();
       if (XrdOfsPrepGPIReal::qryWait > 0) return true;
-      lock.UnLock();
+      lock.unlock();
       std::this_thread::yield();
     } while (std::chrono::steady_clock::now() < deadline);
     return false;
   }
 
   bool waitForQueryWaiter() {
-    XrdSysCondVarHelper lock;
+    std::unique_lock<std::mutex> lock(XrdOfsPrepGPIReal::qryMutex, std::defer_lock);
     return lockQueryWaiter(lock);
   }
 
@@ -209,6 +211,12 @@ protected:
         "    if [ \"$reqid\" = \"FAIL_QUERY\" ]; then\n"
         "      echo misleading-success-output\n"
         "      exit 1\n"
+        "    elif [ \"$reqid\" = \"EARLY_EOF\" ]; then\n"
+        "      printf 'completed\\n'\n"
+        "      exec 1>&-\n"
+        "      printf s > \"$0.started\"\n"
+        "      read release < \"$0.gate\"\n"
+        "      exit 0\n"
         "    elif [ \"$reqid\" = \"RAW_QUERY\" ]; then\n"
         "      printf '  leading\\n\\ntrailing  '\n"
         "      exit 0\n"
@@ -391,6 +399,35 @@ TEST_F(XrdOfsPrepGPITest, QueryFailurePropagatesError) {
   EXPECT_EQ(eInfo.getErrInfo(), ECANCELED);
 }
 
+TEST_F(XrdOfsPrepGPITest, QueryWaitsForExitAfterStdoutCloses) {
+  const auto parms = "-admit query -run " + scriptPath;
+  ASSERT_NE(makePrepare(parms.c_str()), nullptr);
+
+  auto query = startQuery("EARLY_EOF");
+  ASSERT_TRUE(waitForStarted());
+  EXPECT_EQ(query.wait_for(std::chrono::milliseconds(100)), std::future_status::timeout);
+  releaseGate();
+
+  const auto result = query.get();
+  EXPECT_EQ(result.rc, SFS_DATA);
+  EXPECT_EQ(result.output, "completed\n");
+}
+
+TEST_F(XrdOfsPrepGPITest, QueryUsesConfiguredNonPowerOfTwoBuffer) {
+  std::ofstream(scriptPath) << "#!/bin/sh\ncat '" << scriptPath << ".response'\n";
+  const std::string payload(2500, 'x');
+  std::ofstream(scriptPath + ".response") << payload;
+
+  const auto parms = "-admit query -maxresp 3072 -run " + scriptPath;
+  auto *prep = makePrepare(parms.c_str());
+  ASSERT_NE(prep, nullptr);
+  TestPrepArgs args("LARGE_RESPONSE", Prep_QUERY, {{"/data/f1", ""}});
+  XrdOucErrInfo info;
+  ASSERT_EQ(prep->query(args.prep, info), SFS_DATA);
+  EXPECT_EQ(info.getErrInfo(), static_cast<int>(payload.size() + 1));
+  EXPECT_EQ(info.getErrText(), payload);
+}
+
 TEST_F(XrdOfsPrepGPITest, QueryTruncationDetected) {
   char parms[1024];
   snprintf(parms, sizeof(parms), "-admit stage,query,cancel,evict -run %s -maxfiles 8 -maxresp 2048", scriptPath.c_str());
@@ -460,27 +497,27 @@ TEST_F(XrdOfsPrepGPITest, QueryRejectsSlotAvailableAfterDeadline) {
 
   using namespace XrdOfsPrepGPIReal;
   {
-    XrdSysCondVarHelper lock(qryCond);
+    std::lock_guard<std::mutex> lock(qryMutex);
     qryAllow = 0;
   }
   auto waiting = startQuery("EXPIRED_QUERY");
   {
-    XrdSysCondVarHelper lock;
+    std::unique_lock<std::mutex> lock(XrdOfsPrepGPIReal::qryMutex, std::defer_lock);
     ASSERT_TRUE(lockQueryWaiter(lock));
     ASSERT_EQ(qryWait, 1);
     // Model a slot release whose mutex is not returned until after the waiter's
     // deadline. Unlike a timing race between two children, this guarantees that
-    // WaitMS returns with a free slot and an expired deadline simultaneously.
+    // the wait returns with a free slot and an expired deadline simultaneously.
     std::this_thread::sleep_for(std::chrono::milliseconds(1100));
     qryAllow = 1;
-    qryCond.Signal();
+    WakeQueryWaitersForTest();
   }
   const auto result = waiting.get();
   EXPECT_EQ(result.rc, SFS_ERROR);
   EXPECT_EQ(result.error, ETIMEDOUT);
   EXPECT_TRUE(executions().empty());
   {
-    XrdSysCondVarHelper lock(qryCond);
+    std::lock_guard<std::mutex> lock(qryMutex);
     EXPECT_EQ(qryAllow, 1);
     EXPECT_EQ(qryWait, 0);
   }
@@ -497,8 +534,8 @@ TEST_F(XrdOfsPrepGPITest, SpuriousWakeupsDoNotAdmitQueryOrResetDeadline) {
   const auto limit = std::chrono::steady_clock::now() + std::chrono::seconds(5);
   while (waiting.wait_for(std::chrono::milliseconds(10)) != std::future_status::ready &&
          std::chrono::steady_clock::now() < limit) {
-    XrdSysCondVarHelper lock(XrdOfsPrepGPIReal::qryCond);
-    XrdOfsPrepGPIReal::qryCond.Broadcast();
+    std::lock_guard<std::mutex> lock(XrdOfsPrepGPIReal::qryMutex);
+    XrdOfsPrepGPIReal::WakeQueryWaitersForTest();
   }
   // Keep signalling throughout the deadline; an implementation that starts a
   // fresh timeout after every wakeup will still be waiting here.
