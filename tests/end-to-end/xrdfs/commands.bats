@@ -179,9 +179,9 @@ teardown() {
     run -0 xrdfs "$URL" ls
 }
 
-@test "ls with -R and -Z and -C together is not valid" {
-    run ! xrdfs "$URL" ls -l -u -R -D -Z -C "$D"
-    assert_output --partial 'Invalid arguments'
+@test "ls accepts recursive long listings with the grouped display flags" {
+    run -0 xrdfs "$URL" ls -l -u -R -D -Z -C "$D"
+    assert_output --partial "$F"
 }
 
 @test "ls of a relative path is not valid" {
@@ -723,8 +723,10 @@ teardown() {
     run ! xrdfs "$URL" xattr "$F" list extra
 }
 
-@test "xattr without an operation fails" {
-    run ! xrdfs "$URL" xattr "$F"
+@test "xattr without an operation reports virtual attributes" {
+    run -0 xrdfs "$URL" xattr "$F"
+    assert_output --partial "xroot.space = "
+    assert_output --partial "xroot.xattr = "
 }
 
 @test "xattr get without a name fails" {
