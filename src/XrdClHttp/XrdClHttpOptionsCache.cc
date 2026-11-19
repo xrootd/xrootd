@@ -20,6 +20,8 @@
 
 #include "XrdClHttpOptionsCache.hh"
 
+#include <XrdCl/XrdClURL.hh>
+
 #include <curl/curl.h>
 
 #include <thread>
@@ -33,6 +35,15 @@ std::thread XrdClHttp::VerbsCache::m_expire_tid;
 
 // shutdown trigger, must be last of the static members
 XrdClHttp::VerbsCache::shutdown_s XrdClHttp::VerbsCache::m_shutdowns;
+
+std::string
+XrdClHttp::VerbsCache::GetUrlKey(const std::string &url)
+{
+    auto fragment = url.find('#');
+    XrdCl::URL parsed(url.substr(0, fragment));
+    if (!parsed.IsValid()) return {};
+    return parsed.GetLocation();
+}
 
 XrdClHttp::VerbsCache & XrdClHttp::VerbsCache::Instance() {
     std::unique_lock lk(m_shutdown_lock);

@@ -1,0 +1,62 @@
+/******************************************************************************/
+/* Copyright (C) 2026, XRootD Collaboration                                  */
+/*                                                                            */
+/* This file is part of the XrdClHttp client plugin for XRootD.               */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+
+#include "XrdClHttp/XrdClHttpOptionsCache.hh"
+
+#include <gtest/gtest.h>
+
+using XrdClHttp::VerbsCache;
+
+TEST(OptionsCache, KeysCapabilitiesByResourcePath)
+{
+    EXPECT_EQ(VerbsCache::GetUrlKey("https://example.org/namespace/file-a"),
+              "https://example.org:443/namespace/file-a");
+    EXPECT_EQ(VerbsCache::GetUrlKey("https://example.org/namespace/file-b"),
+              "https://example.org:443/namespace/file-b");
+    EXPECT_NE(VerbsCache::GetUrlKey("https://example.org/namespace/file-a"),
+              VerbsCache::GetUrlKey("https://example.org/namespace/file-b"));
+}
+
+TEST(OptionsCache, ExcludesCredentialsAndRequestParameters)
+{
+    EXPECT_EQ(VerbsCache::GetUrlKey(
+                  "https://user:secret@example.org/data?authz=token#fragment"),
+              "https://example.org:443/data");
+    EXPECT_EQ(VerbsCache::GetUrlKey("https://example.org"),
+              "https://example.org:443/");
+}
+
+TEST(OptionsCache, DoesNotShareVerbsBetweenPaths)
+{
+    auto &cache = VerbsCache::Instance();
+    const std::string head_url = "https://options-cache.invalid/head-only";
+    const std::string dav_url = "https://options-cache.invalid/webdav";
+
+    cache.Put(head_url,
+              VerbsCache::HttpVerbs(VerbsCache::HttpVerb::kUnknown));
+    cache.Put(dav_url,
+              VerbsCache::HttpVerbs(VerbsCache::HttpVerb::kPROPFIND));
+
+    EXPECT_TRUE(cache.Get(head_url).IsSet(VerbsCache::HttpVerb::kUnknown));
+    EXPECT_FALSE(cache.Get(head_url).IsSet(VerbsCache::HttpVerb::kPROPFIND));
+    EXPECT_TRUE(cache.Get(dav_url).IsSet(VerbsCache::HttpVerb::kPROPFIND));
+    EXPECT_TRUE(cache.Get("https://options-cache.invalid/unprobed")
+                    .IsSet(VerbsCache::HttpVerb::kUnset));
+}
