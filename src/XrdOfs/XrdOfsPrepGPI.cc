@@ -3,6 +3,8 @@
 #include <vector>
 #include <memory>
 #include <chrono>
+#include <mutex>
+#include <system_error>
 #ifdef XRD_PREP_GPI_TESTING
 #include <functional>
 #endif
@@ -57,17 +59,82 @@ namespace XrdOfsPrepGPIReal
 {
 XrdSysMutex      gpiMutex;
 
-XrdOucBuffPool  *bPool    = 0;;
+XrdOucBuffPool  *bPool    = nullptr;
 
 XrdOss          *ossP     = 0;
 XrdScheduler    *schedP   = 0;
 XrdSysError     *eLog     = 0;
 XrdOucProg      *pgmObj   = 0;
 
-XrdSysCondVar    qryCond(0, "prepG query");
-int              qryAllow = 8;   // Protected by the condition variable above
-int              qryWait  = 0;   // Ditto
+// Use a monotonic pthread wait even on standard libraries whose timed
+// condition_variable falls back to CLOCK_REALTIME.
+//
+static std::chrono::nanoseconds QueryTime()
+{
+   timespec now;
+   if (clock_gettime(CLOCK_MONOTONIC, &now))
+      throw std::system_error(errno, std::generic_category(), "prepare query clock");
+   return std::chrono::seconds(now.tv_sec) + std::chrono::nanoseconds(now.tv_nsec);
+}
+
+class QueryCondition
+{
+public:
+   QueryCondition()
+   {
+#ifdef __APPLE__
+      const int rc = pthread_cond_init(&condition, nullptr);
+#else
+      pthread_condattr_t attrs;
+      int rc = pthread_condattr_init(&attrs);
+      if (rc) throw std::system_error(rc, std::generic_category(), "prepare query wait");
+      rc = pthread_condattr_setclock(&attrs, CLOCK_MONOTONIC);
+      if (!rc) rc = pthread_cond_init(&condition, &attrs);
+      pthread_condattr_destroy(&attrs);
+#endif
+      if (rc) throw std::system_error(rc, std::generic_category(), "prepare query wait");
+   }
+
+   ~QueryCondition() {pthread_cond_destroy(&condition);}
+
+   int WaitUntil(std::mutex &mutex, std::chrono::nanoseconds deadline)
+   {
+#ifdef __APPLE__
+      // Darwin exposes a relative monotonic wait. Recompute the remainder
+      // against the same deadline after each wakeup.
+      const auto time = deadline - QueryTime();
+      if (time <= std::chrono::nanoseconds::zero()) return ETIMEDOUT;
+#else
+      const auto time = deadline;
+#endif
+      const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(time);
+      const timespec until{static_cast<time_t>(seconds.count()),
+                           static_cast<long>((time - seconds).count())};
+#ifdef __APPLE__
+      return pthread_cond_timedwait_relative_np(&condition, mutex.native_handle(), &until);
+#else
+      return pthread_cond_timedwait(&condition, mutex.native_handle(), &until);
+#endif
+   }
+
+   void Signal() {pthread_cond_signal(&condition);}
+
+#ifdef XRD_PREP_GPI_TESTING
+   void Broadcast() {pthread_cond_broadcast(&condition);}
+#endif
+
+private:
+   pthread_cond_t condition;
+};
+
+std::mutex       qryMutex;
+static QueryCondition qryCond;
+int              qryAllow = 8;   // Protected by qryMutex
 static int       qryMaxWT = 33;  // Maximum query admission wait (seconds)
+#ifdef XRD_PREP_GPI_TESTING
+int              qryWait = 0;
+void WakeQueryWaitersForTest() {qryCond.Broadcast();}
+#endif
 
 int              maxFiles = 48;
 int              maxResp  = XrdOucEI::Max_Error_Len;
@@ -163,7 +230,8 @@ static PrepGRun *Q;
 
 private:
 
-int       Capture(PrepRequest &req, XrdOucStream &cmd, char *bP, int bL);
+int       Capture(PrepRequest &req, XrdOucStream &cmd, char *bP, int bL,
+                  bool &atEOF);
 void      makeArgs(PrepRequest &req, const char *argVec[]);
 
 PrepRequest *reqP = nullptr;
@@ -179,23 +247,26 @@ PrepGRun *PrepGRun::Q = 0;
 
 namespace XrdOfsPrepGPIReal
 {
-int PrepGRun::Capture(PrepRequest &req, XrdOucStream &cmd, char *bP, int bL)
+int PrepGRun::Capture(PrepRequest &req, XrdOucStream &cmd, char *bP, int bL,
+                      bool &atEOF)
 {
    EPNAME("Capture");
    static const int bReserve = 40;
-   int fd = cmd.FDNum();
+   const int fd = cmd.FDNum();
 
 // Make sure the buffer length is the minimum we need and the stream is valid.
 //
-   if (bL < 256 || fd < 0)
+   if ((bP && bL < 256) || fd < 0)
       {char ib[512];
        eLog->Emsg("PrepGRun","Prep exec for",req.Info(ib,sizeof(ib)),
                              "failed; invalid buffer size or stream.");
        return -1;
       }
 
-   char *bPEnd = bP + bL - bReserve;
-   char *bPNow = bP;
+// Keep the historical reserved tail in query response buffers.
+//
+   const int capacity = bP ? bL - bReserve : 0;
+   int captured = 0;
    bool isTrunc = false;
    char drainBuf[1024];
 
@@ -203,74 +274,63 @@ int PrepGRun::Capture(PrepRequest &req, XrdOucStream &cmd, char *bP, int bL)
 // Bound partial debug lines so even unbounded output cannot grow this buffer.
 //
    std::string traceLine;
-   bool traceDiscarded = false;
+   const char *traceMarker = bP ? " +=> " : " ==> ";
    auto flushTrace = [&]() {
-       DEBUG(req.tID, (traceDiscarded ? " -=> " : " +=> ") << traceLine);
+       DEBUG(req.tID, traceMarker << traceLine);
        traceLine.clear();
    };
-   auto traceOutput = [&](const char *data, size_t size, bool discarded) {
+   auto traceOutput = [&](const char *data, size_t size) {
        if (!Debug) return;
-       if (discarded != traceDiscarded && !traceLine.empty()) flushTrace();
-       traceDiscarded = discarded;
        for (size_t i = 0; i < size; ++i) {
            if (data[i] == '\n') flushTrace();
            else {
                traceLine += data[i];
-               if (traceLine.size() == 1024) flushTrace();
+               if (traceLine.size() == sizeof(drainBuf)) flushTrace();
            }
        }
    };
 
-// Place all output bytes that will fit into the supplied buffer, preserving
-// whitespace and the last byte even when there is no final newline.
+// Capture raw output, preserving whitespace and the last byte. Drain the
+// rest so the child can finish, and trace any discarded query output.
 //
    while (true)
-      {if (!isTrunc && bPNow < bPEnd)
-          {ssize_t n = read(fd, bPNow, bPEnd - bPNow);
-           if (n < 0)
-              {if (errno == EINTR) continue;
-               char ib[512];
-               eLog->Emsg("PrepGRun","Prep exec for",req.Info(ib,sizeof(ib)),
-                                     "failed; read error.");
-               return -1;
-              }
-           if (n == 0) break;
-           traceOutput(bPNow, n, false);
-           bPNow += n;
+      {const bool capture = captured < capacity;
+       char *dest = capture ? bP + captured : drainBuf;
+       const size_t available = capture ? capacity - captured : sizeof(drainBuf);
+       const ssize_t n = read(fd, dest, available);
+       if (n < 0)
+          {if (errno == EINTR) continue;
+           char ib[512];
+           eLog->Emsg("PrepGRun","Prep exec for",req.Info(ib,sizeof(ib)),
+                                 "failed; read error.");
+           return -1;
           }
-// Take care of overflow output: drain it so the child can finish and echo
-// the discarded lines with the original debug marker.
-//
-       else
-          {ssize_t n = read(fd, drainBuf, sizeof(drainBuf));
-           if (n < 0)
-              {if (errno == EINTR) continue;
-               return -1;
-              }
-           if (n == 0) break;
-           traceOutput(drainBuf, n, true);
-           isTrunc = true;
-          }
-      }
+       if (n == 0) break;
 
+       if (capture) captured += n;
+          else if (bP && !isTrunc)
+                  {if (!traceLine.empty()) flushTrace();
+                   traceMarker = " -=> ";
+                   isTrunc = true;
+                  }
+       traceOutput(dest, n);
+      }
+   atEOF = true;
    if (!traceLine.empty()) flushTrace();
 
-// Append a null byte after the captured data and compute the wire length.
-// bPNow points one past the payload; unlike GetLine(), raw capture does not
-// insert a newline to replace. The returned length includes the null byte.
-//
-   const int captured = bPNow - bP;
-   if (!captured) bPNow += snprintf(bP, bL, "No information available.");
-      else if (isTrunc) bPNow += snprintf(bPNow, bReserve,
-                                         "***response has been truncated***");
-   *bPNow = 0;
-   const int len = bPNow - bP + 1;
+   if (!bP) return 0;
 
-// Return the number of bytes in the buffer, or fail rather than returning a
-// partial response as successful. Keep the output summary as well as its trace.
+// Fail rather than returning a partial response as successful.
 //
    DEBUG(req.tID, "captured " << captured << " bytes of output" << (isTrunc ? " (truncated)" : ""));
-   return isTrunc ? -1 : len;
+   if (isTrunc) return -1;
+
+// Append the terminator after the payload and include it in the wire length.
+// Raw capture does not insert a newline to replace.
+//
+   if (!captured) captured = snprintf(bP, bL, "No information available.");
+   bP[captured] = 0;
+   return captured + 1;
 }
 }
   
@@ -343,7 +403,6 @@ int PrepGRun::Run(PrepRequest &req, char *bP, int bL)
 {
    EPNAME("Run");
    XrdOucStream cmd;
-   char *lp;
    int rc, bytes = 0;
 
 // Allocate a arg vector of appropriate size
@@ -368,9 +427,12 @@ int PrepGRun::Run(PrepRequest &req, char *bP, int bL)
    if (!rc)
       {if (Debug)
           {DEBUG(req.tID, req.reqName<<' '<<req.reqID<<" output:");}
-       if (!bP) while((lp = cmd.GetLine())) {DEBUG(req.tID," ==> "<<lp);}
-          else bytes = Capture(req, cmd, bP, bL);
-       rc = prepProg.RunDone(cmd);
+       bool atEOF = false;
+       bytes = Capture(req, cmd, bP, bL, atEOF);
+       if (atEOF) rc = prepProg.WaitDone(cmd);
+          else {prepProg.RunDone(cmd);
+                rc = -1;
+               }
       }
 
 // Document unsuccessful end
@@ -718,64 +780,58 @@ int PrepGPI::query(      XrdSfsPrep      &pargs,
        return SFS_DATA;
       }
 
-// Allocate a buffer if need be
+// Get a request object. A query may consist of a request ID alone.
+//
+   auto request = Assemble(eInfo, tid, "query", pargs, "");
+   if (!request) return SFS_ERROR;
+
+// Wait for a slot using one deadline across all wakeups. Even if a slot
+// becomes free while we reacquire the mutex, reject an expired waiter.
+//
+   {
+      std::unique_lock<std::mutex> lock(qryMutex);
+      if (!qryAllow)
+         {const auto deadline = QueryTime() + std::chrono::seconds(qryMaxWT);
+          DEBUG(tid, "Waiting to launch query " << request->reqID);
+#ifdef XRD_PREP_GPI_TESTING
+          ++qryWait;
+#endif
+          int waitError = 0;
+          while (!qryAllow && !waitError && QueryTime() < deadline)
+             waitError = qryCond.WaitUntil(qryMutex, deadline);
+#ifdef XRD_PREP_GPI_TESTING
+          --qryWait;
+#endif
+          if (waitError || QueryTime() >= deadline)
+             {if (qryAllow) qryCond.Signal();
+              return RetErr(eInfo, waitError ? waitError : ETIMEDOUT, "query", "request");
+             }
+         }
+      --qryAllow;
+   }
+
+   struct QuerySlot {
+       ~QuerySlot() {
+           std::lock_guard<std::mutex> lock(qryMutex);
+           ++qryAllow;
+           qryCond.Signal();
+       }
+   } slot;
+
+// Allocate a large response buffer only after admission. A smaller buffer
+// would silently lower the configured response limit.
 //
    if (bPool)
       {OucBuff.pBuff = bPool->Alloc(maxResp);
-       if (OucBuff.pBuff)
-          {bP = OucBuff.pBuff->Buffer();
-           bL = maxResp;
-          }
+       if (!OucBuff.pBuff) return RetErr(eInfo, ENOMEM, "allocate", "query response");
+       bP = OucBuff.pBuff->Buffer();
+       bL = maxResp;
       }
 
-// Get a request request object
-//
-   auto rP = Assemble(eInfo, tid, "query", pargs, "");
-
-// A query may consist of a request ID alone. Assembly reports any errors.
-//
-   if (!rP) return SFS_ERROR;
-
-// Wait for a slot, rechecking after spurious wakeups. Bound total waiting,
-// rather than granting another full timeout after each wakeup.
-//
-   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(qryMaxWT);
-   qryCond.Lock();
-   while (qryAllow <= 0)
-      {const auto now = std::chrono::steady_clock::now();
-       if (now >= deadline)
-          {qryCond.UnLock();
-           return RetErr(eInfo, ETIMEDOUT, "query", "request");
-          }
-       // The remaining duration is positive. Round it up to the timer's
-       // millisecond resolution; never wait again after the deadline.
-       const auto ms = std::chrono::ceil<std::chrono::milliseconds>(deadline - now).count();
-       qryWait++;
-       DEBUG(tid, "Waiting to launch query "<<rP->reqID);
-       qryCond.WaitMS(static_cast<int>(ms));
-       qryWait--;
-       // A slot may become available while we reacquire the mutex after
-       // the deadline. Do not admit an expired request in that case.
-       if (std::chrono::steady_clock::now() >= deadline)
-          {if (qryAllow > 0 && qryWait) qryCond.Signal();
-           qryCond.UnLock();
-           return RetErr(eInfo, ETIMEDOUT, "query", "request");
-          }
-      }
-   qryAllow--;
-   qryCond.UnLock();
-
-// Run the query
+// Run the query.
 //
    *bP = 0;
-   rc = qryRunner.Run(*rP, bP, bL);
-
-// Let the next query run
-//
-   qryCond.Lock();
-   qryAllow++;
-   if (qryWait) qryCond.Signal();
-   qryCond.UnLock();
+   rc = qryRunner.Run(*request, bP, bL);
 
 // See if this ended in an error
 //

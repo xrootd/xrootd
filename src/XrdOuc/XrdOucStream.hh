@@ -75,10 +75,14 @@ void         Close(int hold=0);
 //
 int          Detach() {int oldFD = FD; FD = FE = -1; return oldFD;}
 
-// Wait for an Exec() to finish and return the ending status. Use this
-// function only when you need to find out the ending status of the command.
+// Kill an Exec() process group and reap its child, returning the wait status.
 //
 int          Drain();
+
+// After reading Exec() output to EOF, close the write end and reap the child
+// without signaling it. Return the wait status or negative errno.
+//
+int          Wait();
 
 // Display last valid line if variable substitution enabled. Fully formed
 // input lines are displayed if 'set -v' was encountered (only when using
