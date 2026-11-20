@@ -1,0 +1,9 @@
+add_unit_tests(
+  SOURCES
+    XrdTlsNotaryUtils.cc
+  LIBRARIES
+    XrdUtils
+    OpenSSL::Crypto
+  INCLUDE_DIRECTORIES
+    ${PROJECT_SOURCE_DIR}/tests/common
+)
