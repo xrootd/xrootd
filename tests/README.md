@@ -59,6 +59,7 @@ The other directories of `tests/` hold code which the tests share, and older
 sets of tests which have not yet been migrated to use the latest conventions:
 
 - `tests/common`: the library `XrdTestUtils` with helpers for GoogleTest tests.
+  The header `X509Helpers.hh` makes keys and X.509 certificates in memory.
 - `tests/XrdClHttpCommon` and `tests/XrdOssTests`: a transfer test library of
   XrdClHttp, and OSS plugins which inject faults. The end-to-end tests load them.
 - `tests/XrdClS3`: the S3 tests of XrdClS3, with their own MinIO server (see #2977).
