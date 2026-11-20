@@ -30,6 +30,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <climits>
   
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -1195,8 +1196,8 @@ int XrdSys::IOEvents::Poller::TmoGet()
 // we will need to drop the timeout lock as we don't have the channel lock.
 //
    do {if (!tmoBase) {wtval = -1; break;}
-       wtval = (tmoBase->deadLine - time(0)) * 1000;
-       if (wtval > 0) break;
+       time_t delay = tmoBase->deadLine - time(0);
+       if (delay > 0) {wtval = (delay > INT_MAX/1000 ? INT_MAX : int(delay)*1000); break;}
        toMutex.UnLock();
        CbkTMO();
        toMutex.Lock();
