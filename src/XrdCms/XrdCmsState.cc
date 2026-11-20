@@ -127,7 +127,10 @@ void *XrdCmsState::Monitor()
           {if (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Resume)
                     {myStatus.Hdr.streamid = htonl(myPort); RTsend = 1;}
                else {myStatus.Hdr.streamid = 0;
-                     RTsend = (isMan > 0 ? (theState & SRV_Suspend) : 0);
+                     // A stage-only update carries no suspend bit. Redirectors
+                     // ignore it, so do not forward one.
+                     RTsend = (isMan != 0 && (theState & SRV_Suspend)
+                           && (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Suspend));
                     }
            if (isMan && RTsend)
               RTable.Send("status", (char *)&myStatus, sizeof(myStatus));

@@ -823,8 +823,6 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 {
    EPNAME("Admit_Redirector");
-   static CmsStatusRequest newState
-                   = {{0, kYR_status, CmsStatusRequest::kYR_Resume, 0}};
 
 // Indicate what role I have
 //
@@ -842,11 +840,22 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
        return 0;
       } else myNode->setSlot(RSlot);
 
-// If we told the redirector we were suspended then we must check if that is no
-// longer true and generate a reume event as the redirector may have missed it
+// The login reply was built before this redirector was on the notify list, so
+// it may have missed a state change. Send the current state if it differs.
+// Hold the table lock so this cannot interleave with a Monitor() notification.
 //
-   if (wasSuspended && !CmsState.Suspended)
-      myNode->Send((char *)&newState, sizeof(newState));
+   RTable.Lock();
+   const int isSuspended = (CmsState.Suspended ? 1 : 0);
+   if (wasSuspended != isSuspended)
+      {CmsStatusRequest newState = {{0, kYR_status, 0, 0}};
+       if (isSuspended)
+          newState.Hdr.modifier = CmsStatusRequest::kYR_Suspend;
+          else {newState.Hdr.modifier = CmsStatusRequest::kYR_Resume;
+                newState.Hdr.streamid = htonl(CmsState.Port());
+               }
+       myNode->Send((char *)&newState, sizeof(newState));
+      }
+   RTable.UnLock();
 
 // Login succeeded
 //
