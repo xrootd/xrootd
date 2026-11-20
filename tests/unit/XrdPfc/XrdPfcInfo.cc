@@ -173,8 +173,8 @@ TEST_F(InfoTest, ExpectedDataFileSizeFollowsTheLastPresentBlock)
 
 TEST_F(InfoTest, RoundTripPreservesStateAndAccessHistory)
 {
-   MemFile f;
-   Stats   s;
+   MemFile   f;
+   FileStats s;
    s.m_NumIos        = 3;
    s.m_Duration      = 42;
    s.m_BytesHit      = 1000;

@@ -125,7 +125,7 @@ void File::Close()
          struct stat s;
          int sr = Cache::GetInstance().GetOss()->Stat(m_filename.c_str(), &s);
          if (sr == 0 && s.st_blocks != m_st_blocks) {
-            Stats stats;
+            FileStats stats;
             stats.m_StBlocksAdded = s.st_blocks - m_st_blocks;
             m_st_blocks = s.st_blocks;
             Cache::ResMon().register_file_update_stats(m_resmon_token, stats);
@@ -1290,7 +1290,7 @@ void File::Sync()
    bool errorp = false;
    if (ret == XrdOssOK)
    {
-      Stats loc_stats;
+      FileStats loc_stats;
       {
          XrdSysCondVarHelper _lck(&m_state_cond);
          report_and_merge_delta_stats();

@@ -273,7 +273,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
             if (token < 0) {
                TRACE(Error, err_prefix << "no resource-monitor token available, file not accounted");
             } else {
-               XrdPfc::Stats stats;
+               XrdPfc::FileStats stats;
                stats.m_BytesWritten  = file_size;
                stats.m_StBlocksAdded = dstat.st_blocks;
                m_res_mon->register_file_update_stats(token, stats);
