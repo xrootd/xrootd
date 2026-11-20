@@ -10,6 +10,7 @@ target_sources(XrdUtils PRIVATE
   XrdCryptoX509Crl.cc     XrdCryptoX509Crl.hh
   XrdCryptoX509Req.cc     XrdCryptoX509Req.hh
   XrdCryptosslAux.cc      XrdCryptosslAux.hh
+                          XrdCryptosslCompat.hh
   XrdCryptosslRSA.cc      XrdCryptosslRSA.hh
   XrdCryptosslX509.cc     XrdCryptosslX509.hh
   XrdCryptosslX509Crl.cc  XrdCryptosslX509Crl.hh
