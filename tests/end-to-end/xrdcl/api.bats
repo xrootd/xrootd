@@ -55,6 +55,13 @@ skip_unsupported() {
     run -0 cmp "$SERVER_DATA$FILE" copy.dat
 }
 
+# The file has 20 bytes, thus the read starts at the end of the file, at an
+# offset which is not on a page boundary. The response has no data.
+@test "File::PgRead at the end of the file at an unaligned offset returns no data" {
+    run -0 xrdcl-api pgread "$SERVER_URL/$FILE" 20 4
+    assert_output ''
+}
+
 @test "File::VectorRead returns the data of each chunk" {
     run -0 xrdcl-api readv "$SERVER_URL/$FILE" 0:2 10:3
     assert_output '01abc'
