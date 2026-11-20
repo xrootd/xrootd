@@ -8,3 +8,4 @@
 /usr/include/xrootd/XrdXrootd
 /usr/lib/*/libXrdHttpUtils.so
 /usr/lib/*/libXrdServer.so
+/usr/lib/*/libXrdOfsPrepPersist.so
