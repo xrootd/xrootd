@@ -1,0 +1,10 @@
+add_unit_tests(
+  SOURCES
+    XrdCryptosslX509.cc
+    XrdCryptosslgsiAux.cc
+  LIBRARIES
+    XrdUtils
+    OpenSSL::Crypto
+  INCLUDE_DIRECTORIES
+    ${PROJECT_SOURCE_DIR}/tests/common
+)

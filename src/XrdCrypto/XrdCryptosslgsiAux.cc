@@ -47,6 +47,7 @@
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslCompat.hh"
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
@@ -141,7 +142,22 @@ ASN1_SEQUENCE(PROXY_CERT_INFO_EXTENSION_OLD) =
    ASN1_EXP_OPT(PROXY_CERT_INFO_EXTENSION, pcPathLengthConstraint, ASN1_INTEGER, 1)
 } ASN1_SEQUENCE_END_name(PROXY_CERT_INFO_EXTENSION, PROXY_CERT_INFO_EXTENSION_OLD)
 
+// Unused: the code decodes with ASN1_item_unpack() and the template above.
+// libXrdUtils exports d2i_ and i2d_PROXY_CERT_INFO_EXTENSION_OLD(), thus keep
+// them for the binary interface. They have external linkage, thus the compiler
+// does not warn that they are unused.
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(PROXY_CERT_INFO_EXTENSION, PROXY_CERT_INFO_EXTENSION_OLD, PROXY_CERT_INFO_EXTENSION_OLD)
+
+// Decode the content of a ProxyCertInfo extension with the ASN.1 template
+// 'it': ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION) for the format of RFC 3820,
+// or ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD) for the format of the GSI 3
+// proxies. ASN1_item_unpack() gets the length from 'data'. Return nullptr if
+// the content is not valid. The caller owns the result.
+static PROXY_CERT_INFO_EXTENSION *DecodeProxyCertInfo(const ASN1_OCTET_STRING *data,
+                                                      const ASN1_ITEM *it)
+{
+   return static_cast<PROXY_CERT_INFO_EXTENSION *>(ASN1_item_unpack(data, it));
+}
 
 //___________________________________________________________________________
 bool XrdCryptosslProxyCertInfo(const void *extdata, int &pathlen, bool *haspolicy)
@@ -165,12 +181,11 @@ bool XrdCryptosslProxyCertInfo(const void *extdata, int &pathlen, bool *haspolic
    OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(ext), 1);
 
    // Now extract the path length constraint, if any
-   const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
-   PROXY_CERT_INFO_EXTENSION *pci = 0;
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
    if (!strcmp(s, gsiProxyCertInfo_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION)));
    else if (!strcmp(s, gsiProxyCertInfo_OLD_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD)));
    if (!pci) {
       return 0;
    }
@@ -208,12 +223,11 @@ void XrdCryptosslSetPathLenConstraint(void *extdata, int pathlen)
    OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(ext), 1);
 
    // Now extract the path length constraint, if any
-   const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
-   PROXY_CERT_INFO_EXTENSION *pci = 0;
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
    if (!strcmp(s, gsiProxyCertInfo_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION)));
    else if (!strcmp(s, gsiProxyCertInfo_OLD_OID))
-      pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD)));
    if (!pci)
       return;
 
@@ -801,12 +815,11 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
       // Get signature path depth from present proxy
       if (!strcmp(s, gsiProxyCertInfo_OID) ||
           !strcmp(s, gsiProxyCertInfo_OLD_OID)) {
-         const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
          PROXY_CERT_INFO_EXTENSION *inpci = 0;
          if (!strcmp(s, gsiProxyCertInfo_OID))
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
+            inpci = DecodeProxyCertInfo(X509_EXTENSION_get_data(xpiext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION));
          else
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
+            inpci = DecodeProxyCertInfo(X509_EXTENSION_get_data(xpiext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD));
          if (inpci &&
              inpci->pcPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->pcPathLengthConstraint);
@@ -1060,8 +1073,8 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       return -kErrPX_SetAttribute;
    }
 
-   // Set public key
-   if (X509_set_pubkey(xpo.get(), X509_REQ_get_pubkey(xri)) != 1) {
+   // Set public key: X509_set_pubkey() takes its own reference
+   if (X509_set_pubkey(xpo.get(), X509_REQ_get0_pubkey(xri)) != 1) {
       PRINT("could not set public key");
       return -kErrPX_SetAttribute;
    }
@@ -1097,12 +1110,11 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
          OBJ_obj2txt(s, sizeof(s), obj, 1);
       if (!strcmp(s, gsiProxyCertInfo_OID) ||
           !strcmp(s, gsiProxyCertInfo_OLD_OID)) {
-         const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
          PROXY_CERT_INFO_EXTENSION *inpci = 0;
          if (!strcmp(s, gsiProxyCertInfo_OID))
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
+            inpci = DecodeProxyCertInfo(X509_EXTENSION_get_data(xpiext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION));
          else
-            inpci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xpiext)));
+            inpci = DecodeProxyCertInfo(X509_EXTENSION_get_data(xpiext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD));
          if (inpci &&
              inpci->pcPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->pcPathLengthConstraint);
@@ -1155,9 +1167,8 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    // Get the content
    int reqdepthlen = -1;
    if (xriext) {
-      const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xriext));
       PROXY_CERT_INFO_EXTENSION *reqpci =
-         d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(xriext)));
+         DecodeProxyCertInfo(X509_EXTENSION_get_data(xriext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION));
       if (reqpci &&
           reqpci->pcPathLengthConstraint)
          reqdepthlen = ASN1_INTEGER_get(reqpci->pcPathLengthConstraint);
@@ -1306,9 +1317,9 @@ int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
       if (strcmp(s, XRDGSI_VOMS_ACSEQ_OID)) continue;
       // This is the VOMS extension we are interested for
       rc = 0;
-      const unsigned char *pp = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
-      long length = ASN1_STRING_length(X509_EXTENSION_get_data(xpiext));
-      int ret = XrdCryptosslX509FillVOMS(&pp, length, getvat, vat);
+      const std::string data = XrdCryptosslASN1String(X509_EXTENSION_get_data(xpiext));
+      const unsigned char *pp = reinterpret_cast<const unsigned char *>(data.data());
+      int ret = XrdCryptosslX509FillVOMS(&pp, data.size(), getvat, vat);
       DEBUG("ret: " << ret << " - vat: " << vat);
    }
 
@@ -1392,15 +1403,14 @@ int XrdCryptosslX509FillVOMS(const unsigned char **pp,
                PRINT("ERROR:AOBJ: BAD OBJECT");
             }
          } else if (tag == V_ASN1_OCTET_STRING) {
-            int i, printable = 1;
+            int printable = 1;
             opp = op;
             os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
-            if (os && ASN1_STRING_length(os) > 0) {
-               opp = ASN1_STRING_get0_data(os);
+            const std::string obj = os ? XrdCryptosslASN1String(os) : "";
+            if (!obj.empty()) {
                // Testing whether the octet string is printable
-               for (i=0; i < ASN1_STRING_length(os); i++) {
-                  if (( (opp[i] < ' ') && (opp[i] != '\n') &&
-                        (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
+               for (unsigned char c : obj) {
+                  if (((c < ' ') && (c != '\n') && (c != '\r') && (c != '\t')) || (c > '~')) {
                      printable = 0;
                      break;
                   }
@@ -1409,10 +1419,10 @@ int XrdCryptosslX509FillVOMS(const unsigned char **pp,
                   // Printable string: it may be what we need
                   if (getvat) {
                      if (vat.length() > 0) vat += ",";
-                     vat += (const char *)opp;
+                     vat += obj.c_str();
                      gotvat = 1;
                   }
-                  DEBUG("OBJS:" << (const char *)opp << " (len: " << ASN1_STRING_length(os) << ")");
+                  DEBUG("OBJS:" << obj << " (len: " << obj.size() << ")");
                }
             }
             if (os) {
@@ -1469,7 +1479,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
 #else
    const X509_EXTENSION *ext = 0;
 #endif
-   PROXY_CERT_INFO_EXTENSION *pci = 0;
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
    for (int i = 0; i < numext; i++) {
       // Get the extension
 #if OPENSSL_VERSION_NUMBER < 0x40000000L
@@ -1486,8 +1496,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
-            const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
-            pci = d2i_PROXY_CERT_INFO_EXTENSION(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
+            pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION)));
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }
@@ -1495,8 +1504,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
-            const unsigned char *p = ASN1_STRING_get0_data(X509_EXTENSION_get_data(ext));
-            pci = d2i_PROXY_CERT_INFO_EXTENSION_OLD(0, &p, ASN1_STRING_length(X509_EXTENSION_get_data(ext)));
+            pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD)));
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }

@@ -34,11 +34,13 @@
 #include <ctime>
 #include <cerrno>
 #include <cstdlib>
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslCompat.hh"
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
@@ -689,15 +691,17 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // They finally use timegm to convert to UTC seconds, which is less
    // standard and seems to give an offset of 3600 secs.
    // Our result is in agreement with 'date +%s`. 
+   // The data has no NUL character at the end
+   const std::string tstr = XrdCryptosslASN1String(tsn1);
    struct tm ltm;
    char zz;
-   if ((sscanf((const char *) ASN1_STRING_get0_data(tsn1),
+   if ((sscanf(tstr.c_str(),
        "%02d%02d%02d%02d%02d%02d%c", 
        &(ltm.tm_year), &(ltm.tm_mon), &(ltm.tm_mday),
        &(ltm.tm_hour), &(ltm.tm_min), &(ltm.tm_sec),
                                       &zz) != 7) || (zz != 'Z')) {
        // Try GeneralizedTime
-       if ((sscanf((const char *) ASN1_STRING_get0_data(tsn1),
+       if ((sscanf(tstr.c_str(),
            "%04d%02d%02d%02d%02d%02d%c", 
            &(ltm.tm_year), &(ltm.tm_mon), &(ltm.tm_mday),
            &(ltm.tm_hour), &(ltm.tm_min), &(ltm.tm_sec),
