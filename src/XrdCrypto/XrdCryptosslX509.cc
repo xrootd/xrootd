@@ -956,7 +956,7 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
                BIO *mem = BIO_new(BIO_s_mem());
                i2a_ASN1_OBJECT(mem, o);
                XrdOucString objstr;
-               if (dump) { BIO_PRINT(mem, "AOBJ:"); }
+               if (dump) { BIO_PRINT(mem, "AOBJ:"); } else BIO_free(mem);
             } else {
                if (dump) PRINT("ERROR:AOBJ: BAD OBJECT");
             }
@@ -993,7 +993,7 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
                      BIO_free(mem);                  
                      goto end;
                   }
-                  if (dump) { BIO_PRINT(mem, "OBJS:"); }
+                  if (dump) { BIO_PRINT(mem, "OBJS:"); } else BIO_free(mem);
                   nl = 1;
                }
             }
@@ -1019,7 +1019,7 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
                      goto end;
                   }
                }
-               if (dump) { BIO_PRINT(mem, "AINT:"); }
+               if (dump) { BIO_PRINT(mem, "AINT:"); } else BIO_free(mem);
                if (bytes.empty()) PRINT("00");
             } else {
                if (dump) PRINT("ERROR:AINT: BAD INTEGER");
@@ -1043,7 +1043,7 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
                      goto end;
                   }
                }
-               if (dump) { BIO_PRINT(mem, "AENU:"); }
+               if (dump) { BIO_PRINT(mem, "AENU:"); } else BIO_free(mem);
                if (bytes.empty()) PRINT("00");
             } else {
                if (dump) PRINT("ERROR:AENU: BAD ENUMERATED");
@@ -1132,14 +1132,18 @@ bool XrdCryptosslX509::MatchesSAN(const char *fqdn, bool &hasSAN)
       return false;
 
    // Only an EEC is usable as a host certificate.
-   if (type != kEEC)
+   if (type != kEEC) {
+      sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
       return false;
+   }
 
    // All failures are under the notion that we have a SAN extension.
    hasSAN = true;
 
-   if (!fqdn)
+   if (!fqdn) {
+      sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
       return false;
+   }
 
    bool success = false;
    for (int idx = 0; idx < sk_GENERAL_NAME_num(gens); idx++) {

@@ -74,7 +74,7 @@ public:
    const char *ProxyType() const { return cpxytype[pxytype]; }
 
    // Key strength
-   int BitStrength() { return ((cert) ? EVP_PKEY_bits(X509_get_pubkey(cert)) : -1);}
+   int BitStrength() { return ((cert) ? EVP_PKEY_bits(X509_get0_pubkey(cert)) : -1);}
 
    // Serial number
    kXR_int64 SerialNumber();

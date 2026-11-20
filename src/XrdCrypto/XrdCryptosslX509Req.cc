@@ -348,7 +348,7 @@ bool XrdCryptosslX509Req::Verify()
       return 0;
 
    // Ok: we can verify
-   int rc = X509_REQ_verify(creq,X509_REQ_get_pubkey(creq));
+   int rc = X509_REQ_verify(creq,X509_REQ_get0_pubkey(creq));
    if (rc <= 0) {
      // Failure
      if (rc == 0) {

@@ -181,11 +181,11 @@ bool XrdCryptosslProxyCertInfo(const void *extdata, int &pathlen, bool *haspolic
    OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(ext), 1);
 
    // Now extract the path length constraint, if any
-   PROXY_CERT_INFO_EXTENSION *pci = 0;
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
    if (!strcmp(s, gsiProxyCertInfo_OID))
-      pci = DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION)));
    else if (!strcmp(s, gsiProxyCertInfo_OLD_OID))
-      pci = DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD)));
    if (!pci) {
       return 0;
    }
@@ -223,11 +223,11 @@ void XrdCryptosslSetPathLenConstraint(void *extdata, int pathlen)
    OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(ext), 1);
 
    // Now extract the path length constraint, if any
-   PROXY_CERT_INFO_EXTENSION *pci = 0;
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
    if (!strcmp(s, gsiProxyCertInfo_OID))
-      pci = DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION)));
    else if (!strcmp(s, gsiProxyCertInfo_OLD_OID))
-      pci = DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD));
+      pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD)));
    if (!pci)
       return;
 
@@ -1073,8 +1073,8 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       return -kErrPX_SetAttribute;
    }
 
-   // Set public key
-   if (X509_set_pubkey(xpo.get(), X509_REQ_get_pubkey(xri)) != 1) {
+   // Set public key: X509_set_pubkey() takes its own reference
+   if (X509_set_pubkey(xpo.get(), X509_REQ_get0_pubkey(xri)) != 1) {
       PRINT("could not set public key");
       return -kErrPX_SetAttribute;
    }
@@ -1479,7 +1479,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
 #else
    const X509_EXTENSION *ext = 0;
 #endif
-   PROXY_CERT_INFO_EXTENSION *pci = 0;
+   PROXY_CERT_INFO_EXTENSION_ptr pci(nullptr, &PROXY_CERT_INFO_EXTENSION_free);
    for (int i = 0; i < numext; i++) {
       // Get the extension
 #if OPENSSL_VERSION_NUMBER < 0x40000000L
@@ -1496,7 +1496,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
-            pci = DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION));
+            pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION)));
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }
@@ -1504,7 +1504,7 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
          if (ext == 0) {
             ext = xext;
             // Now get the extension
-            pci = DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD));
+            pci.reset(DecodeProxyCertInfo(X509_EXTENSION_get_data(ext), ASN1_ITEM_rptr(PROXY_CERT_INFO_EXTENSION_OLD)));
          } else {
             PRINT("WARNING: multiple proxyCertInfo extensions found: taking the first");
          }
