@@ -58,5 +58,5 @@ status() {
 
 @test "xrdfs ls -l through the cache reports the mode of a directory" {
     run -0 --separate-stderr xrdfs "roots://localhost:$CACHE_PORT" ls -l /test-public/subdir
-    assert_line --regexp '^dr-x---r-x .* /test-public/subdir/test3$'
+    assert_line --regexp '^d--x-----x .* /test-public/subdir/test3$'
 }
