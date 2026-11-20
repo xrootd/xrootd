@@ -34,12 +34,14 @@
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslCompat.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 
 #include <openssl/pem.h>
 
 #include <cerrno>
 #include <memory>
+#include <string>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -847,9 +849,9 @@ int XrdCryptosslX509::DumpExtensions(bool dumpunknown)
       PRINT(i << ": found extension '"<<s<<"', critical: " << crit);
       // Dump its content
       rc = 0;
-      const unsigned char *pp = ASN1_STRING_get0_data(X509_EXTENSION_get_data(xpiext));
-      long length = ASN1_STRING_length(X509_EXTENSION_get_data(xpiext));
-      int ret = FillUnknownExt(&pp, length, dumpunknown);
+      const std::string data = XrdCryptosslASN1String(X509_EXTENSION_get_data(xpiext));
+      const unsigned char *pp = reinterpret_cast<const unsigned char *>(data.data());
+      int ret = FillUnknownExt(&pp, data.size(), dumpunknown);
       PRINT("ret: " << ret);
    }
 
@@ -967,31 +969,26 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
          } else if (tag == V_ASN1_BMPSTRING) {
             /* do the BMP thang */
          } else if (tag == V_ASN1_OCTET_STRING) {
-            int i, printable = 1;
+            int printable = 1;
             opp = op;
             os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
-            if (os && ASN1_STRING_length(os) > 0) {
-               opp = ASN1_STRING_get0_data(os);
+            const std::string obj = os ? XrdCryptosslASN1String(os) : "";
+            if (!obj.empty()) {
                /* testing whether the octet string is * printable */
-               for (i=0; i < ASN1_STRING_length(os); i++) {
-                  if (( (opp[i] < ' ') && (opp[i] != '\n') &&
-                        (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
+               for (unsigned char c : obj) {
+                  if (((c < ' ') && (c != '\n') && (c != '\r') && (c != '\t')) || (c > '~')) {
                      printable = 0;
                      break;
                   }
                }
                if (printable) {
                   /* printable string */
-                  char *s = new char[ASN1_STRING_length(os) + 1];
-                  memcpy(s, opp, ASN1_STRING_length(os));
-                  s[ASN1_STRING_length(os)] = 0;
-                  if (dump) PRINT("OBJS:" << s << " (len: " << ASN1_STRING_length(os) << ")");
-                  delete [] s;
+                  if (dump) PRINT("OBJS:" << obj << " (len: " << obj.size() << ")");
                } else {
                   /* print the normal dump */
                   if (!nl) PRINT("OBJS:");
                   BIO *mem = BIO_new(BIO_s_mem());
-                  if (BIO_dump_indent(mem, (const char *)opp, ASN1_STRING_length(os), dump_indent) <= 0) {
+                  if (BIO_dump_indent(mem, obj.data(), static_cast<int>(obj.size()), dump_indent) <= 0) {
                      if (dump) PRINT("ERROR:OBJS: problems dumping to BIO");
                      BIO_free(mem);                  
                      goto end;
@@ -1006,7 +1003,6 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
             }
          } else if (tag == V_ASN1_INTEGER) {
             ASN1_INTEGER *bs;
-            int i;
 
             opp = op;
             bs = d2i_ASN1_INTEGER(0, &opp, len+hl);
@@ -1015,22 +1011,22 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
                if (ASN1_STRING_type(bs) == V_ASN1_NEG_INTEGER)
                   if (dump) PRINT("-");
                BIO *mem = BIO_new(BIO_s_mem());
-               for (i = 0; i < ASN1_STRING_length(bs); i++) {
-                  if (BIO_printf(mem, "%02X", ASN1_STRING_get0_data(bs)[i]) <= 0) {
+               const std::string bytes = XrdCryptosslASN1String(bs);
+               for (unsigned char c : bytes) {
+                  if (BIO_printf(mem, "%02X", c) <= 0) {
                      if (dump) PRINT("ERROR:AINT: problems printf-ing to BIO");
                      BIO_free(mem); 
                      goto end;
                   }
                }
                if (dump) { BIO_PRINT(mem, "AINT:"); }
-               if (ASN1_STRING_length(bs) == 0) PRINT("00");
+               if (bytes.empty()) PRINT("00");
             } else {
                if (dump) PRINT("ERROR:AINT: BAD INTEGER");
             }
             ASN1_INTEGER_free(bs);
          } else if (tag == V_ASN1_ENUMERATED) {
             ASN1_ENUMERATED *bs;
-            int i;
 
             opp = op;
             bs = d2i_ASN1_ENUMERATED(0, &opp, len+hl);
@@ -1039,15 +1035,16 @@ int XrdCryptosslX509::FillUnknownExt(const unsigned char **pp, long length, bool
                if (ASN1_STRING_type(bs) == V_ASN1_NEG_ENUMERATED)
                   if (dump) PRINT("-");
                BIO *mem = BIO_new(BIO_s_mem());
-               for (i = 0; i < ASN1_STRING_length(bs); i++) {
-                  if (BIO_printf(mem, "%02X", ASN1_STRING_get0_data(bs)[i]) <= 0) {
+               const std::string bytes = XrdCryptosslASN1String(bs);
+               for (unsigned char c : bytes) {
+                  if (BIO_printf(mem, "%02X", c) <= 0) {
                      if (dump) PRINT("ERROR:AENU: problems printf-ing to BIO");
                      BIO_free(mem); 
                      goto end;
                   }
                }
                if (dump) { BIO_PRINT(mem, "AENU:"); }
-               if (ASN1_STRING_length(bs) == 0) PRINT("00");
+               if (bytes.empty()) PRINT("00");
             } else {
                if (dump) PRINT("ERROR:AENU: BAD ENUMERATED");
             }
@@ -1082,7 +1079,7 @@ int XrdCryptosslX509::Asn1PrintInfo(int tag, int xclass, int constructed, int in
 
    static const char fmt[]="%-18s";
    static const char fmt2[]="%2d %-15s";
-   char str[128];
+   std::string name;
    const char *p, *p2 = 0;
 
    BIO *bp = BIO_new(BIO_s_mem());
@@ -1094,17 +1091,17 @@ int XrdCryptosslX509::Asn1PrintInfo(int tag, int xclass, int constructed, int in
       goto err;
    BIO_indent(bp, indent, 128);
 
-   p = str;
    if ((xclass & V_ASN1_PRIVATE) == V_ASN1_PRIVATE)
-      BIO_snprintf(str,sizeof str,"priv [ %d ] ",tag);
+      name = "priv [ " + std::to_string(tag) + " ] ";
    else if ((xclass & V_ASN1_CONTEXT_SPECIFIC) == V_ASN1_CONTEXT_SPECIFIC)
-      BIO_snprintf(str,sizeof str,"cont [ %d ]",tag);
+      name = "cont [ " + std::to_string(tag) + " ]";
    else if ((xclass & V_ASN1_APPLICATION) == V_ASN1_APPLICATION)
-      BIO_snprintf(str,sizeof str,"appl [ %d ]",tag);
+      name = "appl [ " + std::to_string(tag) + " ]";
    else if (tag > 30)
-      BIO_snprintf(str,sizeof str,"<ASN1 %d>",tag);
+      name = "<ASN1 " + std::to_string(tag) + ">";
    else
-      p = ASN1_tag2str(tag);
+      name = ASN1_tag2str(tag);
+   p = name.c_str();
 
    if (p2) {
       if (BIO_printf(bp,fmt2,tag,p2) <= 0)
@@ -1124,10 +1121,6 @@ err:
 bool XrdCryptosslX509::MatchesSAN(const char *fqdn, bool &hasSAN)
 {
    EPNAME("MatchesSAN");
-
-   // Statically allocated array for hostname lengths.  RFC1035 limits
-   // valid lengths to 255 characters.
-   char san_fqdn[256];
 
    // Assume we have no SAN extension. Failure may allow the caller to try
    // using the common name before giving up.
@@ -1158,15 +1151,14 @@ bool XrdCryptosslX509::MatchesSAN(const char *fqdn, bool &hasSAN)
       cstr = gen->d.dNSName;
       if (ASN1_STRING_type(cstr) != V_ASN1_IA5STRING)
          continue;
-      int san_fqdn_len = ASN1_STRING_length(cstr);
-      if (san_fqdn_len > 255)
+      const std::string san_fqdn = XrdCryptosslASN1String(cstr);
+      // RFC1035 limits valid lengths to 255 characters.
+      if (san_fqdn.size() > 255)
          continue;
-      memcpy(san_fqdn, ASN1_STRING_get0_data(cstr), san_fqdn_len);
-      san_fqdn[san_fqdn_len] = '\0';
-      if (strlen(san_fqdn) != static_cast<size_t>(san_fqdn_len)) // Avoid embedded null's.
+      if (san_fqdn.find('\0') != std::string::npos) // Avoid embedded null's.
          continue;
       DEBUG("Comparing SAN " << san_fqdn << " with " << fqdn);
-      if (MatchHostnames(san_fqdn, fqdn)) {
+      if (MatchHostnames(san_fqdn.c_str(), fqdn)) {
          DEBUG("SAN " << san_fqdn << " matches with " << fqdn);
          success = true;
          break;
