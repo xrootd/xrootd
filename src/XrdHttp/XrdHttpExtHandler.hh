@@ -36,6 +36,8 @@
 #include <map>
 #include <string>
 #include <cstdint>
+#include <functional>
+#include "XProtocol/XProtocol.hh"
 
 #include "XrdNet/XrdNetPMark.hh"
 
@@ -68,6 +70,21 @@ public:
   std::map<std::string,std::string> mReprDigest;
   /// Want-Repr-Digest map where the key is the digest name and the value is the weighted preference
   std::map<std::string, uint8_t> mWantReprDigest;
+  // A single bounded native prepare/query operation. The callback is owned by
+  // XrdHttpReq until completion (or disconnect); do not capture a reference to
+  // the stack-allocated XrdHttpExtReq. Return Pending from ProcessReq after a
+  // successful RunNative call. Other external handlers keep their existing ABI.
+  struct NativeResponse {
+    enum Kind { Success, Error, Redirect } kind = Success;
+    int code = 0;
+    int port = 0;
+    std::string data;
+  };
+  using NativeCallback = std::function<int(XrdHttpExtReq &, const NativeResponse &)>;
+  static constexpr int Pending = 0x100;
+  int RunNative(const ClientRequest &request, const std::string &payload,
+                NativeCallback callback, size_t maxResponse = 4 * 1024 * 1024);
+
   // Get full client identifier
   void GetClientID(std::string &clid);
   
@@ -125,6 +142,13 @@ public:
   //------------------------------------------------------------------------------
   
   virtual     ~XrdHttpExtHandler() {}
+};
+
+// Optional, additive interface: existing external-handler vtables are unchanged.
+// The protocol uses this interface to opt a matching handler into bridge login.
+class XrdHttpExtHandlerBridge : public XrdHttpExtHandler {
+public:
+  virtual bool RequiresBridge(const char *verb, const char *path) const = 0;
 };
 
 /******************************************************************************/

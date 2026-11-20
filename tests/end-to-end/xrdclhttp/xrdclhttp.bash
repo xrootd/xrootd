@@ -20,11 +20,14 @@ start_https_cache() {
     require_plugin libXrdHttp
     require_plugin libXrdAccSciTokens
     require_plugin libXrdHttpTapeApi
+    require_plugin libXrdOfsPrepGPI
+    require_plugin libXrdOfsPrepPersist
     require_plugin libXrdPfc
     # a file of the cache in a space has the attribute XrdFrm.Pfn
     require_xattr "$BATS_FILE_TMPDIR"
 
     export TAPE="$BATS_FILE_TMPDIR/tape" DISK="$BATS_FILE_TMPDIR/tape/disk"
+    export XRD_PREP_MOCK_ROOT="$TAPE"
     mkdir -p "$TAPE/archive/test/tape" "$DISK/test" "$DISK/test-public/subdir/test3" \
         "$BATS_FILE_TMPDIR/cache-spaces/data" "$BATS_FILE_TMPDIR/cache-spaces/meta"
 
