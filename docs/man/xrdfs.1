@@ -80,6 +80,8 @@ Modify permissions of the \fIpath\fR. Permission string example:
 
 .RE
 \fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[-R]\fR \fI[-D]\fR \fI[-Z]\fR \fI[-C]\fR \fI[dirname]\fR
+.br
+\fBls --json\fR \fI[-l]\fR \fI[-R]\fR \fI[-D]\fR \fI[-C]\fR \fI<path>\fR
 .RS 3
 Get directory listing.
 .br
@@ -94,6 +96,9 @@ Get directory listing.
 \fI-Z\fR check if file is a ZIP archive and if yes list its content
 .br
 \fI-C\fR checksum every entry
+.br
+\fI--json\fR print metadata in JSON format for one path. Cannot be combined
+with \fI-u\fR or \fI-Z\fR.
 
 .RE
 \fBlocate\fR \fI[-n]\fR \fI[-r]\fR \fI[-d]\fR \fI[-m]\fR \fI[-i]\fR \fI[-p]\fR \fI<path>\fR
@@ -128,7 +133,7 @@ Creates a directory/tree of directories.
 Move path1 to path2 locally on the same server.
 
 .RE
-\fBstat\fR \fI<path>\fR \fI[<paths>]\fR
+\fBstat\fR \fI[-q query | --json] <path> ...\fR
 .RS 3
 Get info about the file(s) or directory(ies).
 .br
@@ -285,6 +290,26 @@ Operation on extended attributes. Codes:
 \fIdel\fR         \fB<name>\fR   Delete extended attribute.
 .br
 \fIlist\fR                 List extended attributes.
+
+.SH JSON METADATA
+With \fB--json\fR, \fBstat\fR writes one JSON object per path in input
+order, and \fBls\fR writes one object per listing.
+Each object has integer \fBversion\fR (currently 1), an \fBentries\fR
+array in the order returned by XrdCl after any merge, and a \fBstatus\fR
+object with boolean \fBok\fR and \fBpartial\fR fields and numeric XrdCl \fBcode\fR and
+\fBnumber\fR fields. A failed operation has an empty entries array.
+A successfully retrieved partial listing has \fBpartial\fR set. A listing omits
+paths that cannot be represented in UTF-8 or contain a literal question mark
+in a remote name and marks the result partial.
+.PP
+Entries include the path, type, size, signed epoch timestamps in seconds,
+raw XRootD flags and their names, and POSIX mode,
+permissions, owner, and group when the server supplies them. POSIX modes
+are octal strings. Consumers can derive effective access from the flags when
+the backend supplies them. On backends without effective access flags, such as
+the local filesystem, unset access bits indicate unknown access.
+Missing optional fields are null.
+Remote paths omit URL parameters. Local paths retain literal question marks.
 
 .SH RETURN CODES
 .RE
