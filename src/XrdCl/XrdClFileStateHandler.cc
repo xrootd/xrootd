@@ -240,8 +240,8 @@ namespace
   {
     public:
 
-      PgReadRetryHandler( PgReadHandler *pgReadHandler, size_t pgnb ) : pgReadHandler( pgReadHandler ),
-                                                                        pgnb( pgnb )
+      PgReadRetryHandler( PgReadHandler *pgReadHandler, size_t pgnb, uint32_t pgsize ) :
+        pgReadHandler( pgReadHandler ), pgnb( pgnb ), pgsize( pgsize )
       {
 
       }
@@ -267,12 +267,13 @@ namespace
 
         XrdCl::PageInfo *pginf = 0;
         response->Get( pginf );
-        if( pginf->GetLength() > (uint32_t)XrdSys::PageSize || pginf->GetCksums().size() != 1 )
+        if( pginf->GetLength() != pgsize || pginf->GetCksums().size() != 1 )
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[%p@%s] Failed to recover page #%zu.",
                      (void*)this, pgReadHandler->stateHandler->pFileUrl->GetObfuscatedURL().c_str(), pgnb );
-          // we retry a page at a time so the length cannot exceed 4KB
+          // we retry a page at a time, and a short retry (e.g. after a
+          // truncate) leaves the corrupted data in the user buffer
           DeleteArgs( status, response, hostList );
           pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
           delete this;
@@ -314,6 +315,7 @@ namespace
 
       PgReadHandler *pgReadHandler;
       size_t         pgnb;
+      uint32_t       pgsize;
   };
 
   //----------------------------------------------------------------------------
@@ -1233,7 +1235,7 @@ namespace XrdCl
       return XRootDStatus( stError, errInvalidArgs, EINVAL,
                           "PgRead retry size exceeded 4KB." );
 
-    ResponseHandler *retryHandler = new PgReadRetryHandler( handler, pgnb );
+    ResponseHandler *retryHandler = new PgReadRetryHandler( handler, pgnb, size );
     XRootDStatus st = PgReadImpl( self, offset, size, buffer, PgReadFlags::Retry, retryHandler, timeout );
     if( !st.IsOK() ) delete retryHandler;
     return st;
