@@ -70,8 +70,8 @@ suspend_frontend() {
     local rundir sock
 
     rundir=$(_setup_rundir "$1") || return 1
-    sock=$(find -L "$rundir/" -type s -name olbd.nimda 2>/dev/null | head -1)
-    [[ -n "$sock" ]] || { echo "no admin socket of $1" >&2; return 1; }
+    sock=$(admin_path "$1" "$1/.olb/olbd.nimda") || return 1
+    [[ -S "$sock" ]] || { echo "no admin socket $sock" >&2; return 1; }
     python3 - "$sock" <<'PY'
 import socket, sys
 s = socket.socket(socket.AF_UNIX)
