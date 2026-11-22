@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 
-# reaper.sh <pids> <run dir> <cleanup>
+# reaper.sh <pids> <run dir> <cleanup> [<build dir>]
 #
 # Wait until all processes <pids> of BATS (a list separated by spaces) exit,
 # then stop the daemons which the tests left below <run dir>, remove their
 # admin directories outside of it, and, if <cleanup> is not empty, remove
-# <run dir>.
+# <run dir>. A <build dir> is the target of the links of setup_suite.bash in
+# <run dir> (see link_build_tmpdir), which gets the same treatment.
 #
 # The teardown of the tests stops the daemons. When CTest kills BATS at a
 # timeout, the teardown does not run, and the daemons, which run in the
 # background, survive BATS. setup_suite starts this script outside of the
 # process tree of BATS, thus it survives too.
 
-bats_pids=$1 dir=$2 cleanup=$3
+bats_pids=$1 dir=$2 cleanup=$3 target=${4:-}
+dirs=("$dir")
+[[ -n "$target" ]] && dirs+=("$target")
+patterns=()
+for d in "${dirs[@]}"; do
+    patterns+=(-e "$d/")
+done
 
 # BATS removes <run dir> itself when its main process exits. A second removal
 # at the same time fails where rm -rf reports files which are gone (BusyBox),
@@ -31,13 +38,14 @@ done
 
 # A FUSE mount of a test (fuse/fuse.bats) becomes a dead mount when its
 # daemon stops, and rm -rf cannot remove it. Unmount the mounts below the
-# run directory first, lazily, as a process can still use them. Linux lists
-# the mounts in /proc/mounts, macOS with mount.
+# directories first, lazily, as a process can still use them. Linux lists
+# the mounts in /proc/mounts, macOS with mount. The list has the paths
+# without links, thus the mounts below the links are below <build dir>.
 mounts=$( { if [[ -r /proc/mounts ]]; then
                 awk '{ print $2 }' /proc/mounts
             else
                 mount | sed -n 's/^.* on \(.*\) (.*$/\1/p'
-            fi; } | grep -F -- "$dir/" || true)
+            fi; } | grep -F "${patterns[@]}" || true)
 
 for m in $mounts; do
     fusermount -uz "$m" 2>/dev/null || umount -f "$m" 2>/dev/null
@@ -46,7 +54,7 @@ done
 # A daemon of a test has the run directory in its command line. After a
 # normal exit, BATS has removed the run directory with the pid files, and
 # only a daemon which a test did not stop is left.
-pids=$(pgrep -f -- "$dir/")
+pids=$(for d in "${dirs[@]}"; do pgrep -f -- "$d/"; done)
 
 for p in $pids; do
     kill -TERM "$p" 2>/dev/null
@@ -65,14 +73,16 @@ for p in $pids; do
     kill -KILL "$p" 2>/dev/null
 done
 
-[[ -d "$dir" ]] || exit 0
+for d in "${dirs[@]}"; do
+    [[ -d "$d" ]] || continue
 
-while IFS= read -r -d '' link; do
-    target=$(readlink "$link")
-    [[ "$target" == */xrd.* ]] && rm -rf "$target"
-done < <(find "$dir" -type l -name admin -print0 2>/dev/null)
+    while IFS= read -r -d '' link; do
+        admin=$(readlink "$link")
+        [[ "$admin" == */xrd.* ]] && rm -rf "$admin"
+    done < <(find "$d" -type l -name admin -print0 2>/dev/null)
 
-if [[ -n "$cleanup" ]]; then
-    chmod -R u+w "$dir" 2>/dev/null
-    rm -rf "$dir"
-fi
+    if [[ -n "$cleanup" ]]; then
+        chmod -R u+w "$d" 2>/dev/null
+        rm -rf "$d"
+    fi
+done

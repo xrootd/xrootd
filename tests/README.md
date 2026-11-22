@@ -361,6 +361,14 @@ makes them one time for each run, and the tests only read them.
 - Each server runs on a random free port, below the temporary directory of
   BATS. Thus, files can run in parallel, and BATS removes all their files
   after the run.
+- Without a `TMPDIR` of the caller, BATS makes its run directory in `/tmp`,
+  which is often a tmpfs. A tmpfs cannot clone a file, and on many systems
+  it has no user extended attributes. Thus, `setup_suite.bash` then makes the
+  directories of the files and of the tests, with the data of the servers,
+  links to a directory below `$BINARY_DIR/tests/tmp`. With a `TMPDIR`, a run
+  can use another file system, for example a tmpfs. A test of such a feature
+  must still skip when the file system does not support it, for example
+  with `require_xattr`.
 - The tests of one file run in series, also with `bats --jobs`:
   `server.bash` sets `BATS_NO_PARALLELIZE_WITHIN_FILE`, because the tests
   of a file share its servers and empty their logs. For more parallel
