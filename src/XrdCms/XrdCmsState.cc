@@ -134,6 +134,15 @@ void *XrdCmsState::Monitor()
                     }
            if (isMan && RTsend)
               RTable.Send("status", (char *)&myStatus, sizeof(myStatus));
+              else if (isMan && (Changes & SRV_Suspend) && !(theState & SRV_Suspend))
+                      {// The service resumed while the front end stays
+                       // suspended. The managers stay suspended, but the
+                       // redirectors, which see only the service, resume.
+                       CmsStatusRequest rdrStatus = {{0, kYR_status, 0, 0}};
+                       rdrStatus.Hdr.modifier = CmsStatusRequest::kYR_Resume;
+                       rdrStatus.Hdr.streamid = htonl(myPort);
+                       RTable.Send("status", (char *)&rdrStatus, sizeof(rdrStatus));
+                      }
            XrdCmsManager::Inform(myStatus.Hdr);
           }
       } while(1);
