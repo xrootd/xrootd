@@ -62,3 +62,48 @@ logged() {
     start_data_server srv man
     run -0 wait_for 30 logged "$MAN_LOG" resumed
 }
+
+# suspend_frontend <node>: suspend the front end of the cmsd of a node, as
+# when its primary server goes away. A primary server logs in to the admin
+# socket of the cmsd, and its disconnect suspends the front end.
+suspend_frontend() {
+    local rundir sock
+
+    rundir=$(_setup_rundir "$1") || return 1
+    sock=$(find -L "$rundir/" -type s -name olbd.nimda 2>/dev/null | head -1)
+    [[ -n "$sock" ]] || { echo "no admin socket of $1" >&2; return 1; }
+    python3 - "$sock" <<'PY'
+import socket, sys
+s = socket.socket(socket.AF_UNIX)
+s.connect(sys.argv[1])
+s.sendall(b"login p frontend\n")
+s.close()
+PY
+    wait_for 10 grep -qF 'frontend logged out' "$rundir/cmsd.log"
+}
+
+# A redirector sees only the suspend of the service, not the one of the front
+# end of its cmsd. Thus the xrootd resumes when the service resumes, also
+# while the front end stays suspended.
+@test "a manager resumes its xrootd while the front end of its cmsd is suspended" {
+    require_commands python3
+    start_manager man ""
+    wait_for 30 grep -qF 'Connected to suspended' "$MAN_LOG"
+    suspend_frontend man
+    start_data_server srv man
+    run -0 wait_for 30 logged "$MAN_LOG" resumed
+}
+
+# The login reply says suspended also when only the front end is suspended
+@test "an xrootd which logs in while only the front end of its manager is suspended resumes" {
+    local before
+    require_commands python3
+    start_manager man ""
+    start_data_server srv man
+    wait_for 30 logged "$MAN_LOG" resumed
+    suspend_frontend man
+    before=$(wc -l < "$MAN_LOG")
+    restart_server man
+    run -0 wait_for 30 sh -c "tail -n +$(( before + 1 )) '$MAN_LOG' | grep -qF 'Connected to suspended'"
+    run -0 wait_for 30 sh -c "tail -n +$(( before + 1 )) '$MAN_LOG' | grep -qE 'setStatus: Manager .* resumed\$'"
+}
