@@ -156,7 +156,8 @@ namespace
         uint32_t               bytesRead = pginf->GetLength();
         std::vector<uint32_t> &cksums    = pginf->GetCksums();
         char                  *buffer    = reinterpret_cast<char*>( pginf->GetBuffer() );
-        size_t                 nbpages   = XrdOucPgrwUtils::csNum( pgoff, bytesRead );
+        int                    fLen, lLen; // the 2-argument csNum() counts 1 page for 0 bytes
+        size_t                 nbpages   = XrdOucPgrwUtils::csNum( pgoff, bytesRead, fLen, lLen );
         uint32_t               pgsize    = XrdSys::PageSize - pgoff % XrdSys::PageSize;
         if( pgsize > bytesRead ) pgsize = bytesRead;
 
