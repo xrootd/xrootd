@@ -168,18 +168,47 @@ int Read( const std::vector<std::string> &args )
   return 0;
 }
 
-// pgread <url> <offset> <size>: File::PgRead, prints the data
+// Fail when the checksums are not one CRC32C per page of the data read
+void CheckPageCksums( uint64_t offset, const char *data, uint32_t length,
+                      const std::vector<uint32_t> &cksums )
+{
+  std::vector<uint32_t> expected;
+  while( length > 0 )
+  {
+    uint32_t pgsize = XrdSys::PageSize - offset % XrdSys::PageSize;
+    if( pgsize > length ) pgsize = length;
+    expected.push_back( XrdOucCRC::Calc32C( data, pgsize ) );
+    data   += pgsize;
+    offset += pgsize;
+    length -= pgsize;
+  }
+
+  if( cksums.size() != expected.size() )
+    throw Failure{ ExitError, "pgread: " + std::to_string( cksums.size() ) +
+                   " checksums for " + std::to_string( expected.size() ) +
+                   " pages" };
+
+  for( size_t i = 0; i < expected.size(); ++i )
+    if( cksums[i] != expected[i] )
+      throw Failure{ ExitError, "pgread: bad checksum of page " +
+                     std::to_string( i ) };
+}
+
+// pgread <url> <offset> <size>: File::PgRead, checks the checksums of the
+// pages and prints the data
 int PgRead( const std::vector<std::string> &args )
 {
   if( args.size() != 3 ) Usage( "pgread <url> <offset> <size>" );
 
   OpenFile f( args[0], OpenFlags::Read );
+  uint64_t offset = ToNumber( args[1] );
   std::vector<char> buffer( ToNumber( args[2] ) );
   std::vector<uint32_t> cksums;
   uint32_t bytesRead = 0;
 
-  Check( f.file.PgRead( ToNumber( args[1] ), buffer.size(), buffer.data(),
-                        cksums, bytesRead ), "pgread" );
+  Check( f.file.PgRead( offset, buffer.size(), buffer.data(), cksums,
+                        bytesRead ), "pgread" );
+  CheckPageCksums( offset, buffer.data(), bytesRead, cksums );
   Print( buffer.data(), bytesRead );
   f.Close();
   return 0;

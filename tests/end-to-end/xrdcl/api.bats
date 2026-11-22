@@ -55,6 +55,12 @@ skip_unsupported() {
     run -0 cmp "$SERVER_DATA$FILE" copy.dat
 }
 
+# The read asks for 2 pages, but the file has 20 bytes, thus 1 page of data
+@test "File::PgRead past the end of the file returns one checksum per page read" {
+    run -0 xrdcl-api pgread "$SERVER_URL/$FILE" 15 8192
+    assert_output 'fghij'
+}
+
 # The file has 20 bytes, thus the read starts at the end of the file, at an
 # offset which is not on a page boundary. The response has no data.
 @test "File::PgRead at the end of the file at an unaligned offset returns no data" {
