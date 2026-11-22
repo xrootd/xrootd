@@ -1694,6 +1694,15 @@ namespace XrdCl
           return Status( stError, errInvalidResponse );
         }
 
+        //----------------------------------------------------------------------
+        // The page reader sized the digests for the requested length, but a
+        // read at the end of the file can return less data. Keep only the
+        // checksums of the pages which have data.
+        //----------------------------------------------------------------------
+        int fLen, lLen;
+        pCrc32cDigests.resize( XrdOucPgrwUtils::csNum( chunk.offset, currentOffset,
+                                                       fLen, lLen ) );
+
         AnyObject *obj   = new AnyObject();
         PageInfo *pgInfo = new PageInfo( chunk.offset, currentOffset, chunk.buffer,
                                          std::move( pCrc32cDigests) );
