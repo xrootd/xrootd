@@ -598,7 +598,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    const char  *Reason;
    SMask_t      newmask, servset(0);
    int addedp = 0, Status = 0, isPeer = 0, isProxy = 0;
-   int isMan, isServ, isSubm, wasSuspended = 0, Share = 100, tZone = 0;
+   int isMan, isServ, isSubm, Share = 100, tZone = 0;
 
 // Construct environment data
 //
@@ -611,9 +611,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 //
    Data.Mode = 0;
    if (Trace.What & TRACE_Debug) Data.Mode |= CmsLoginData::kYR_debug;
-   if (CmsState.Suspended)      {Data.Mode |= CmsLoginData::kYR_suspend;
-                                 wasSuspended = 1;
-                                }
+   if (CmsState.Suspended)       Data.Mode |= CmsLoginData::kYR_suspend;
    Data.HoldTime = Config.LUPHold;
 
 // Do the login and get the data
@@ -659,7 +657,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 //
    if (Data.Mode & CmsLoginData::kYR_director)
       {Link->setID("redirector", Data.HoldTime);
-       return Admit_Redirector(wasSuspended);
+       return Admit_Redirector();
       }
 
 // Disallow subscriptions we are are configured as a solo manager
@@ -820,7 +818,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 /*                      A d m i t _ R e d i r e c t o r                       */
 /******************************************************************************/
 
-XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
+XrdCmsRouting *XrdCmsProtocol::Admit_Redirector()
 {
    EPNAME("Admit_Redirector");
 
@@ -841,23 +839,11 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
       } else myNode->setSlot(RSlot);
 
 // The login reply was built before this redirector was on the notify list, so
-// it may have missed a state change. Send the current state if it differs.
-// Hold the table lock so this cannot interleave with a Monitor() notification.
-// A redirector sees only the suspend of the service, as in Monitor(), while
-// the reply also says suspended when only the front end is suspended.
+// it may have missed a state change. Ask Monitor() to send the state of the
+// service to the redirectors. Monitor() sends all the suspend notices, thus a
+// later change cannot be lost behind this one.
 //
-   RTable.Lock();
-   const int isSuspended = (CmsState.Suspended & XrdCmsState::SRV_Suspend ? 1 : 0);
-   if (wasSuspended != isSuspended)
-      {CmsStatusRequest newState = {{0, kYR_status, 0, 0}};
-       if (isSuspended)
-          newState.Hdr.modifier = CmsStatusRequest::kYR_Suspend;
-          else {newState.Hdr.modifier = CmsStatusRequest::kYR_Resume;
-                newState.Hdr.streamid = htonl(CmsState.Port());
-               }
-       myNode->Send((char *)&newState, sizeof(newState));
-      }
-   RTable.UnLock();
+   CmsState.SyncRedirectors();
 
 // Login succeeded
 //
