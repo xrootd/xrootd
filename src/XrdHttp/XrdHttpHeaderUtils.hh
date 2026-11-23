@@ -25,6 +25,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <cstdint>
 #include <sys/types.h>
 
@@ -104,6 +105,21 @@ public:
    *           -3 "chunked" appears but is not the final token.
    */
   static int parseTransferEncoding(const std::string & value);
+
+  /**
+   * Tells if a header value which is a list (such as the value of
+   * 'Connection') has a token. The match is for the full token, and not
+   * case-sensitive. Whitespace around a token, and a trailing CRLF, are
+   * ignored.
+   *
+   * Reference: RFC 9110 section 5.6.1 (lists) and section 7.6.1 (the
+   * options of 'Connection' are not case-sensitive).
+   *
+   * @param value the raw value of the header
+   * @param token the token to find
+   * @return true if the list has the token
+   */
+  static bool hasToken(const std::string & value, std::string_view token);
 };
 
 
