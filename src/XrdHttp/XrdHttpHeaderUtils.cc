@@ -26,6 +26,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <cstdlib>
 #include <limits>
@@ -163,4 +164,21 @@ int XrdHttpHeaderUtils::parseTransferEncoding(const std::string & value) {
   if (!chunked_seen)     return -2;
   if (!last_was_chunked) return -3;
   return 0;
+}
+
+bool XrdHttpHeaderUtils::hasToken(const std::string & value, std::string_view token) {
+  std::vector<std::string> tokens;
+  XrdOucTUtils::splitString(tokens, value, ",");
+
+  for (auto & tok : tokens) {
+    std::string_view sv{tok};
+    XrdOucUtils::trim(sv);
+    if (sv.size() == token.size() &&
+        std::equal(sv.begin(), sv.end(), token.begin(), [](char a, char b) {
+          return std::tolower(static_cast<unsigned char>(a)) ==
+                 std::tolower(static_cast<unsigned char>(b));
+        }))
+      return true;
+  }
+  return false;
 }

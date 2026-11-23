@@ -162,11 +162,11 @@ int XrdHttpReq::parseLine(char *line, int len) {
 
     // Screen out the needed header lines
     if (!strcasecmp(key, "connection")) {
-
-      if (!strcasecmp(val, "Keep-Alive\r\n")) {
-        keepalive = true;
-      } else if (!strcasecmp(val, "close\r\n")) {
+      // RFC 9112 section 9.6: close wins over keep-alive
+      if (XrdHttpHeaderUtils::hasToken(ss, "close")) {
         keepalive = false;
+      } else if (XrdHttpHeaderUtils::hasToken(ss, "keep-alive")) {
+        keepalive = true;
       }
 
     } else if (!strcasecmp(key, "host")) {
