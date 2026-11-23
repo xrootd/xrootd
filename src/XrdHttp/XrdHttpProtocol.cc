@@ -424,7 +424,18 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   int rc = ProcessRequest(lp);
 
   // The request ended: run the next ones at once
-  while (rc > 0 && CurrentReq.request == XrdHttpReq::rtUnset && InputPending()) {
+  while (rc > 0 && InputPending()) {
+    // A header which is not complete waits for data. The rest of the header
+    // can be in the TLS layer, which the poller does not see: read it as for
+    // an event of the socket. No bridge request runs before the header is
+    // complete, and without a bridge request the bridge does not call us again.
+    if (CurrentReq.request != XrdHttpReq::rtUnset) {
+      if (CurrentReq.headerok || TLSPending() <= 0)
+        break;
+      rc = ProcessRequest(Link);
+      continue;
+    }
+
     const int used = BuffUsed();
     if (used > 0) {
       rc = ProcessRequest(nullptr);
