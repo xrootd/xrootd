@@ -4,9 +4,14 @@
 import http.server
 import pathlib
 import posixpath
+import socketserver
 import sys
 import urllib.parse
 import xml.sax.saxutils
+
+
+class DirectoryServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -132,6 +137,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+    with DirectoryServer(("127.0.0.1", 0), Handler) as server:
         pathlib.Path(sys.argv[1]).write_text(str(server.server_port))
         server.serve_forever()
