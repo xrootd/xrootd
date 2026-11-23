@@ -187,7 +187,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
         request = rtMalformed;
         return -6;
       }
-      if (m_transfer_encoding_chunked) {
+      if (m_chunked_body) {
         // A request that already declared Transfer-Encoding: chunked and
         // now also sends Content-Length is the classic smuggling vector
         // (the frontend and backend may disagree on which header wins).
