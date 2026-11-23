@@ -13,9 +13,9 @@ setup() {
     require_plugin libXrdClHttp
     require_commands python3
     cd "$BATS_TEST_TMPDIR"
-    python3 "$BATS_TEST_DIRNAME/directory-server.py" "$BATS_TEST_TMPDIR/port" > requests.log 2>&1 3>&- 4>&- &
+    python3 "$BATS_TEST_DIRNAME/directory-server.py" port > requests.log 2>&1 3>&- 4>&- &
     server_pid=$!
-    wait_for 5 test -s port || { cat requests.log >&2; return 1; }
+    wait_for "${SETUP_START_TIMEOUT:-30}" test -s port || { cat requests.log >&2; return 1; }
     endpoint="http://127.0.0.1:$(cat port)"
 }
 

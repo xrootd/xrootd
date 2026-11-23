@@ -10,7 +10,9 @@ import urllib.parse
 import xml.sax.saxutils
 
 
-class DirectoryServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+# HTTPServer resolves the host name while binding. These tests need only the
+# numeric loopback port and must be able to start without a DNS response.
+class DirectoryServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
 
 
@@ -138,5 +140,5 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     with DirectoryServer(("127.0.0.1", 0), Handler) as server:
-        pathlib.Path(sys.argv[1]).write_text(str(server.server_port))
+        pathlib.Path(sys.argv[1]).write_text(str(server.server_address[1]))
         server.serve_forever()
