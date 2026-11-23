@@ -14,7 +14,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import venv
 
 
 PAYLOAD = b'XRootD wheel HTTP transfer\n' * 1024
@@ -98,7 +97,7 @@ packages = []
     run([sys.executable, '-m', 'pip', 'wheel', '--no-deps',
          '--no-build-isolation', '--wheel-dir', wheelhouse, consumer])
     environment = directory / 'venv'
-    venv.create(environment, with_pip=True)
+    run([sys.executable, '-m', 'venv', environment])
     binary = environment / 'bin'
     run([binary / 'python', '-m', 'pip', 'install', '--no-index',
          '--find-links', wheelhouse, 'xrootd-cli-consumer'])
