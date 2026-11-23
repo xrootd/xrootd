@@ -427,6 +427,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
     lp = Link;
   }
 
+  const bool login = !Bridge;
   int rc = ProcessRequest(lp);
 
   // The request ended: run the next ones at once
@@ -457,6 +458,14 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
     if (getDataOneShot(BuffFree()) < 0)
       return -1;
   }
+
+  // The login, for the first request or for a pipelined one, gave the link
+  // to the bridge, and the bridge must now run the request. XrdLink calls the
+  // new protocol again only if it can keep this thread, which it cannot when
+  // most threads are busy. Then the request waits for more data from the
+  // socket. Thus call the bridge at once.
+  if (login && Bridge && rc == 0)
+    return Link->getProtocol()->Process(Link);
 
   // The request waits for the bridge, and it can be the last step: then the
   // next request must not wait for data from the socket. Ask the bridge to call
