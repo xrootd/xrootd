@@ -1,6 +1,9 @@
 {
 global:
   XrdHttpGetExtHandler*;
+  # Share GCC's coverage registry with the server's SIGTERM dump. This symbol
+  # exists only in instrumented builds; hiding it loses dlopen-plugin coverage.
+  __gcov_master;
 
 local:
   *;

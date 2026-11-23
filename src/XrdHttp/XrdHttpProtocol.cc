@@ -505,7 +505,9 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       if (BuffUsed() < ResumeBytes) return 1;
 
 
-    } else
+    } else if (CurrentReq.headerok)
+      // Advance only a request that is still in progress. A final bridge
+      // callback may have reset it, leaving the next pipelined request at 0.
       CurrentReq.reqstate++;
   } else if (!DoneSetInfo && !CurrentReq.userAgent().empty()) { // DoingLogin is true, meaning the login finished.
     std::string mon_info = "monitor info " + CurrentReq.userAgent();
@@ -809,7 +811,10 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // Now we have everything that is needed to try the login
   // Remember that if there is an exthandler then it has the responsibility
   // for authorization in the paths that it manages
-  if (!Bridge && !FindMatchingExtHandler(CurrentReq)) {
+  auto *external = FindMatchingExtHandler(CurrentReq);
+  auto *nativeExternal = dynamic_cast<XrdHttpExtHandlerBridge *>(external);
+  if (!Bridge && (!external || (nativeExternal && nativeExternal->RequiresBridge(
+                        CurrentReq.requestverb.c_str(), CurrentReq.resource.c_str())))) {
     if (SecEntity.name)
       Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, ishttps ? "https" : "http");
     else
