@@ -479,6 +479,128 @@ bodies() {
     assert_equal "$(bodies | tail -n 1)" abcde
 }
 
+# RFC 9112 section 9.3.2: the server sends the responses in the order of the
+# requests. Pipelines of more than two requests, with mixed methods.
+
+@test "four pipelined HEAD requests get four responses" {
+    request HEAD /file
+    request HEAD /file
+    request HEAD /file
+    request HEAD /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'200\n200\n200\n200'
+    run -0 bodies
+    assert_output ''
+}
+
+# Each HEAD with Want-Digest makes two bridge requests: a stat and a checksum
+@test "four pipelined HEAD requests with Want-Digest get four digests" {
+    request HEAD /file 'Want-Digest: adler32\r\n'
+    request HEAD /file 'Want-Digest: adler32\r\n'
+    request HEAD /file 'Want-Digest: adler32\r\n'
+    request HEAD /file 'Want-Digest: adler32\r\nConnection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'200\n200\n200\n200'
+    assert_equal "$(grep -aic '^Digest: adler32=' "$BATS_TEST_TMPDIR/responses")" 4
+}
+
+# The server closes the connection after an error, thus the 404 comes last
+@test "a pipeline of mixed methods gets the responses in order" {
+    request OPTIONS /file
+    request HEAD /file
+    request GET /file 'Range: bytes=0-4\r\n'
+    request PUT /mixed 'Content-Length: 5\r\n' abcde
+    request GET /mixed
+    request DELETE /mixed
+    request GET /mixed 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_equal "${#lines[@]}" 7
+    assert_line --index 0 200
+    assert_line --index 1 200
+    assert_line --index 2 206
+    assert_line --index 3 --regexp '^20[01]$'
+    assert_line --index 4 200
+    assert_line --index 5 200
+    assert_line --index 6 404
+    assert_equal "$(bodies | sed -n '3p;5p')" $'01234\nabcde'
+}
+
+# The body of the 207 response has status lines too
+@test "a pipeline with a PROPFIND between other requests gets the responses in order" {
+    request HEAD /file
+    request GET /file 'Range: bytes=0-4\r\n'
+    request PROPFIND /file 'Depth: 0\r\n'
+    request HEAD /file
+    request GET /file 'Range: bytes=5-9\r\nConnection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_line --index 0 200
+    assert_line --index 1 206
+    assert_line --index 2 207
+    assert_equal "${lines[${#lines[@]} - 2]}" 200
+    assert_equal "${lines[${#lines[@]} - 1]}" 206
+}
+
+# RFC 9110 section 15.6.2: 501 for a method which the server does not support.
+# The connection persists, and the next requests run.
+@test "an unsupported method in a pipeline gets 501, and the next requests run" {
+    local body='{"name": "file"}'
+    request GET /file 'Range: bytes=0-4\r\n'
+    request QUERY /file "Content-Type: application/json\r\nContent-Length: ${#body}\r\n" "$body"
+    request PATCH /file 'Content-Length: 3\r\n' abc
+    request BREW /file
+    request GET /file 'Range: bytes=5-9\r\nConnection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'206\n501\n501\n501\n206'
+    assert_equal "$(bodies | sed -n '1p;5p')" $'01234\n56789'
+}
+
+# The server skips the body of a method which it does not support. Else the
+# body runs as a request (request smuggling).
+@test "a request in the body of an unsupported method does not run" {
+    local body=$'DELETE /victim HTTP/1.1\r\nHost: localhost\r\n\r\n'
+    printf 'x' > "$SERVER_DATA/victim"
+    request QUERY /file "Content-Length: ${#body}\r\n" "$body"
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'501\n200'
+    [[ -f "$SERVER_DATA/victim" ]]
+}
+
+# The server cannot skip a chunked body, thus it closes the connection
+@test "an unsupported method with a chunked body closes the connection" {
+    local chunk=$'DELETE /victim-chunked HTTP/1.1\r\nHost: localhost\r\n\r\n' body
+    printf 'x' > "$SERVER_DATA/victim-chunked"
+    printf -v body '%x\r\n%s\r\n0\r\n\r\n' "${#chunk}" "$chunk"
+    request QUERY /file 'Transfer-Encoding: chunked\r\n' "$body"
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output 501
+    run -0 grep -ai '^Connection: close' "$BATS_TEST_TMPDIR/responses"
+    [[ -f "$SERVER_DATA/victim-chunked" ]]
+}
+
+@test "a pipeline of mixed methods gets the responses in order over HTTPS" {
+    require_commands openssl
+    request OPTIONS /file
+    request HEAD /file 'Want-Digest: adler32\r\n'
+    request QUERY /file
+    request GET /file 'Range: bytes=0-4\r\n'
+    request GET /file 'Range: bytes=5-9\r\nConnection: close\r\n'
+    run -0 pipeline "$SERVER_PORT" tls
+    assert_output $'200\n200\n501\n206\n206'
+    assert_equal "$(bodies | tail -n 2)" $'01234\n56789'
+}
+
+@test "a redirector answers each request of a pipeline of mixed methods" {
+    request HEAD /file
+    request QUERY /file
+    request GET /file
+    request OPTIONS /file
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$RDR_PORT"
+    assert_output $'307\n501\n302\n200\n302'
+}
+
 # The parser rejects a request with both a chunked body and a Content-Length,
 # but X-Transfer-Status asks only for a chunked response
 @test "a GET with X-Transfer-Status before a Content-Length gets a response" {
