@@ -652,6 +652,7 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
           // and after Expect: 100-continue the client sends the body only if
           // it gets 100 Continue.
           bodyLeft = (CurrentReq.chunkedBody() || CurrentReq.sendcontinue) ? 0 : CurrentReq.length;
+          continueSent = false;
           break;
         }
         // An empty line before the request line, for example after the body
@@ -1427,6 +1428,18 @@ bool XrdHttpProtocol::InputPending() {
   return BuffUsed() > 0 || TLSPending() > 0;
 }
 
+/// A chunked body ends only with its last chunk. After Expect: 100-continue,
+/// a client which got no 100 Continue can send the body or not. In these
+/// cases the parser cannot find the start of the next request.
+
+bool XrdHttpProtocol::BodyUnknown() {
+  if (!CurrentReq.headerok)
+    return false;
+
+  return CurrentReq.chunkedBody() ||
+         (CurrentReq.sendcontinue && !continueSent && CurrentReq.length > 0);
+}
+
 /******************************************************************************/
 /*                          B u f f A v a i l a b l e                         */
 /******************************************************************************/
@@ -1590,6 +1603,20 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
     ss << httpStatusToString(code);
   }
   ss << crlf;
+
+  // RFC 9110 section 10.1.1: a server which sends a final response before
+  // it reads all of the body tells if the connection closes. It must close,
+  // if it cannot skip the rest of the body.
+  if (code >= 200 && BodyUnknown())
+    keepalive = false;
+
+  // After 100 Continue, the client sends the body: count it, so that the
+  // parser can skip what the method does not read
+  if (code == 100 && CurrentReq.headerok && !continueSent) {
+    continueSent = true;
+    if (!CurrentReq.chunkedBody())
+      bodyLeft = CurrentReq.length;
+  }
 
   // A keepalive 100 carries no Connection header. Close there makes
   // the client drop the socket after the final response.
@@ -2023,6 +2050,7 @@ void XrdHttpProtocol::Reset() {
   DoneSetInfo = false;
   pipelineRecall = false;
   closeAfterResponse = false;
+  continueSent = false;
 
   ResumeBytes = 0;
   Resume = 0;
