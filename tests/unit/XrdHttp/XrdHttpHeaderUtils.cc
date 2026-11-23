@@ -135,3 +135,27 @@ TEST(HeaderUtilsTest, ParseTransferEncodingRequiresChunkedAsTheLastToken) {
     ASSERT_EQ(expected, res) << "input was: \"" << input << "\"";
   }
 }
+
+// RFC 9110 section 5.6.1 and section 7.6.1: the value of Connection is a list,
+// and its options are not case-sensitive
+static const std::vector<std::tuple<std::string, std::string, bool>> tokenCases = {
+  {"close",                  "close",      true},
+  {"Close\r\n",              "close",      true},
+  {"CLOSE",                  "close",      true},
+  {"TE, close",              "close",      true},
+  {"close , TE",             "close",      true},
+  {"keep-alive,close",       "close",      true},
+  {"Keep-Alive",             "keep-alive", true},
+  {"closed",                 "close",      false},
+  {"x-close",                "close",      false},
+  {"keep-alive",             "close",      false},
+  {"",                       "close",      false},
+  {",",                      "close",      false},
+};
+
+TEST(HeaderUtilsTest, HasTokenFindsAFullTokenOfAList) {
+  for (const auto & [value, token, expected] : tokenCases) {
+    ASSERT_EQ(expected, XrdHttpHeaderUtils::hasToken(value, token))
+        << "value was: \"" << value << "\", token was: \"" << token << "\"";
+  }
+}
