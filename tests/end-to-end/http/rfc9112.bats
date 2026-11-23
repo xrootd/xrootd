@@ -212,3 +212,25 @@ connection_header() {
     run -0 exchange "$SERVER_PORT"
     assert_output $'200\nopen'
 }
+
+# RFC 9112 section 9.6: a close with unread data makes the TCP stack send a
+# reset, and the client then loses the part of the response which it did not
+# read yet. The client sends a request while the server sends a large response,
+# and reads the response only after the server closes.
+@test "RFC 9112 9.6: the client gets all of the response when the server closes with unread requests" {
+    local status=0
+
+    head -c 33554432 /dev/zero > "$SERVER_DATA/large"
+    exec 5<> "/dev/tcp/localhost/$SERVER_PORT"
+    printf 'GET /large HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&5
+    sleep 0.05
+    printf 'GET /file HTTP/1.1\r\nHost: localhost\r\n\r\n' >&5
+    sleep 0.5
+    cat <&5 > "$BATS_TEST_TMPDIR/response" 2> "$BATS_TEST_TMPDIR/error" || status=$?
+    exec 5<&-
+    run -0 cat "$BATS_TEST_TMPDIR/error"
+    assert_output ''
+    assert_equal "$status" 0
+    assert_equal "$(tail -c 33554432 "$BATS_TEST_TMPDIR/response" | tr -d '\0' | wc -c | tr -d ' ')" 0
+    (( $(wc -c < "$BATS_TEST_TMPDIR/response") > 33554432 ))
+}
