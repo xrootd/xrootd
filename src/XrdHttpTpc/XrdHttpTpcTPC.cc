@@ -1303,7 +1303,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         fh->close();
         return resp_result;
     }
-    Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
+    Stream stream(std::move(fh), streams * m_buffers_per_stream, streams > 1 ? m_block_size : m_small_block_size, m_log);
     State state(0, stream, curl, false, req.tpcForwardCreds);
     state.SetupHeaders(req);
     state.SetContentLength(sourceFileContentLength);

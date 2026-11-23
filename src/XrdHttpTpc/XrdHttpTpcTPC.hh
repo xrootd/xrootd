@@ -201,11 +201,11 @@ private:
     XrdSfsFileSystem *m_sfs;
     std::shared_ptr<XrdTlsTempCA> m_ca_file;
 
-    // 16 requests of 16 MB each for each stream. The requests are not
-    // pipelined: one request for each stream is in flight, and the others wait
-    // in libcurl for a free connection. Thus each stream waits one round trip
-    // between its blocks.
-    static const int m_pipelining_multiplier = 16;
+    // 16 buffers of a block (16 MB) for each stream. Each stream transfers one
+    // block at a time, and waits one round trip between its blocks. The blocks
+    // of the streams arrive out of order, and the buffers keep the data which
+    // arrives before the data in front of it is written.
+    static const int m_buffers_per_stream = 16;
 
     bool usingEC; // indicate if XrdEC is used
 

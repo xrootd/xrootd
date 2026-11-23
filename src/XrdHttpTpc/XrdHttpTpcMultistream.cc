@@ -282,7 +282,11 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     off_t content_size = state.GetContentLength();
     off_t current_offset = 0;
 
-    size_t concurrency = streams * m_pipelining_multiplier;
+    // One transfer for each stream. libcurl counts the time which a transfer
+    // waits for a free connection toward its connect timeout, thus no transfer
+    // may wait for one. This also limits the connections in use to the number
+    // of streams, also when the source redirects to other hosts.
+    size_t concurrency = streams;
 
     handles.reserve(concurrency);
     handles.push_back(new State());
@@ -301,7 +305,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
 
     // Never pipeline HTTP/1.1 requests: many servers mishandle it, and libcurl
     // >= 7.62 ignores it anyway. Do not multiplex either, so that each stream
-    // has its own connection. Extra requests wait for a free connection.
+    // has its own connection.
     curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, CURLPIPE_NOTHING);
     curl_multi_setopt(multi_handle, CURLMOPT_MAX_HOST_CONNECTIONS, streams);
 
