@@ -1384,8 +1384,9 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
  
 
   if (wait) {
-    // If there's not enough data in the buffer then wait on the socket until it comes
-    if  (blen > BuffUsed()) {
+    // If there's not enough data in the buffer then wait on the socket until it
+    // comes. A read over TLS returns at most one record, thus read again.
+    while (blen > BuffUsed()) {
       TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
       if ( getDataOneShot(blen - BuffUsed(), true) )
         // The wanted data could not be read. Either timeout of connection closed
