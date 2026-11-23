@@ -606,10 +606,14 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
   } else if (!DoneSetInfo && !CurrentReq.userAgent().empty()) { // DoingLogin is true, meaning the login finished.
     std::string mon_info = "monitor info " + CurrentReq.userAgent();
     DoneSetInfo = true;
+    // Without the request to set the user agent, the login ends here. Else
+    // the next call runs the first step of the request again.
     if (mon_info.size() >= 1024) {
       TRACEI(ALL, "User agent string too long");
+      DoingLogin = false;
     } else if (!Bridge) {
       TRACEI(ALL, "Internal logic error: Bridge is null after login");
+      DoingLogin = false;
     } else {
       TRACEI(DEBUG, "Setting " << mon_info);
       memset(&CurrentReq.xrdreq, 0, sizeof (ClientRequest));
