@@ -330,6 +330,10 @@ private:
 
   /// Process() asked the bridge to call it again, for a pipelined request
   bool pipelineRecall;
+
+  /// A final response had "Connection: Close". The link closes when the
+  /// request ends, and no next request runs (RFC 9112 section 9.6).
+  bool closeAfterResponse;
   
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;
