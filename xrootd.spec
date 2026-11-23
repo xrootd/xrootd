@@ -357,9 +357,14 @@ doxygen Doxyfile
 	rm -f %{buildroot}%{_libdir}/libXrdCephPosix.so
 %endif
 
+# The 6.2.1 release tarball builds only the bindings wheel in python/dist.
+wheel_dir=%{_vpath_builddir}/python/dist
+if test -f python/client-payload.cmake; then
+    wheel_dir=%{_vpath_builddir}/python/native-bindings/dist
+fi
 %{__python3} -m pip install \
 	--no-deps --ignore-installed --disable-pip-version-check --verbose \
-	--prefix %{buildroot}%{_prefix} %{_vpath_builddir}/python/native-bindings/dist/*.whl
+	--prefix %{buildroot}%{_prefix} "$wheel_dir"/*.whl
 
 rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/direct_url.json
 rm -f %{buildroot}%{python3_sitearch}/xrootd-*.*-info/RECORD
