@@ -496,7 +496,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
       // This is an invocation that was triggered by a socket event
       // Read all the data that is available, throw it into the buffer
-      if ((rc = getDataOneShot(BuffAvailable())) < 0) {
+      if ((rc = getDataOneShot(BuffFree())) < 0) {
         // Error -> exit
         return -1;
       }
@@ -1200,86 +1200,19 @@ const char *XrdHttpProtocol::Configed()
 int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
 
   dest = "";
-  char save;
 
-  // Easy case
-  if (myBuffEnd >= myBuffStart) {
-    int l = 0;
-    for (char *p = myBuffStart; p < myBuffEnd; p++) {
-      l++;
-      if (*p == '\n') {
-        save = *(p+1);
-        *(p+1) = '\0';
-        dest.assign(myBuffStart, 0, l-1);
-        *(p+1) = save;
+  // The data is contiguous, from myBuffStart to myBuffEnd
+  const char *nl = static_cast<const char *>(memchr(myBuffStart, '\n', BuffUsed()));
+  if (!nl) return 0;
 
-        //strncpy(dest, myBuffStart, l);
-        //dest[l] = '\0';
-        BuffConsume(l);
-
-        //if (dest[l-1] == '\n') dest[l - 1] = '\0';
-        return l;
-      }
-
-    }
-
-    return 0;
-  } else {
-    // More complex case... we have to do it in two segments
-
-    // Segment 1: myBuffStart->myBuff->buff+myBuff->bsize
-    int l = 0;
-    for (char *p = myBuffStart; p < myBuff->buff + myBuff->bsize; p++) {
-      l++;
-      if ((*p == '\n') || (*p == '\0')) {
-        save = *(p+1);
-        *(p+1) = '\0';
-        dest.assign(myBuffStart, 0, l-1);
-        *(p+1) = save;
-
-        //strncpy(dest, myBuffStart, l);
-
-        BuffConsume(l);
-
-        //if (dest[l-1] == '\n') dest[l - 1] = '\0';
-        return l;
-      }
-
-    }
-
-    // We did not find the \n, let's keep on searching in the 2nd segment
-    // Segment 2: myBuff->buff --> myBuffEnd
-    l = 0;
-    for (char *p = myBuff->buff; p < myBuffEnd; p++) {
-      l++;
-      if ((*p == '\n') || (*p == '\0')) {
-        save = *(p+1);
-        *(p+1) = '\0';
-        // Remember the 1st segment
-        int l1 = myBuff->buff + myBuff->bsize - myBuffStart;
-
-        dest.assign(myBuffStart, 0, l1-1);
-        //strncpy(dest, myBuffStart, l1);
-        BuffConsume(l1);
-
-        dest.insert(myBuffStart, l1, l-1);
-        //strncpy(dest + l1, myBuffStart, l);
-        //dest[l + l1] = '\0';
-        BuffConsume(l);
-
-        *(p+1) = save;
-
-        //if (dest[l + l1 - 1] == '\n') dest[l + l1 - 1] = '\0';
-        return l + l1;
-      }
-
-    }
-
-
-
-  }
-
-  return 0;
+  // Copy the line with its newline, up to a NUL byte if it has one. The buffer
+  // is not terminated, thus copy a known length.
+  const int l = nl - myBuffStart + 1;
+  const int n = strnlen(myBuffStart, l);
+  if (n > 0)
+    dest.insert(myBuffStart, 0, n);
+  BuffConsume(l);
+  return l;
 }
 
 /******************************************************************************/
@@ -1299,6 +1232,17 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
   // 0: everything read correctly
 
 
+
+  // Keep the data contiguous: when the free space after the data is small,
+  // move the data to the start of the buffer. A move of all reads would copy
+  // up to the full buffer for each read.
+  static constexpr int minRead = 64 * 1024;
+  if (myBuffStart != myBuff->buff && BuffAvailable() < std::min(blen, minRead)) {
+    const int used = BuffUsed();
+    memmove(myBuff->buff, myBuffStart, used);
+    myBuffStart = myBuff->buff;
+    myBuffEnd = myBuffStart + used;
+  }
 
   // Check for buffer overflow first
   maxread = std::min(blen, BuffAvailable());
@@ -1325,11 +1269,6 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
     TRACE(DEBUG, "getDataOneShot sslavail: " << sslavail);
     if (sslavail <= 0) return 0;
 
-    if (myBuffEnd - myBuff->buff >= myBuff->bsize) {
-      TRACE(DEBUG, "getDataOneShot Buffer panic");
-      myBuffEnd = myBuff->buff;
-    }
-
     rlen = SSL_read(ssl, myBuffEnd, sslavail);
     if (rlen <= 0) {
       Link->setEtext("link SSL read error");
@@ -1339,11 +1278,6 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
 
 
   } else {
-
-    if (myBuffEnd - myBuff->buff >= myBuff->bsize) {
-      TRACE(DEBUG, "getDataOneShot Buffer panic");
-      myBuffEnd = myBuff->buff;
-    }
 
     if (wait)
       rlen = Link->Recv(myBuffEnd, maxread, readWait);
@@ -1369,15 +1303,10 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
   return 0;
 }
 
-/// How many bytes still fit into the buffer in a contiguous way
+/// How many bytes still fit into the buffer after the data
 
 int XrdHttpProtocol::BuffAvailable() {
-  int r;
-
-  if (myBuffEnd >= myBuffStart)
-    r = myBuff->buff + myBuff->bsize - myBuffEnd;
-  else
-    r = myBuffStart - myBuffEnd;
+  const int r = myBuff->buff + myBuff->bsize - myBuffEnd;
 
   if ((r < 0) || (r > myBuff->bsize)) {
     TRACE(REQ, "internal error, myBuffAvailable: " << r << " myBuff->bsize " << myBuff->bsize);
@@ -1394,13 +1323,7 @@ int XrdHttpProtocol::BuffAvailable() {
 /// How many bytes in the buffer
 
 int XrdHttpProtocol::BuffUsed() {
-  int r;
-
-  if (myBuffEnd >= myBuffStart)
-    r = myBuffEnd - myBuffStart;
-  else
-
-    r = myBuff->bsize - (myBuffStart - myBuffEnd);
+  const int r = myBuffEnd - myBuffStart;
 
   if ((r < 0) || (r > myBuff->bsize)) {
     TRACE(REQ, "internal error, myBuffUsed: " << r << " myBuff->bsize " << myBuff->bsize);
@@ -1437,12 +1360,6 @@ void XrdHttpProtocol::BuffConsume(int blen) {
   }
 
   myBuffStart = myBuffStart + blen;
-
-  if (myBuffStart >= myBuff->buff + myBuff->bsize)
-    myBuffStart -= myBuff->bsize;
-
-  if (myBuffEnd >= myBuff->buff + myBuff->bsize)
-    myBuffEnd -= myBuff->bsize;
 
   if (BuffUsed() == 0)
     myBuffStart = myBuffEnd = myBuff->buff;
@@ -1485,11 +1402,7 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
 
   // And now make available the data taken from the buffer. Note that the buffer
   // may be empty...
-  if (myBuffStart <= myBuffEnd) {
-    rlen = std::min( (long) blen, (long)(myBuffEnd - myBuffStart) );
-
-  } else
-    rlen = std::min( (long) blen, (long)(myBuff->buff + myBuff->bsize - myBuffStart) );
+  rlen = std::min(blen, BuffUsed());
 
   *data = myBuffStart;
   BuffConsume(rlen);

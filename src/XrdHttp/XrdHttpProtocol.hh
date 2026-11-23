@@ -269,15 +269,16 @@ private:
   // Tells if an ext handler with the given name has already been loaded
   static bool ExtHandlerLoaded(const char *handlername);
   
-  /// Circular Buffer used to read the request
+  /// Buffer used to read the request
   XrdBuffer *myBuff;
-  /// The circular pointers
+  /// The data in the buffer, which is always contiguous: a read first moves it
+  /// to the start of the buffer, thus a pointer and a length describe it.
   char *myBuffStart, *myBuffEnd;
   
   /// A nice var to hold the current header line
   XrdOucString tmpline;
   
-  /// How many bytes still fit into the buffer in a contiguous way
+  /// How many bytes still fit into the buffer after the data
   int BuffAvailable();
   /// How many bytes in the buffer
   int BuffUsed();
