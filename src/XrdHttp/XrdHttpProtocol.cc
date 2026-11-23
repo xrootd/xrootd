@@ -455,15 +455,17 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   // The request waits for the bridge, and it can be the last step: then the
   // next request must not wait for data from the socket. Ask the bridge to call
   // us again, which the bridge does only if a bridge request runs. A write
-  // takes its data from the buffer, thus that data is no next request.
-  int unread = BuffUsed();
-  if (CurrentReq.xrdreq.header.requestid == htons(kXR_write))
-    unread -= ntohl(CurrentReq.xrdreq.write.dlen);
+  // takes its data from the buffer, thus that data is no next request. After
+  // an error, do not look at the buffer: it can be missing.
+  if (rc > 0 && Bridge && CurrentReq.request != XrdHttpReq::rtUnset) {
+    int unread = BuffUsed();
+    if (CurrentReq.xrdreq.header.requestid == htons(kXR_write))
+      unread -= ntohl(CurrentReq.xrdreq.write.dlen);
 
-  if (rc > 0 && Bridge && CurrentReq.request != XrdHttpReq::rtUnset &&
-      (unread > 0 || TLSPending() > 0)) {
-    pipelineRecall = true;
-    return 0;
+    if (unread > 0 || TLSPending() > 0) {
+      pipelineRecall = true;
+      return 0;
+    }
   }
 
   return rc;
