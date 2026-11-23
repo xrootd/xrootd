@@ -725,10 +725,7 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
         TRACEI(ALL, "Corrupted header detected, or line too long. Disconnecting client.");
         return -1;
       }
-        
-        
-      if (CurrentReq.reqstate > 0)
-        CurrentReq.reqstate--;
+
       // Waiting for more data
       return 1;
     }
