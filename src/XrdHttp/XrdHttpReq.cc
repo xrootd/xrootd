@@ -977,6 +977,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     case XrdHttpReq::rtUnset:
       return -1;
     case XrdHttpReq::rtUnknown:
+      return NotImplemented();
     case XrdHttpReq::rtMalformed: {
       generateWebdavErrMsg();
       prot->SendSimpleResp(400, NULL, NULL, httpErrorBody.c_str(), httpErrorBody.length(), false);
@@ -1558,11 +1559,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
     }
     case XrdHttpReq::rtPATCH:
-    {
-      prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported yet.", 0, false);
-
-      return -1;
-    }
+      return NotImplemented();
     case XrdHttpReq::rtPROPFIND:
     {
 
@@ -1720,11 +1717,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       return 1;
     }
     default:
-    {
-      prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported.", 0, false);
-      return -1;
-    }
-
+      return NotImplemented();
   }
 
   return 1;
@@ -2076,6 +2069,15 @@ void XrdHttpReq::setTransferStatusHeader(std::string &header) {
       header += "\r\nTrailer: X-Transfer-Status";
     }
   }
+}
+
+int XrdHttpReq::NotImplemented() {
+  // The response has Close if the parser cannot skip the body, and then
+  // Process() closes the connection
+  prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported.", 0, keepalive);
+  const bool persist = keepalive;
+  reset();
+  return persist ? 1 : -1;
 }
 
 bool XrdHttpReq::BridgeResult(int rc) {

@@ -173,6 +173,10 @@ private:
   /// had "Connection: Close".
   bool BridgeResult(int rc);
 
+  /// Send 501 (Not Implemented) for a method which the server does not
+  /// support (RFC 9110 section 15.6.2). Returns as ProcessHTTPReq().
+  int NotImplemented();
+
   // Parse a resource string, typically a filename, setting the resource field and the opaque data
   void parseResource(char *url);
 
