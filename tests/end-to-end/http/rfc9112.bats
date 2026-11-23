@@ -182,7 +182,14 @@ connection_header() {
     [[ -f "$SERVER_DATA/kept" ]]
 }
 
-# RFC 9110 section 7.6.1: the options of Connection are not case-sensitive
+# RFC 9110 section 7.6.1: the value of Connection is a list of options, and
+# the options are not case-sensitive
+
+@test "RFC 9112 9.6: the server finds close in a list of connection options" {
+    request GET /file 'Connection: TE, close\r\nTE: trailers\r\n'
+    run -0 exchange "$SERVER_PORT"
+    assert_output $'200\nclosed'
+}
 
 @test "RFC 9112 9.6: the server finds a close option in capital letters" {
     request GET /file 'Connection: CLOSE\r\n'
