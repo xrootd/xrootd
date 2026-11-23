@@ -619,7 +619,9 @@ TEST_F(XrdOfsPrepGPITest, RescheduledIdleWorkerRunsEachRequestOnce) {
   EXPECT_EQ(prep->begin(first.prep, info), SFS_OK);
   const auto status = result.wait_for(std::chrono::seconds(5));
   EXPECT_EQ(status, std::future_status::ready);
-  if (status == std::future_status::ready) EXPECT_EQ(result.get(), SFS_OK);
+  if (status == std::future_status::ready) {
+    EXPECT_EQ(result.get(), SFS_OK);
+  }
   drainScheduler();
   EXPECT_EQ(executions(), "FIRST\nSECOND\n");
 }
@@ -773,11 +775,11 @@ public:
     return rc ? nullptr : path;
   }
 };
-class TranslationDiagnostic : public XrdOfsPrepGPITest,
+class TranslationDiagnosticTest : public XrdOfsPrepGPITest,
                               public ::testing::WithParamInterface<bool> {};
 }
 
-TEST_P(TranslationDiagnostic, NamesFailingPathWithoutDispatch) {
+TEST_P(TranslationDiagnosticTest, NamesFailingPathWithoutDispatch) {
   FailedTranslation oss;
   const auto parms = std::string("-admit stage,query,cancel -pfn ") +
                      (GetParam() ? "-cgi " : "") + "-run " + scriptPath;
@@ -793,7 +795,10 @@ TEST_P(TranslationDiagnostic, NamesFailingPathWithoutDispatch) {
   EXPECT_NE(std::string(info.getErrText()).find("/data/bad"), std::string::npos);
   EXPECT_TRUE(executions().empty());
 }
-INSTANTIATE_TEST_SUITE_P(WithAndWithoutCgi, TranslationDiagnostic, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(, TranslationDiagnosticTest, ::testing::Bool(),
+  [](const ::testing::TestParamInfo<bool> &info) {
+    return info.param ? "WithCgi" : "WithoutCgi";
+  });
 
 TEST_F(XrdOfsPrepGPITest, EmptyStageIsRejectedWithoutDispatch) {
   const auto parms = "-admit stage -run " + scriptPath;

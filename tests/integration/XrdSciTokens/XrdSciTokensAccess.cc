@@ -14,7 +14,7 @@
 #include <memory>
 #include <unistd.h>
 
-TEST(VerifiedPrincipal, SciTokensPublishesVerifiedIssuerAndSubject) {
+TEST(VerifiedPrincipalTest, PublishesVerifiedIssuerAndSubject) {
   char directory[] = "/tmp/xrd-principal-XXXXXX";
   ASSERT_NE(mkdtemp(directory), nullptr);
   const std::string root(directory);

@@ -1,5 +1,9 @@
 add_bats_tests(client-cert.bats)
 
+add_library(XrdOfsPrepPathAuth-${PLUGIN_VERSION} MODULE PrepPathAuth.cc)
+target_link_libraries(XrdOfsPrepPathAuth-${PLUGIN_VERSION} PRIVATE XrdUtils)
+add_bats_tests(prepare.bats)
+
 if(BUILD_MACAROONS)
   add_bats_tests(macaroons.bats)
 endif()
