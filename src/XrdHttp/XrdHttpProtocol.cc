@@ -53,6 +53,7 @@
 #include <openssl/ssl.h>
 #include <vector>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <sstream>
 #include <cctype>
 #include <sys/stat.h>
@@ -958,6 +959,24 @@ void XrdHttpProtocol::Recycle(XrdLink *lp, int csec, const char *reason) {
   //
 
   Cleanup();
+
+  // XrdLink closes the socket after this. RFC 9112 section 9.6: a close with
+  // unread data makes the TCP stack send a reset, which drops the data that
+  // the server did not send yet. A reset which comes before the FIN also
+  // makes the client fail. This occurs when the server closes while the
+  // client sends more requests. Thus send the FIN first, after the response.
+  // Then read and discard the data which already arrived, so that the close
+  // can send all of the response. Do not wait for more data: that would hold
+  // this thread.
+  if (lp) {
+    const int fd = lp->FDnum();
+    char discard[16384];
+    if (fd >= 0)
+      shutdown(fd, SHUT_WR);
+    for (int i = 0; fd >= 0 && i < 64; i++)
+      if (recv(fd, discard, sizeof(discard), MSG_DONTWAIT) <= 0)
+        break;
+  }
 
 
   // Set fields to starting point (debugging mostly)
