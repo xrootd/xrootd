@@ -549,6 +549,9 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           TRACE(DEBUG, " rc:" << rc << " detected header end.");
           break;
         }
+        // An empty line before the request line, for example after the body
+        // of the last request. RFC 9112 §2.2: a server SHOULD ignore it.
+        continue;
       }
 
 
