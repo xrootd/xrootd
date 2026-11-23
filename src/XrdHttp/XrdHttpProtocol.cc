@@ -406,10 +406,14 @@ BIO *XrdHttpProtocol::CreateBIO(XrdLink *lp)
 // -1  close the connection.
 //
 // The request methods decide only about their own steps. Process() decides
-// for all of them about the next request, so no method can forget it.
+// for all of them about the next request, so no method can forget it. After a
+// final response with "Connection: Close", no next request runs.
 
 int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 {
+  if (closeAfterResponse && CurrentReq.request == XrdHttpReq::rtUnset)
+    return -1;
+
   // The bridge calls us again only because Process() asked for it below, and
   // its request ended. If the HTTP request did not end, it waits for data from
   // the socket, as before. The poller does not see the data which the TLS
@@ -424,7 +428,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
   int rc = ProcessRequest(lp);
 
   // The request ended: run the next ones at once
-  while (rc > 0 && InputPending()) {
+  while (rc > 0 && !closeAfterResponse && InputPending()) {
     // A header which is not complete waits for data. The rest of the header
     // can be in the TLS layer, which the poller does not see: read it as for
     // an event of the socket. No bridge request runs before the header is
@@ -467,6 +471,9 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       return 0;
     }
   }
+
+  if (closeAfterResponse && CurrentReq.request == XrdHttpReq::rtUnset)
+    return -1;
 
   return rc;
 }
@@ -1591,6 +1598,11 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
   else if (!keepalive)
     ss << "Connection: Close" << crlf;
 
+  // The final response tells the client that the connection closes, thus the
+  // server must close it, also if the request method does not
+  if (!keepalive && code >= 200)
+    closeAfterResponse = true;
+
   ss << "Server: XRootD" << crlf;
 
   const auto iter = m_staticheaders.find(CurrentReq.requestverb);
@@ -2010,6 +2022,7 @@ void XrdHttpProtocol::Reset() {
   DoingLogin = false;
   DoneSetInfo = false;
   pipelineRecall = false;
+  closeAfterResponse = false;
 
   ResumeBytes = 0;
   Resume = 0;

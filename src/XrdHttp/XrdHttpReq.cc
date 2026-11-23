@@ -520,10 +520,7 @@ bool XrdHttpReq::Data(XrdXrootd::Bridge::Context &info, //!< the result context
   this->iovL = iovL_;
   this->final = final_;
 
-  if (PostProcessHTTPReq(final_)) reset();
-
-  return true;
-
+  return BridgeResult(PostProcessHTTPReq(final_));
 };
 
 int XrdHttpReq::File(XrdXrootd::Bridge::Context &info, //!< the result context
@@ -558,13 +555,7 @@ bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
 
   this->iovN = 0;
 
-  int r = PostProcessHTTPReq(true);
-  // Beware, we don't have to reset() if the result is 0
-  if (r) reset();
-  if (r < 0) return false;
-
-
-  return true;
+  return BridgeResult(PostProcessHTTPReq(true));
 };
 
 bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
@@ -583,18 +574,9 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
     free(s);
   }
 
-  auto rc = PostProcessHTTPReq();
-  if (rc) {
-    reset();
-  }
-
-  // If we are servicing a GET on a directory, it'll generate an error for the default
-  // OSS (we don't assume this is always true).  Catch and suppress the error so we can instead
-  // generate a directory listing (if configured).
-  if ((request == rtGET) && (xrdreq.header.requestid == ntohs(kXR_open)) && (xrderrcode == kXR_isDirectory))
-    return true;
-
-  return rc == 0;
+  // For a GET of a directory, the default OSS gives an error. Then the
+  // result is 0, and the request continues with a listing (if configured).
+  return BridgeResult(PostProcessHTTPReq());
 };
 
 bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
@@ -619,7 +601,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
 
   if (invalid_host) {
     prot->SendSimpleResp(502, nullptr, nullptr, "Invalid redirect host", 0, false);
-    return keepalive;
+    return BridgeResult(-1);
   }
 
   // port < 0 means XRootD URL-form redirect: hname is a full scheme://… URL
@@ -707,9 +689,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   else
     prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
 
-  bool ret_keepalive = keepalive; // reset() clears keepalive
-  reset();
-  return ret_keepalive;
+  return BridgeResult(keepalive ? 1 : -1);
 };
 
 
@@ -2088,6 +2068,14 @@ void XrdHttpReq::setTransferStatusHeader(std::string &header) {
       header += "\r\nTrailer: X-Transfer-Status";
     }
   }
+}
+
+bool XrdHttpReq::BridgeResult(int rc) {
+  if (rc == 0)
+    return true; // the request continues
+
+  reset();
+  return rc > 0 && !prot->closeAfterResponse;
 }
 
 // This is invoked by the callbacks, after something has happened in the bridge

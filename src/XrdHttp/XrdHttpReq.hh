@@ -167,6 +167,12 @@ private:
   ///  -1->error
   int PostProcessHTTPReq(bool final = false);
 
+  /// The result of a callback of the bridge, from the result of
+  /// PostProcessHTTPReq(). Resets the request when it ended. Returns false
+  /// when the bridge must close the link: the result was -1, or the response
+  /// had "Connection: Close".
+  bool BridgeResult(int rc);
+
   // Parse a resource string, typically a filename, setting the resource field and the opaque data
   void parseResource(char *url);
 
