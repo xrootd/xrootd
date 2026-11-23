@@ -536,6 +536,20 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
   if (!CurrentReq.headerok) {
 
+    // Skip the rest of the body of the last request, which its method did not
+    // read. Close the connection rather than read a large body.
+    if (bodyLeft > 0) {
+      if (bodyLeft > myBuff->bsize) {
+        TRACEI(REQ, " The last request did not read " << bodyLeft << " bytes of its body.");
+        return -1;
+      }
+      const int n = std::min<long long>(bodyLeft, BuffUsed());
+      BuffConsume(n);
+      bodyLeft -= n;
+      if (bodyLeft > 0)
+        return 1; // wait for the rest of the body
+    }
+
     // Read as many lines as possible into the buffer. An empty line breaks
     while ((rc = BuffgetLine(tmpline)) > 0) {
       std::string traceLine = tmpline.c_str();
@@ -547,6 +561,12 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         if (CurrentReq.request != CurrentReq.rtUnset) {
           CurrentReq.headerok = true;
           TRACE(DEBUG, " rc:" << rc << " detected header end.");
+          // A method can end before it reads all of the body, for example on
+          // an error or a redirect. Count the body, so that the next request
+          // does not start inside it. The size of a chunked body is unknown,
+          // and after Expect: 100-continue the client sends the body only if
+          // it gets 100 Continue.
+          bodyLeft = (CurrentReq.chunkedBody() || CurrentReq.sendcontinue) ? 0 : CurrentReq.length;
           break;
         }
         // An empty line before the request line, for example after the body
@@ -1364,6 +1384,10 @@ void XrdHttpProtocol::BuffConsume(int blen) {
 
   myBuffStart = myBuffStart + blen;
 
+  // The method of the request reads its body
+  if (CurrentReq.headerok && bodyLeft > 0)
+    bodyLeft -= std::min<long long>(blen, bodyLeft);
+
   if (BuffUsed() == 0)
     myBuffStart = myBuffEnd = myBuff->buff;
 }
@@ -1890,6 +1914,7 @@ void XrdHttpProtocol::Reset() {
 
   ResumeBytes = 0;
   Resume = 0;
+  bodyLeft = 0;
 
   //
   //  numReads = 0;

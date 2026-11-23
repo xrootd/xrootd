@@ -322,6 +322,10 @@ private:
   
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;
+
+  /// The bytes of the body of the last request which its method did not read.
+  /// The parser skips them before the next request line.
+  long long bodyLeft;
   
   /// Private SSL context
   SSL *ssl;

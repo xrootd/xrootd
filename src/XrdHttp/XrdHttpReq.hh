@@ -120,6 +120,10 @@ private:
 
   // Whether transfer encoding was requested.
   bool m_transfer_encoding_chunked{false};
+  // The request has a chunked body, and the parser did not read its last
+  // chunk. X-Transfer-Status sets m_transfer_encoding_chunked, but only for
+  // the response.
+  bool m_chunked_body{false};
   long long m_current_chunk_offset;
   long long m_current_chunk_size;
 
@@ -205,6 +209,10 @@ private:
   int prepareChecksumQuery(XrdHttpChecksumHandler::XrdHttpChecksumRawPtr & outCksum, XrdOucString & outResourceDigestOpaque);
 
 public:
+  /// True if the request has a chunked body (Transfer-Encoding: chunked),
+  /// and the parser did not read its last chunk
+  bool chunkedBody() const { return m_chunked_body; }
+
   XrdHttpReq(XrdHttpProtocol *protinstance, const XrdHttpReadRangeHandler::Configuration &rcfg) :
       readRangeHandler(rcfg), closeAfterError(false), keepalive(true) {
 
