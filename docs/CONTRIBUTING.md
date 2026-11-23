@@ -77,6 +77,18 @@ prerelease builds may be published to the testing repositories, while final
 releases are published to the stable repositories. See the
 [download](https://xrootd.org/dload.html) page for details.
 
+To build the Python wheels and source distribution for a release candidate,
+run the Python workflow manually on its tag.
+
+```sh
+gh workflow run python.yml --repo xrootd/xrootd --ref v6.3.0-rc1
+```
+
+To publish `6.3.0rc1` by hand, download the run's `python-*` artifacts and
+upload the `.whl` and `.tar.gz` files inside them to PyPI. Alternatively,
+publishing a GitHub Release (including a prerelease) for the tag builds and
+uploads the distributions automatically.
+
 ### Development and Maintenance Branches
 
 The `master` branch is the main development branch. It contains the latest

@@ -41,6 +41,8 @@ def get_version():
     if version.startswith('v'):
         version = version[1:]
 
+    tag = 'v' + version
+
     # Sanitize version to conform to PEP 440
     # https://www.python.org/dev/peps/pep-0440
     version = version.replace('-rc', 'rc')
@@ -48,7 +50,7 @@ def get_version():
     version = version.replace('-', '.post', 1)
     version = version.replace('-', '.')
 
-    return version
+    return version, tag
 
 class CMakeExtension(Extension):
     def __init__(self, name, src='.', sources=[], **kwa):
@@ -89,7 +91,7 @@ class CMakeBuild(build_ext):
             check_call([cmake, ext.src, '-B', self.build_temp] + cmake_args)
             check_call([cmake, '--build', self.build_temp])
 
-version = get_version()
+version, tag = get_version()
 
 setup(name='xrootd',
       version=version,
@@ -97,7 +99,7 @@ setup(name='xrootd',
       author='XRootD Developers',
       author_email='xrootd-dev@slac.stanford.edu',
       url='https://xrootd.org',
-      download_url='https://github.com/xrootd/xrootd/archive/v%s.tar.gz' % version,
+      download_url='https://github.com/xrootd/xrootd/archive/%s.tar.gz' % tag,
       keywords=['XRootD', 'network filesystem'],
       license='LGPL-3.0-or-later',
       long_description=open('README.md').read(),
