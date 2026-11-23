@@ -244,6 +244,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
         return -8;
       }
       m_transfer_encoding_chunked = true;
+      m_chunked_body = true;
     } else if (!strcasecmp(key, "x-transfer-status") && strstr(val, "true")) {
       m_transfer_encoding_chunked = true;
       m_status_trailer = true;
@@ -1367,6 +1368,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               // set the bytes written and length appropriately; on next callback,
               // we will hit the close() block below.
               m_transfer_encoding_chunked = false;
+              m_chunked_body = false;
               length = writtenbytes;
               return ProcessHTTPReq();
             }
@@ -2811,6 +2813,7 @@ void XrdHttpReq::reset() {
   sendcontinue = false;
 
   m_transfer_encoding_chunked = false;
+  m_chunked_body = false;
   m_current_chunk_size = -1;
   m_current_chunk_offset = 0;
 
