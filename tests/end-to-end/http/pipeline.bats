@@ -381,3 +381,11 @@ bodies() {
     assert_output $'201\n200'
     assert_equal "$(bodies | tail -n 1)" abcde
 }
+
+# The parser rejects a request with both a chunked body and a Content-Length,
+# but X-Transfer-Status asks only for a chunked response
+@test "a GET with X-Transfer-Status before a Content-Length gets a response" {
+    request GET /file 'X-Transfer-Status: true\r\nTE: trailers\r\nContent-Length: 0\r\nConnection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output 200
+}
