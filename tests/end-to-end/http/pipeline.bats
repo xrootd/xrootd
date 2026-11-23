@@ -317,3 +317,67 @@ bodies() {
     run -0 pipeline "$RDR_PORT"
     assert_output $'307\n307\n307'
 }
+
+# RFC 9110 section 10.1.1: after Expect: 100-continue, a client which gets a
+# final response and no 100 Continue can send the body or not. The server
+# cannot find the start of the next request, thus it must close.
+
+@test "a redirector closes the connection after a PUT with Expect" {
+    request PUT /new 'Content-Length: 5\r\nExpect: 100-continue\r\n'
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$RDR_PORT"
+    assert_output 307
+    run -0 grep -ai '^Connection: close' "$BATS_TEST_TMPDIR/responses"
+}
+
+@test "a data server closes the connection after an OPTIONS with Expect" {
+    request OPTIONS /file 'Content-Length: 5\r\nExpect: 100-continue\r\n'
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output 200
+    run -0 grep -ai '^Connection: close' "$BATS_TEST_TMPDIR/responses"
+}
+
+# The client sends the body at once. The server cannot know it: the body can
+# also be a next request.
+@test "a request in the body of an OPTIONS with Expect does not run" {
+    local body=$'DELETE /victim-expect HTTP/1.1\r\nHost: localhost\r\n\r\n'
+    printf 'x' > "$SERVER_DATA/victim-expect"
+    request OPTIONS /file "Content-Length: ${#body}\r\nExpect: 100-continue\r\n" "$body"
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output 200
+    [[ -f "$SERVER_DATA/victim-expect" ]]
+}
+
+@test "a GET pipelined after a PUT with 100 Continue gets a response" {
+    request PUT /continued 'Content-Length: 5\r\nExpect: 100-continue\r\n' abcde
+    request GET /continued 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'100\n201\n200'
+    assert_equal "$(bodies | tail -n 1)" abcde
+}
+
+# RFC 9112 section 7.1: a chunked body ends with its last chunk. The server
+# cannot skip a chunked body which the method does not read.
+
+@test "a DELETE with a chunked body closes the connection" {
+    local chunk=$'DELETE /victim-delete HTTP/1.1\r\nHost: localhost\r\n\r\n' body
+    printf 'x' > "$SERVER_DATA/removed-chunked"
+    printf 'x' > "$SERVER_DATA/victim-delete"
+    printf -v body '%x\r\n%s\r\n0\r\n\r\n' "${#chunk}" "$chunk"
+    request DELETE /removed-chunked 'Transfer-Encoding: chunked\r\n' "$body"
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output 200
+    run -0 grep -ai '^Connection: close' "$BATS_TEST_TMPDIR/responses"
+    [[ -f "$SERVER_DATA/victim-delete" ]]
+}
+
+@test "a GET pipelined after a chunked PUT gets a response" {
+    request PUT /chunked 'Transfer-Encoding: chunked\r\n' $'5\r\nabcde\r\n0\r\n\r\n'
+    request GET /chunked 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'201\n200'
+    assert_equal "$(bodies | tail -n 1)" abcde
+}
