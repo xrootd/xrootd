@@ -2761,6 +2761,10 @@ void XrdHttpReq::reset() {
 
   TRACE(REQ, " XrdHttpReq request ended.");
 
+  // A PUT which ends before its last write leaves the wait for its data.
+  // The next request must not wait for these bytes.
+  if (prot) prot->ResumeBytes = 0;
+
   //if (xmlbody) xmlFreeDoc(xmlbody);
   readRangeHandler.reset();
   readClosing = false;
