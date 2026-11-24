@@ -2,7 +2,7 @@
 Description=XRootD server daemon (%I)
 Documentation=man:xrootd(8)
 Documentation=https://xrootd.org/docs.html
-After=network-online.target local-fs.target remote-fs.target time-sync.target
+After=network-online.target local-fs.target remote-fs.target time-sync.target cmsd@%i.service
 Wants=network-online.target local-fs.target remote-fs.target time-sync.target
 
 [Service]
@@ -31,6 +31,7 @@ ConfigurationDirectoryMode=0755
 LogsDirectory=xrootd
 LogsDirectoryMode=0750
 RuntimeDirectory=xrootd
+RuntimeDirectoryPreserve=yes
 RuntimeDirectoryMode=0700
 StateDirectory=xrootd
 StateDirectoryMode=0700
