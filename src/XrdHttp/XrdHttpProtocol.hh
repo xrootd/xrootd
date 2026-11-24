@@ -350,6 +350,9 @@ private:
 
   /// The empty lines before the request line of the next request
   int emptyLines;
+
+  /// The size of the request line and of the header lines of the request
+  long long headerBytes;
   
   /// Private SSL context
   SSL *ssl;
@@ -425,6 +428,9 @@ protected:
 
   /// The number of empty lines which the parser ignores before a request line
   static constexpr int maxEmptyLines = 10;
+
+  /// The largest size of the request line and the header lines of a request
+  static constexpr long long maxHeaderBytes = 64 * 1024;
 
   /// Our port
   static int Port;

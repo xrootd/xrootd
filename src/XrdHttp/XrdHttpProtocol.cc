@@ -644,6 +644,17 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
         traceLine = obfuscateAuth(traceLine);
       }
       TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
+
+      // The parser keeps each header line, thus limit their total size. An
+      // empty line before the request line does not count.
+      if (CurrentReq.request != CurrentReq.rtUnset || rc != 2 || tmpline[0] != '\r') {
+        headerBytes += rc;
+        if (headerBytes > maxHeaderBytes) {
+          TRACEI(REQ, " The header of the request is larger than " << maxHeaderBytes << " bytes.");
+          SendSimpleResp(431, NULL, NULL, NULL, 0, false);
+          return -1;
+        }
+      }
       if ((rc == 2) && (tmpline.length() == 2) && (tmpline[0] == '\r') && (tmpline[1] == '\n')) {
         if (CurrentReq.request != CurrentReq.rtUnset) {
           CurrentReq.headerok = true;
@@ -655,6 +666,7 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
           // read the body without a 100 Continue.
           bodyLeft = CurrentReq.chunkedBody() ? 0 : CurrentReq.length;
           continueSent = false;
+          headerBytes = 0;
           break;
         }
         // An empty line before the request line, for example after the body
@@ -2091,6 +2103,7 @@ void XrdHttpProtocol::Reset() {
   closeAfterResponse = false;
   continueSent = false;
   emptyLines = 0;
+  headerBytes = 0;
 
   ResumeBytes = 0;
   Resume = 0;
