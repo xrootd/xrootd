@@ -1449,14 +1449,16 @@ bool XrdHttpProtocol::InputPending() {
 
 /// A chunked body ends only with its last chunk. After Expect: 100-continue,
 /// a client which got no 100 Continue can send the rest of the body or not.
-/// In these cases the parser cannot find the start of the next request.
+/// In these cases the parser cannot find the start of the next request. The
+/// parser also does not skip more than its buffer holds.
 
 bool XrdHttpProtocol::CannotSkipBody() {
   if (!CurrentReq.headerok)
     return false;
 
   return CurrentReq.chunkedBody() ||
-         (CurrentReq.sendcontinue && !continueSent && bodyLeft > 0);
+         (CurrentReq.sendcontinue && !continueSent && bodyLeft > 0) ||
+         bodyLeft > myBuff->bsize;
 }
 
 /******************************************************************************/
