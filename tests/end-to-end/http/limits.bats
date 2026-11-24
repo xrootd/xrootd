@@ -55,3 +55,28 @@ status() {
     run -0 send 'PROPFIND /file HTTP/1.1\r\nHost: x\r\nContent-Length: 2000000\r\n\r\n'
     assert_output --partial ' 413 '
 }
+
+# RFC 9112 section 2.2: a server SHOULD ignore at least one empty line before
+# a request line. Each empty line also keeps the connection active, thus the
+# server accepts only 10 of them.
+
+@test "a request after 10 empty lines gets a response" {
+    run -0 send '\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\nGET /file HTTP/1.1\r\nHost: x\r\n\r\n'
+    assert_output 'HTTP/1.1 200 OK'
+}
+
+@test "a request after 11 empty lines does not run" {
+    run -0 send '\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\nGET /file HTTP/1.1\r\nHost: x\r\n\r\n'
+    assert_output '<server closed the connection without sending a status line>'
+}
+
+# The count starts again at each request
+@test "a pipelined request after 10 empty lines gets a response" {
+    exec 5<> "/dev/tcp/localhost/$SERVER_PORT"
+    printf 'GET /file HTTP/1.1\r\nHost: x\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\nGET /file HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n' >&5
+    # The body of the file has no newline, thus the next status line can
+    # follow it on the same line
+    run -0 grep -ao 'HTTP/1.1 200' <&5
+    exec 5<&-
+    assert_output $'HTTP/1.1 200\nHTTP/1.1 200'
+}
