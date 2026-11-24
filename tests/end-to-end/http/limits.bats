@@ -80,3 +80,39 @@ status() {
     exec 5<&-
     assert_output $'HTTP/1.1 200\nHTTP/1.1 200'
 }
+
+# The server keeps each header line of a request. Without a limit, a request
+# with many header lines uses all the memory of the server. RFC 6585 section 5
+# gives 431 for header fields which are too large.
+
+# headers <count> [extra]: print the format of a GET with <count> header
+# lines of 1000 bytes each, and the extra header lines
+headers() {
+    local pad request="GET /file HTTP/1.1\\r\\nHost: x\\r\\n${2:-}" i
+
+    printf -v pad '%*s' 990 ''
+    for ((i = 0; i < $1; i++)); do
+        request+="X-$i: ${pad// /x}\r\n"
+    done
+    printf '%s' "$request\r\n"
+}
+
+@test "a request with 60 KB of header lines gets a response" {
+    run -0 send "$(headers 60)"
+    assert_output 'HTTP/1.1 200 OK'
+}
+
+@test "a request with 70 KB of header lines gets 431" {
+    run -0 send "$(headers 70)"
+    assert_output --partial ' 431 '
+}
+
+# The count starts again at each request
+@test "two pipelined requests with 60 KB of header lines each get two responses" {
+    exec 5<> "/dev/tcp/localhost/$SERVER_PORT"
+    # shellcheck disable=SC2059 # the format comes from headers
+    printf "$(headers 60)$(headers 60 'Connection: close\r\n')" >&5
+    run -0 grep -ao 'HTTP/1.1 [0-9]*' <&5
+    exec 5<&-
+    assert_output $'HTTP/1.1 200\nHTTP/1.1 200'
+}
