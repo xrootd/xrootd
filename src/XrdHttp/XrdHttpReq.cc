@@ -1574,7 +1574,13 @@ int XrdHttpReq::ProcessHTTPReq() {
           if (length > 0) {
             TRACE(REQ, "Reading request body " << length << " bytes.");
             char *p = 0;
-            // We have to specifically read all the request body
+            // We have to specifically read all the request body, and it must
+            // fit into the buffer
+
+            if (length > prot->myBuff->bsize) {
+              prot->SendSimpleResp(413, NULL, NULL, (char *) "The PROPFIND request body is too large.", 0, false);
+              return -1;
+            }
 
             if (prot->BuffgetData(length, &p, true) < length) {
               prot->SendSimpleResp(501, NULL, NULL, (char *) "Error in getting the PROPFIND request body.", 0, false);

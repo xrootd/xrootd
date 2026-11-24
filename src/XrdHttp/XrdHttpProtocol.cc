@@ -1509,6 +1509,11 @@ int XrdHttpProtocol::BuffFree() {
   
 void XrdHttpProtocol::BuffConsume(int blen) {
 
+  if (blen < 0) {
+    TRACE(REQ, "internal error, BuffConsume(" << blen << ") of a negative length");
+    abort();
+  }
+
   if (blen > myBuff->bsize) {
     TRACE(REQ, "internal error, BuffConsume(" << blen << ") smaller than buffsize");
     abort();
@@ -1545,7 +1550,9 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   int rlen;
 
   TRACE(DEBUG, "BuffgetData: requested " << blen << " bytes");
- 
+
+  if (blen < 0)
+    return -1;
 
   if (wait) {
     // If there's not enough data in the buffer then wait on the socket until it
