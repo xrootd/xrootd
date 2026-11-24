@@ -649,7 +649,7 @@ long long ResourceMonitor::get_file_usage_bytes_to_remove(const DataFsPurgeshot 
       // removed too much
       if (newval < lowval)
       {
-         return lowval - val;
+         return val - lowval;
       }
 
       // removed too little
