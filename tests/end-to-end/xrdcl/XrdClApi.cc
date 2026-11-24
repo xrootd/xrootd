@@ -1300,6 +1300,39 @@ int PollerTransfer( const std::vector<std::string> &args )
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Exit
+//------------------------------------------------------------------------------
+
+// close-at-exit <url> [late]: open the file, and close it in an exit handler
+// of the program. The program registers the handler before its first request,
+// or after it with "late". Prints "closed" after the close.
+int CloseAtExit( const std::vector<std::string> &args )
+{
+  if( args.empty() || args.size() > 2 || ( args.size() == 2 && args[1] != "late" ) )
+    Usage( "close-at-exit <url> [late]" );
+
+  // Make the file before the registration of the handler: the destructor of
+  // the file then runs after the handler
+  static File file;
+
+  auto close = []
+  {
+    XRootDStatus st = file.Close();
+    if( !st.IsOK() )
+    {
+      std::cerr << "close: " << st.ToStr() << std::endl;
+      _exit( ExitError );
+    }
+    std::cout << "closed" << std::endl;
+  };
+
+  if( args.size() == 1 ) atexit( close );
+  Check( file.Open( args[0], OpenFlags::Read ), "open" );
+  if( args.size() == 2 ) atexit( close );
+  return 0;
+}
+
 const std::map<std::string, std::function<int( const std::vector<std::string>& )>> Commands =
 {
   { "read",       Read            },
@@ -1323,6 +1356,7 @@ const std::map<std::string, std::function<int( const std::vector<std::string>& )
   { "threads",    Threads         },
   { "fork",       Fork            },
   { "open-users", OpenUsers       },
+  { "close-at-exit", CloseAtExit  },
   { "socket",     SocketHandShake },
   { "poller",     PollerHandShake },
   { "socket-transfer", SocketTransfer },

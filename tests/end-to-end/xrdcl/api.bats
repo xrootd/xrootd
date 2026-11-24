@@ -246,3 +246,25 @@ skip_unsupported() {
         run -0 xrdcl-api open-users "localhost:$SERVER_PORT" /missing 20 4
     assert_equal "$(grep -c '^3011$' <<< "$output")" 20
 }
+
+@test "File::Close in an exit handler which runs before the one of the client closes the file" {
+    # the program registers its handler after the start of the client
+    # threads, thus its handler runs first
+    run -0 xrdcl-api close-at-exit "$SERVER_URL/$FILE" late
+    assert_output 'closed'
+}
+
+@test "File::Close in an exit handler which runs after the one of the client fails at once" {
+    # the program registers its handler before the start of the client
+    # threads, thus its handler runs after their stop, and no response comes
+    run -1 xrdcl-api close-at-exit "$SERVER_URL/$FILE"
+    assert_output --partial 'the client threads stopped at exit'
+}
+
+@test "File::Close of a local file in an exit handler which runs after the one of the client fails at once" {
+    # a job of the job manager gives the response of a local request, and
+    # the job manager stopped
+    echo content > "$BATS_TEST_TMPDIR/local"
+    run -1 xrdcl-api close-at-exit "file://$BATS_TEST_TMPDIR/local"
+    assert_output --partial 'the client threads stopped at exit'
+}
