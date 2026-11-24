@@ -649,10 +649,10 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
           TRACE(DEBUG, " rc:" << rc << " detected header end.");
           // A method can end before it reads all of the body, for example on
           // an error or a redirect. Count the body, so that the next request
-          // does not start inside it. The size of a chunked body is unknown,
-          // and after Expect: 100-continue the client sends the body only if
-          // it gets 100 Continue.
-          bodyLeft = (CurrentReq.chunkedBody() || CurrentReq.sendcontinue) ? 0 : CurrentReq.length;
+          // does not start inside it. The size of a chunked body is unknown.
+          // After Expect: 100-continue, the count also shows if the method
+          // read the body without a 100 Continue.
+          bodyLeft = CurrentReq.chunkedBody() ? 0 : CurrentReq.length;
           continueSent = false;
           break;
         }
@@ -1448,15 +1448,15 @@ bool XrdHttpProtocol::InputPending() {
 }
 
 /// A chunked body ends only with its last chunk. After Expect: 100-continue,
-/// a client which got no 100 Continue can send the body or not. In these
-/// cases the parser cannot find the start of the next request.
+/// a client which got no 100 Continue can send the rest of the body or not.
+/// In these cases the parser cannot find the start of the next request.
 
-bool XrdHttpProtocol::BodyUnknown() {
+bool XrdHttpProtocol::CannotSkipBody() {
   if (!CurrentReq.headerok)
     return false;
 
   return CurrentReq.chunkedBody() ||
-         (CurrentReq.sendcontinue && !continueSent && CurrentReq.length > 0);
+         (CurrentReq.sendcontinue && !continueSent && bodyLeft > 0);
 }
 
 /******************************************************************************/
@@ -1633,16 +1633,13 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc,
   // RFC 9110 section 10.1.1: a server which sends a final response before
   // it reads all of the body tells if the connection closes. It must close,
   // if it cannot skip the rest of the body.
-  if (code >= 200 && BodyUnknown())
+  if (code >= 200 && CannotSkipBody())
     keepalive = false;
 
-  // After 100 Continue, the client sends the body: count it, so that the
-  // parser can skip what the method does not read
-  if (code == 100 && CurrentReq.headerok && !continueSent) {
+  // After 100 Continue, the client sends the body, thus the parser can skip
+  // what the method does not read
+  if (code == 100 && CurrentReq.headerok)
     continueSent = true;
-    if (!CurrentReq.chunkedBody())
-      bodyLeft = CurrentReq.length;
-  }
 
   // A keepalive 100 carries no Connection header. Close there makes
   // the client drop the socket after the final response.
