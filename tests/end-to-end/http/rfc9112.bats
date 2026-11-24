@@ -151,7 +151,6 @@ connection_header() {
 }
 
 @test "RFC 9112 9.6: the server closes the connection after a PROPFIND with close over HTTPS" {
-    require_commands openssl
     request PROPFIND /file 'Depth: 0\r\nConnection: close\r\n'
     run -0 exchange "$SERVER_PORT" tls
     assert_line --index 0 207
@@ -159,7 +158,6 @@ connection_header() {
 }
 
 @test "RFC 9112 9.6: the server closes the connection after a GET with close over HTTPS" {
-    require_commands openssl
     request GET /file 'Connection: close\r\n'
     run -0 exchange "$SERVER_PORT" tls
     assert_output $'200\nclosed'

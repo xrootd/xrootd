@@ -21,10 +21,17 @@ setup_file() {
     start_server rdr http.cfg pipeline-rdr.cfg
 
     printf '0123456789' > "$SERVER_DATA/file"
+    mkdir "$SERVER_DATA/dir"
+    printf 'x' > "$SERVER_DATA/dir/entry"
 }
 
 setup() {
     requests=
+}
+
+# Stop the servers which a test starts
+teardown() {
+    stop_servers
 }
 
 teardown_file() {
@@ -90,6 +97,14 @@ pipeline() {
     grep -ao 'HTTP/1\.1 [0-9]\{3\}' "$responses" | cut -d' ' -f2 || true
 }
 
+# Succeed if the last response of the last pipeline ends with the content of
+# /file. The body of a response can have status lines too, for example a
+# PROPFIND, thus the status codes alone do not show that the last request ran.
+# _receive adds a newline at the end, and the TLS client does not.
+last_body_is_file() {
+    assert_equal "$(tr -d '\n' < "$BATS_TEST_TMPDIR/responses" | tail -c 10)" 0123456789
+}
+
 # Print the body of each response of the last pipeline, one line for each
 # body. A body ends where the status line of the next response starts. A body
 # without data, such as the body of a HEAD response, gives an empty line.
@@ -144,6 +159,55 @@ bodies() {
     request GET /file 'Connection: close\r\n'
     run -0 pipeline "$SERVER_PORT"
     assert_output $'200\n200'
+}
+
+# The listing of a directory and a GET of more than one range end without a
+# request to the bridge, thus the server must look for the next request.
+
+@test "a GET pipelined after a GET of a directory gets a response" {
+    request GET /dir/
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'200\n200'
+    last_body_is_file
+}
+
+@test "a GET pipelined after a GET of two ranges gets a response" {
+    request GET /file 'Range: bytes=0-1,4-5\r\n'
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    assert_output $'206\n200'
+    last_body_is_file
+}
+
+# An extension handler serves the request without the bridge. The token
+# endpoint of the macaroon handler reads the form of the request, then
+# refuses a client without a certificate with 400, and a request without a
+# body with 415.
+
+@test "a GET pipelined after a request to an extension handler gets a response" {
+    local form=grant_type=client_credentials
+
+    require_plugin libXrdMacaroons
+    start_server mac http.cfg tls.cfg macaroons.cfg
+    printf '0123456789' > "$MAC_DATA/file"
+    request POST /.oauth2/token \
+        "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${#form}\r\n" "$form"
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$MAC_PORT" tls
+    assert_output $'400\n200'
+    last_body_is_file
+}
+
+@test "a GET pipelined after a request without a body to an extension handler gets a response" {
+    require_plugin libXrdMacaroons
+    start_server mac http.cfg tls.cfg macaroons.cfg
+    printf '0123456789' > "$MAC_DATA/file"
+    request POST /.oauth2/token 'Content-Length: 0\r\n'
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$MAC_PORT" tls
+    assert_output $'415\n200'
+    last_body_is_file
 }
 
 # The server answers OPTIONS and DELETE without a read of the body, and must
@@ -247,9 +311,8 @@ bodies() {
     requests+=$propfind$body
     request GET /file 'Connection: close\r\n'
     run -0 pipeline "$SERVER_PORT"
-    # The body of the 207 response has status lines too
     assert_line --index 1046 '207'
-    assert_equal "${lines[${#lines[@]} - 1]}" '200'
+    last_body_is_file
 }
 
 # A read of the server can take only a part of a TLS record. The rest waits
@@ -257,7 +320,6 @@ bodies() {
 @test "a PUT pipelined after 1 MB of requests over HTTPS stores its body" {
     local body
 
-    require_commands openssl
     large_requests 1040
     body=$(seq 20000 | tr -d '\n' | head -c 65536)
     request PUT /large-tls 'Content-Length: 65536\r\n' "$body"
@@ -274,19 +336,16 @@ bodies() {
 @test "a PROPFIND over HTTPS gets a body in more than one TLS record" {
     local body pad
 
-    require_commands openssl
     printf -v pad '%*s' 40000 ''
     body="<?xml version=\"1.0\"?><propfind xmlns=\"DAV:\">$pad<allprop/></propfind>"
     request PROPFIND /file "Depth: 0\r\nContent-Length: ${#body}\r\n" "$body"
     request GET /file 'Connection: close\r\n'
     run -0 pipeline "$SERVER_PORT" tls
-    # The body of the 207 response has status lines too
     assert_line --index 0 '207'
-    assert_equal "${lines[${#lines[@]} - 1]}" '200'
+    last_body_is_file
 }
 
 @test "two pipelined GET requests get two responses over HTTPS" {
-    require_commands openssl
     request GET /file 'Range: bytes=0-4\r\n'
     request GET /file 'Range: bytes=5-9\r\nConnection: close\r\n'
     run -0 pipeline "$SERVER_PORT" tls
