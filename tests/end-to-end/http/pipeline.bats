@@ -314,6 +314,19 @@ bodies() {
 }
 
 # The redirector answered the second GET with 416
+# RFC 9110 section 10.1.1: the server does not skip a body larger than its
+# buffer (1 MB), thus the redirect must say that the connection closes
+@test "a redirector closes the connection after a PUT larger than the buffer" {
+    local body
+
+    printf -v body '%*s' 2000000 ''
+    request PUT /new 'Content-Length: 2000000\r\n' "$body"
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$RDR_PORT"
+    assert_output --regexp '^30[27]$'
+    run -0 grep -ai '^Connection: close' "$BATS_TEST_TMPDIR/responses"
+}
+
 @test "a redirector redirects each GET with a range of a pipeline" {
     request GET /file 'Range: bytes=0-4\r\n'
     request GET /file 'Range: bytes=5-9\r\n'
@@ -360,6 +373,19 @@ bodies() {
     run -0 pipeline "$SERVER_PORT"
     assert_output 200
     [[ -f "$SERVER_DATA/victim-expect" ]]
+}
+
+# Only a PUT sends 100 Continue. A PROPFIND reads all of its body without it,
+# thus the server can find the next request.
+@test "a GET pipelined after a PROPFIND with Expect gets a response" {
+    local body='<?xml version="1.0"?><propfind xmlns="DAV:"><allprop/></propfind>'
+    request PROPFIND /file "Depth: 0\r\nContent-Length: ${#body}\r\nExpect: 100-continue\r\n" "$body"
+    request GET /file 'Connection: close\r\n'
+    run -0 pipeline "$SERVER_PORT"
+    # The body of the 207 response has status lines too, but not at the start
+    # of a line
+    run -0 bash -c "grep -a '^HTTP/1\.1 ' '$BATS_TEST_TMPDIR/responses' | cut -d' ' -f2"
+    assert_output $'207\n200'
 }
 
 @test "a GET pipelined after a PUT with 100 Continue gets a response" {
