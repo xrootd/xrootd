@@ -10,6 +10,7 @@ add_unit_tests(
     XrdPfcDirState.cc
     XrdPfcInfo.cc
     XrdPfcPathParseTools.cc
+    XrdPfcResourceMonitor.cc
     ${PROJECT_SOURCE_DIR}/src/XrdPfc/XrdPfcInfo.cc
     ${PROJECT_SOURCE_DIR}/src/XrdPfc/XrdPfcDirState.cc
   LIBRARIES
