@@ -23,16 +23,35 @@
 #-------------------------------------------------------------------------------
 from __future__ import absolute_import, division, print_function
 
+import weakref
+
 from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, VectorReadInfo
 from XRootD.client.utils import CallbackWrapper
+
+# All File objects which exist, so that the exit handler in finalize.py can
+# close the open files. The references are weak, so that this dictionary does
+# not keep a File object alive. The key is the identity of the object: a
+# WeakSet would call the __hash__ of a subclass, which can be None.
+
+_files = weakref.WeakValueDictionary()
 
 class File(object):
   """Interact with an ``xrootd`` server to perform file-based operations such
   as reading, writing, vector reading, etc."""
 
+  def __new__(cls, *args, **kwargs):
+    # Register in __new__: copy.copy() calls __new__ but not __init__, and
+    # the copy shares the open file. The default protocol of copy.copy()
+    # keeps the arguments of __new__ and the slots of a subclass.
+    self = super(File, cls).__new__(cls)
+    _files[id(self)] = self
+    return self
+
   def __init__(self):
     self.__file = client.File()
+    # also for a subclass whose __new__ does not call File.__new__
+    _files[id(self)] = self
 
   def __enter__(self):
     return self

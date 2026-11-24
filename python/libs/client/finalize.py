@@ -23,11 +23,10 @@
 #------------------------------------------------------------------------------
 from __future__ import absolute_import
 
-import gc
 import atexit
 
 from pyxrootd import client
-from .file import File
+from .file import _files
 
 
 @atexit.register
@@ -37,15 +36,21 @@ def finalize():
         no Python APIs are called after the Python Interpreter gets
         finalized.
      """
-     # Ensure there are no files left open as calling their destructor will
-     # cause "close" commands to be sent.
-     # If this isn't done, there will be no running threads to process requests
-     # after this function returns so the interpreter will deadlock.
-     for obj in gc.get_objects():
-        try:
-            if isinstance(obj, File) and obj.is_open():
-                obj.close()
-        except ReferenceError:
-            pass
+     # Close the files which are still open. After the threads stop, the
+     # destructor of a file does not send a close, and the server then
+     # handles the file as the file of a client which failed. For example,
+     # it removes a file which was opened with OpenFlags.POSC. Use only our
+     # own File objects: an access to other objects, such as all objects of
+     # the garbage collector, can run the code of other packages (#2910).
+     # Before Python 3.14, values() reads the dictionary one step at a time,
+     # and a File made by a callback thread then raises a RuntimeError.
+     # valuerefs() copies the dictionary in one step.
+     # A File whose __init__ did not run has no native file.
+     for ref in _files.valuerefs():
+        f = ref()
+        if f is None or getattr(f, '_File__file', None) is None:
+            continue
+        if f.is_open():
+            f.close()
 
      client.__XrdCl_Stop_Threads()
