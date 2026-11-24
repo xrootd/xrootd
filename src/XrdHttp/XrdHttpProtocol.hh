@@ -152,9 +152,9 @@ private:
   int TLSPending();
   /// True if the buffer or the TLS layer has data from the client
   bool InputPending();
-  /// True if the client can still send a body of the current request, and
-  /// the parser cannot know its size
-  bool BodyUnknown();
+  /// True if the parser cannot skip the rest of the body of the current
+  /// request, thus the connection must close after the response
+  bool CannotSkipBody();
 
   /// The resume function
   int (XrdHttpProtocol::*Resume)();
