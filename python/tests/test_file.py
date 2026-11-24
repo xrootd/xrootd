@@ -35,6 +35,16 @@ def test_write_sync():
   assert len(response) == len(buffer * 2) - 2
   f.close()
 
+def test_subclass_without_hash():
+  # The bindings record each File object at its creation. A subclass which
+  # defines __eq__ and not __hash__ has no hash.
+  class EqualFile(client.File):
+    def __eq__(self, other):
+      return self is other
+
+  f = EqualFile()
+  assert not f.is_open()
+
 def test_write_async():
   f = client.File()
   status, __ = f.open(smallfile, OpenFlags.DELETE, open_mode)
