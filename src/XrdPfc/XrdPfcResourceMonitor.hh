@@ -284,6 +284,16 @@ public:
    void update_vs_and_file_usage_info();
    void perform_purge_check(bool purge_cold_files, int tl);
 
+   //! Bytes to remove from the file usage `usage`, starting from `to_remove` and
+   //! limited so that the usage left is between `low` and `high`.
+   static long long clamp_bytes_to_remove(long long usage, long long to_remove, long long low, long long high) {
+      if (usage - to_remove < low)
+         return usage - low;
+      if (usage - to_remove > high)
+         return usage - high;
+      return to_remove;
+   }
+
    void perform_purge_task(DataFsPurgeshot &ps);
    void perform_purge_task_cleanup();
 };

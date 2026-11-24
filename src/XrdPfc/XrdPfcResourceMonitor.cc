@@ -643,22 +643,7 @@ long long ResourceMonitor::get_file_usage_bytes_to_remove(const DataFsPurgeshot 
    // helper lambda function
    auto clamp = [&x, &bytes_to_remove](long long lowval, long long highval)
    {
-      long long val = x;
-      long long newval = val - bytes_to_remove;
-
-      // removed too much
-      if (newval < lowval)
-      {
-         return val - lowval;
-      }
-
-      // removed too little
-      if (newval > highval)
-      {
-         return val - highval;
-      }
-      // keep the original value
-      return bytes_to_remove;
+      return clamp_bytes_to_remove(x, bytes_to_remove, lowval, highval);
    };
 
    // under file quota, nothing to do
