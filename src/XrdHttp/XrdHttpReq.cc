@@ -1333,7 +1333,9 @@ int XrdHttpReq::ProcessHTTPReq() {
 
       } else {
 
-        if (m_transfer_encoding_chunked) {
+        // X-Transfer-Status also sets m_transfer_encoding_chunked, but it asks
+        // only for a chunked response
+        if (m_chunked_body) {
           if (m_current_chunk_size == m_current_chunk_offset) {
             // Chunk has been consumed; we now must process the CRLF.
             // Note that we don't support trailer headers.
@@ -2352,7 +2354,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           writtenbytes += l;
 
           // Update the chunk offset
-          if (m_transfer_encoding_chunked) {
+          if (m_chunked_body) {
             m_current_chunk_offset += l;
           }
 
