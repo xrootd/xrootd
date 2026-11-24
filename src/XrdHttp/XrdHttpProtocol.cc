@@ -49,6 +49,7 @@
 #include "XrdHttpCors/XrdHttpCors.hh"
 
 #include <charconv>
+#include <chrono>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <vector>
@@ -1564,8 +1565,15 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
 
   if (wait) {
     // If there's not enough data in the buffer then wait on the socket until it
-    // comes. A read over TLS returns at most one record, thus read again.
+    // comes. A read over TLS returns at most one record, thus read again, but
+    // not longer than readWait in total: a client which sends small records
+    // must not keep the thread.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(readWait);
     while (blen > BuffUsed()) {
+      if (std::chrono::steady_clock::now() > deadline) {
+        TRACE(REQ, "BuffgetData: timeout with " << blen - BuffUsed() << " bytes to read");
+        return 0;
+      }
       TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
       if ( getDataOneShot(blen - BuffUsed(), true) )
         // The wanted data could not be read. Either timeout of connection closed
