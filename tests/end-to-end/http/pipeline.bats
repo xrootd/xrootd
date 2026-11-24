@@ -176,6 +176,18 @@ bodies() {
     [[ -f "$SERVER_DATA/victim-status" ]]
 }
 
+# The body has the form of a chunk size. Read as a chunked body, the PUT
+# takes 4096 bytes, also the next request on the connection. Behind a proxy
+# which frames by Content-Length, that can be the request of another user.
+@test "a PUT with X-Transfer-Status reads its body by Content-Length" {
+    request PUT /xts 'Content-Length: 6\r\nX-Transfer-Status: true\r\n' $'1000\r\n'
+    request PUT /xts-next 'Content-Length: 4\r\nConnection: close\r\n' WWWW
+    run -0 pipeline "$SERVER_PORT"
+    assert_output --regexp $'^20[01]\n20[01]$'
+    assert_equal "$(od -An -c "$SERVER_DATA/xts" | tr -s ' ')" ' 1 0 0 0 \r \n'
+    assert_equal "$(cat "$SERVER_DATA/xts-next")" WWWW
+}
+
 # RFC 9112 section 2.2: a server SHOULD ignore an empty line before a request
 @test "an empty line before a pipelined request is ignored" {
     request GET /file
