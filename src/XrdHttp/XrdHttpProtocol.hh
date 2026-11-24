@@ -347,6 +347,9 @@ private:
 
   /// The server sent 100 Continue for the current request
   bool continueSent;
+
+  /// The empty lines before the request line of the next request
+  int emptyLines;
   
   /// Private SSL context
   SSL *ssl;
@@ -419,6 +422,9 @@ protected:
 
   /// Timeout for reading data
   static int readWait;
+
+  /// The number of empty lines which the parser ignores before a request line
+  static constexpr int maxEmptyLines = 10;
 
   /// Our port
   static int Port;

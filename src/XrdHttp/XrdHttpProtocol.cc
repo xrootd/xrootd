@@ -657,13 +657,19 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
           break;
         }
         // An empty line before the request line, for example after the body
-        // of the last request. RFC 9112 §2.2: a server SHOULD ignore it.
+        // of the last request. RFC 9112 §2.2: a server SHOULD ignore it. Each
+        // line keeps the connection active, thus accept only a few.
+        if (++emptyLines > maxEmptyLines) {
+          TRACEI(REQ, " More than " << maxEmptyLines << " empty lines before a request line.");
+          return -1;
+        }
         continue;
       }
 
 
       if (CurrentReq.request == CurrentReq.rtUnset) {
         TRACE(DEBUG, " Parsing first line: " << traceLine.c_str());
+        emptyLines = 0;
         int result = CurrentReq.parseFirstLine((char *)tmpline.c_str(), tmpline.length());
         if (result < 0) {
           TRACE(DEBUG, " Parsing of first line failed with " << result);
@@ -2076,6 +2082,7 @@ void XrdHttpProtocol::Reset() {
   pipelineRecall = false;
   closeAfterResponse = false;
   continueSent = false;
+  emptyLines = 0;
 
   ResumeBytes = 0;
   Resume = 0;
