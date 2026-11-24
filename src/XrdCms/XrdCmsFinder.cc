@@ -71,6 +71,7 @@
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -1358,8 +1359,11 @@ void XrdCmsFinderTRG::Hookup()
 // Wait for the cmsd path to be created
 //
    while(stat(CMSPath, &buf))
-        {if (!tries--)
-            {Say.Emsg("Finder", "Waiting for cms path", CMSPath); tries=6;}
+        {int rc = errno;
+         if (!tries--)
+            {Say.Emsg("Finder", "Waiting for cms path", CMSPath, XrdSysE2T(rc));
+             tries=6;
+            }
          XrdSysTimer::Wait(10*1000);
         }
 
