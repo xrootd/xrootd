@@ -1003,8 +1003,11 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
                    }
            else if (Sel.Vec.bf) pmask = smask = 0;
            else if (Sel.Vec.hf)
-                   {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
-                    if (!(Sel.Opts & XrdCmsSelect::MWFiles))
+                   // A new file goes to a server which has the path. The
+                   // cache can be older than a remove, and a mkdir with
+                   // MakePath of a directory which exists succeeds, thus the
+                   // server, not the cache, tells whether the path exists.
+                   {if (!(Sel.Opts & XrdCmsSelect::MWFiles))
                        {if (!(Sel.Opts & XrdCmsSelect::isMeta)
                         &&  maxBits(Sel.Vec.hf,2))      return SelFail(Sel,eDups);
                         if ((Sel.Vec.hf & pinfo.rwvec)
