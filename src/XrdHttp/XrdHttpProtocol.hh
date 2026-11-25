@@ -192,10 +192,12 @@ private:
   // @return 0 if successful, otherwise !0
   int HandleGridMap(XrdLink* lp, const char * eechash);
 
-  /// Get up to blen bytes from the connection. Put them into mybuff.
-  /// This primitive, for the way it is used, is not supposed to block. It
-  /// waits up to waitms ms for data: over plain HTTP only with wait, and over
-  /// TLS for all the reads of the TLS record.
+  /// Get up to blen bytes from the connection, and put them into the buffer.
+  /// Over plain HTTP without wait, it reads once, and blocks until the socket
+  /// has data: call it only after an event of the socket. With wait, it waits
+  /// up to waitms ms for data. Over TLS, the socket reads of one SSL_read()
+  /// wait up to waitms ms in total, and each stall at most the receive
+  /// timeout of the socket.
   int getDataOneShot(int blen, bool wait=false, int waitms=readWait);
 
   /// Create a new BIO object from an XrdLink.  Returns NULL on failure.

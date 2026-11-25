@@ -304,6 +304,9 @@ char *XrdHttpProtocol::GetClientIPStr() {
 
 namespace {
 
+// The receive and send timeout of the socket of a TLS link, in seconds
+constexpr int tlsSocketTimeout = 10;
+
 // OpenSSL reads from the socket until it has a whole TLS record, and each
 // read can wait for the receive timeout of the socket. A client which sends
 // a record slowly can thus keep one SSL_read() for a long time. The BIO read
@@ -338,12 +341,16 @@ int PollForData(int fd, std::chrono::steady_clock::time_point deadline) {
 }
 
 // Wait until the socket has data, but not after the time limit of the
-// thread. Return false on a timeout or an error.
+// thread. Also wait at most for the receive timeout of the socket, as a
+// recv() which blocks would: a client which stops in a record then keeps
+// this thread for that time, and not for all of the time limit. Return false
+// on a timeout or an error.
 bool WaitForTlsData(int fd) {
   if (!tlsReadDeadline)
     return true;
 
-  const int retc = PollForData(fd, *tlsReadDeadline);
+  const auto stall = std::chrono::steady_clock::now() + std::chrono::seconds(tlsSocketTimeout);
+  const int retc = PollForData(fd, std::min(*tlsReadDeadline, stall));
   if (retc == 0)
     errno = ETIMEDOUT;
   return retc > 0;
@@ -597,7 +604,7 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
 
       //SSL_set_fd(ssl, Link->FDnum());
       struct timeval tv;
-      tv.tv_sec = 10;
+      tv.tv_sec = tlsSocketTimeout;
       tv.tv_usec = 0;
       setsockopt(Link->FDnum(), SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
       setsockopt(Link->FDnum(), SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
@@ -1496,6 +1503,11 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait, int waitms) {
     if (rlen <= 0) {
       Link->setEtext("link SSL read error");
       ERR_print_errors(sslbio_err);
+      // SSL_shutdown() must not run after a fatal error. It would read the
+      // rest of the record, and wait for the socket again.
+      const int err = SSL_get_error(ssl, rlen);
+      if (err == SSL_ERROR_SYSCALL || err == SSL_ERROR_SSL)
+        SSL_set_quiet_shutdown(ssl, 1);
       return -1;
     }
 
