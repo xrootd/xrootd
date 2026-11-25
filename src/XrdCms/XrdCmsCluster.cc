@@ -1841,9 +1841,11 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
 
 XrdCmsNode *XrdCmsCluster::SelbyLoadR(SMask_t mask, XrdCmsSelector &selR)
 {
-  static std::random_device rand_dev;
-  static std::default_random_engine generator(rand_dev());
+  // Several selections run at the same time, as the caller holds STMutex
+  // only as a read lock. Thus, the weights and the generator are not shared.
+  static thread_local std::default_random_engine generator(std::random_device{}());
 
+  int NodeWeight[STMax];
   XrdCmsNode *np = nullptr, *sp = nullptr;
   bool reqSS = (selR.needSpace & XrdCmsNode::allowsSS) != 0;
 
