@@ -714,9 +714,14 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
       }
       TRACE(DEBUG, " rc:" << rc << " got hdr line: " << traceLine);
 
+      // A NUL byte ends the copy of the line, thus check the length before
+      // the bytes. An index past the end makes XrdOucString call abort().
+      const bool emptyLine = rc == 2 && tmpline.length() == 2 &&
+                             tmpline[0] == '\r' && tmpline[1] == '\n';
+
       // The parser keeps each header line, thus limit their total size. An
       // empty line before the request line does not count.
-      if (CurrentReq.request != CurrentReq.rtUnset || rc != 2 || tmpline[0] != '\r') {
+      if (CurrentReq.request != CurrentReq.rtUnset || !emptyLine) {
         headerBytes += rc;
         if (headerBytes > maxHeaderBytes) {
           TRACEI(REQ, " The header of the request is larger than " << maxHeaderBytes << " bytes.");
@@ -724,7 +729,7 @@ int XrdHttpProtocol::ProcessRequest(XrdLink *lp)
           return -1;
         }
       }
-      if ((rc == 2) && (tmpline.length() == 2) && (tmpline[0] == '\r') && (tmpline[1] == '\n')) {
+      if (emptyLine) {
         if (CurrentReq.request != CurrentReq.rtUnset) {
           CurrentReq.headerok = true;
           TRACE(DEBUG, " rc:" << rc << " detected header end.");
