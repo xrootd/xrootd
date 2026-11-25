@@ -532,13 +532,12 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
   // The request waits for the bridge, and it can be the last step: then the
   // next request must not wait for data from the socket. Ask the bridge to call
-  // us again, which the bridge does only if a bridge request runs. A write
-  // takes its data from the buffer, thus that data is no next request. After
-  // an error, do not look at the buffer: it can be missing.
+  // us again, which the bridge does only if a bridge request runs. The body is
+  // no next request: bodyLeft counts the rest of a body of known size, and a
+  // chunked body takes all of the buffer until its last chunk. After an
+  // error, do not look at the buffer: it can be missing.
   if (rc > 0 && Bridge && CurrentReq.request != XrdHttpReq::rtUnset) {
-    int unread = BuffUsed();
-    if (CurrentReq.xrdreq.header.requestid == htons(kXR_write))
-      unread -= ntohl(CurrentReq.xrdreq.write.dlen);
+    const long long unread = CurrentReq.chunkedBody() ? 0 : BuffUsed() - bodyLeft;
 
     if (unread > 0 || TLSPending() > 0) {
       pipelineRecall = true;
