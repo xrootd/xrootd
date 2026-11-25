@@ -10,6 +10,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <atomic>
+#include <ctime>
 #include <list>
 #include <set>
 #include <string>
@@ -134,6 +135,7 @@ class ResourceMonitor
       const std::string &f_lfn;
       XrdSysCondVar     &f_cond;
       bool              &f_checked;
+      time_t             f_queued;
    };
 
    // Top-level directories the traversal does not enter, so they have no DirState.
@@ -152,6 +154,12 @@ class ResourceMonitor
    std::list<LfnCondRecord> m_dir_scan_open_requests;
    int                      m_dir_scan_check_counter = 0;
    std::atomic<bool>        m_dir_scan_in_progress {true};  //!< written under m_dir_scan_mutex
+   time_t                   m_dir_scan_last_wait_report = 0; //!< under m_dir_scan_mutex
+   int                      m_dir_scan_n_released = 0;       //!< opens released by the scan, scan thread only
+   time_t                   m_dir_scan_max_wait   = 0;       //!< the longest wait of those, scan thread only
+
+   //! Waiting opens wake up this often, and report at most this often [s].
+   static constexpr int     s_dir_scan_wait_report_interval = 60;
 
    //! cinfo mtime cannot tell open from close, so both get it.
    static void seed_last_times_from_cinfo(DirUsage &u, const struct stat &cinfo_stat) {
@@ -160,6 +168,8 @@ class ResourceMonitor
    }
 
    void process_inter_dir_scan_open_requests(FsTraversal &fst);
+   void count_released_open(const LfnCondRecord &lcr);
+   void report_dir_scan_wait();
    void cross_check_or_process_oob_lfn(const std::string &lfn, FsTraversal &fst);
    long long get_file_usage_bytes_to_remove(const DataFsPurgeshot &ps, long long previous_file_usage, int logLeve);
 

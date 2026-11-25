@@ -55,15 +55,42 @@ void ResourceMonitor::CrossCheckIfScanIsInProgress(const std::string &lfn, XrdSy
    m_dir_scan_mutex.Lock();
    if (m_dir_scan_in_progress) {
       bool dir_checked = false;
-      m_dir_scan_open_requests.push_back({lfn, cond, dir_checked});
+      m_dir_scan_open_requests.push_back({lfn, cond, dir_checked, time(0)});
       cond.Lock();
       m_dir_scan_mutex.UnLock();
-      while ( ! dir_checked)
-         cond.Wait();
+      // Wake up to report a long wait. dir_checked is set under cond, so no signal is lost.
+      while ( ! dir_checked) {
+         if (cond.Wait(s_dir_scan_wait_report_interval) && ! dir_checked) {
+            cond.UnLock();
+            report_dir_scan_wait();
+            cond.Lock();
+         }
+      }
       cond.UnLock();
    } else {
       m_dir_scan_mutex.UnLock();
    }
+}
+
+void ResourceMonitor::report_dir_scan_wait()
+{
+   // At most one report per interval, from the waiting open that times out first.
+   // The end of the scan pops the queue without the mutex, so read it only before.
+   XrdSysMutexHelper _lock(m_dir_scan_mutex);
+   const time_t now = time(0);
+   if ( ! m_dir_scan_in_progress || m_dir_scan_open_requests.empty() ||
+        now - m_dir_scan_last_wait_report < s_dir_scan_wait_report_interval)
+      return;
+   m_dir_scan_last_wait_report = now;
+   TRACE(Warning, "CrossCheckIfScanIsInProgress " << m_dir_scan_open_requests.size()
+         << " file opens are waiting for the initial scan of their directories, the oldest for "
+         << now - m_dir_scan_open_requests.front().f_queued << "s");
+}
+
+void ResourceMonitor::count_released_open(const LfnCondRecord &lcr)
+{
+   ++m_dir_scan_n_released;
+   m_dir_scan_max_wait = std::max(m_dir_scan_max_wait, time(0) - lcr.f_queued);
 }
 
 void ResourceMonitor::process_inter_dir_scan_open_requests(FsTraversal &fst)
@@ -75,6 +102,7 @@ void ResourceMonitor::process_inter_dir_scan_open_requests(FsTraversal &fst)
       m_dir_scan_mutex.UnLock();
 
       cross_check_or_process_oob_lfn(lcr.f_lfn, fst);
+      count_released_open(lcr);
       lcr.f_cond.Lock();
       lcr.f_checked = true;
       lcr.f_cond.Signal();
@@ -213,6 +241,7 @@ bool ResourceMonitor::perform_initial_scan()
    while ( ! m_dir_scan_open_requests.empty())
    {
       LfnCondRecord &lcr = m_dir_scan_open_requests.front();
+      count_released_open(lcr);
       lcr.f_cond.Lock();
       lcr.f_checked = true;
       lcr.f_cond.Signal();
@@ -899,6 +928,9 @@ void ResourceMonitor::main_thread_function()
 
       time_t is_duration = time(0) - is_start;
       TRACE(Info, tpfx << "Initial directory scan complete, duration=" << is_duration <<"s");
+      if (m_dir_scan_n_released > 0)
+         TRACE(Info, tpfx << m_dir_scan_n_released << " file opens waited for the initial scan of their directories, the longest for "
+               << m_dir_scan_max_wait << "s");
 
       // run first process queues
       int n_proc_is = process_queues();
