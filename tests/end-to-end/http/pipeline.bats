@@ -50,11 +50,13 @@ request() {
 
 # Print what the server sends on the connection of descriptor 5, until it
 # closes the connection, or sends nothing for 10 s. BATS uses the descriptors
-# 3 and 4, and macOS has no timeout(1), thus read -t.
+# 3 and 4, and macOS has no timeout(1), thus read -t. A server which closes
+# while the client still sends makes the TCP stack reset the connection, after
+# the responses. The read then fails, which also ends the responses.
 _receive() {
     local line=
 
-    while IFS= read -r -t 10 line <&5 || [[ -n "$line" ]]; do
+    while IFS= read -r -t 10 line <&5 2> /dev/null || [[ -n "$line" ]]; do
         printf '%s\n' "$line"
         line=
     done
@@ -87,9 +89,11 @@ pipeline() {
             < "$BATS_TEST_TMPDIR/requests" > "$responses" 2> /dev/null || true
     else
         # Write while the responses arrive, as a large pipeline does not fit
-        # into the buffers of the sockets
+        # into the buffers of the sockets. The server can close the
+        # connection before it reads all of the requests, and the write then
+        # fails: the responses show what the server did.
         exec 5<>"/dev/tcp/localhost/$1"
-        printf '%s' "$requests" >&5 &
+        printf '%s' "$requests" >&5 2> /dev/null &
         _receive > "$responses"
         wait "$!" || true
         exec 5<&-
@@ -248,7 +252,7 @@ bodies() {
     request PUT /xts-next 'Content-Length: 4\r\nConnection: close\r\n' WWWW
     run -0 pipeline "$SERVER_PORT"
     assert_output --regexp $'^20[01]\n20[01]$'
-    assert_equal "$(od -An -c "$SERVER_DATA/xts" | tr -s ' ')" ' 1 0 0 0 \r \n'
+    run -0 cmp "$SERVER_DATA/xts" <(printf '1000\r\n')
     assert_equal "$(cat "$SERVER_DATA/xts-next")" WWWW
 }
 
