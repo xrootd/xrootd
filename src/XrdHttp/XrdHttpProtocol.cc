@@ -1639,8 +1639,10 @@ void XrdHttpProtocol::BuffConsume(int blen) {
 /******************************************************************************/
   
 /// Get a pointer, valid for up to blen bytes from the buffer. Returns the n
-/// of bytes that one is allowed to use in the *data block
-/// If wait = true then the call may wait for the data to come from the socket
+/// of bytes that one is allowed to use in the *data block. A body of a known
+/// size gives no more than the rest of the body.
+/// If wait = true then the call waits until it has blen bytes, the
+/// connection fails, or readWait passes, and returns what has arrived
 /// If wait = false then the call returns:
 ///   - what's in the buffer if there's anything in the buffer
 ///   - what can be read from the socket without waiting
@@ -1654,6 +1656,13 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   if (blen < 0)
     return -1;
 
+  // A body of a known size ends at its length. Do not wait for more, and do
+  // not give the bytes of the next request on the connection.
+  if (CurrentReq.headerok && !CurrentReq.chunkedBody() && blen > bodyLeft) {
+    TRACE(REQ, "BuffgetData: " << blen << " bytes requested, " << bodyLeft << " left in the body");
+    blen = static_cast<int>(bodyLeft);
+  }
+
   if (wait) {
     // If there's not enough data in the buffer then wait on the socket until it
     // comes. A read returns what has arrived, and over TLS at most one record,
@@ -1665,12 +1674,13 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
       const auto left = duration_cast<milliseconds>(deadline - steady_clock::now()).count();
       if (left <= 0) {
         TRACE(REQ, "BuffgetData: timeout with " << blen - BuffUsed() << " bytes to read");
-        return 0;
+        break;
       }
       TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
       if ( getDataOneShot(blen - BuffUsed(), true, static_cast<int>(left)) )
-        // The wanted data could not be read. Either timeout of connection closed
-        return 0;
+        // The wanted data could not be read. Either timeout or connection
+        // closed: give what has arrived
+        break;
     }
   } else {
     // Get a peek at the socket, without waiting, if we have no data in the buffer

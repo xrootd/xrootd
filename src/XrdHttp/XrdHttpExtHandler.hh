@@ -74,7 +74,11 @@ public:
   // A view of the XrdSecEntity associated with the request.
   const XrdSecEntity &GetSecEntity() const;
 
-  /// Get a pointer to data read from the client, valid for up to blen bytes from the buffer. Returns the validity
+  /// Get a pointer to data read from the client, valid for up to blen bytes from the buffer. Returns the validity.
+  /// A body of a known size gives no more than the rest of the body, thus never the next request.
+  /// With wait, the call waits until it has blen bytes, the connection fails, or the read timeout
+  /// passes, and returns what has arrived. Without wait, it returns the data in the buffer, or reads
+  /// the socket once if the buffer is empty, and returns -1 on an error.
   int BuffgetData(int blen, char **data, bool wait);
 
   /// Sends a basic response. If the length is < 0 then it is calculated internally
