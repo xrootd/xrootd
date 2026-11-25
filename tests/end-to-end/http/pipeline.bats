@@ -617,3 +617,12 @@ bodies() {
     run -0 pipeline "$SERVER_PORT"
     assert_output 200
 }
+
+# A TLS read waits for the rest of a record at most for the receive timeout of
+# the socket (10 s) at a time. A client which sends part of a record and stops
+# must not keep a thread of the server for the time limit of the whole read.
+@test "the server closes a connection which stops in a TLS record" {
+    require_commands python3
+    run -0 python3 "$BATS_TEST_DIRNAME/tls_partial_record.py" localhost "$SERVER_PORT" 30
+    assert_output --regexp '^closed after ([0-9]|1[0-9])\.[0-9] s$'
+}
