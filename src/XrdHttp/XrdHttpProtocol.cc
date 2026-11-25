@@ -50,6 +50,7 @@
 
 #include <charconv>
 #include <chrono>
+#include <poll.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <vector>
@@ -1376,7 +1377,7 @@ int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
 /*                        g e t D a t a O n e S h o t                         */
 /******************************************************************************/
   
-int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
+int XrdHttpProtocol::getDataOneShot(int blen, bool wait, int waitms) {
   int rlen, maxread;
 
   // Get up to blen bytes from the connection. Put them into mybuff.
@@ -1436,10 +1437,25 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
 
   } else {
 
-    if (wait)
-      rlen = Link->Recv(myBuffEnd, maxread, readWait);
-    else
-      rlen = Link->Recv(myBuffEnd, maxread);
+    // Wait for data, then read what has arrived. Recv() with a timeout fills
+    // all of maxread, and waits again for each part: a client which sends a
+    // little data at a time would keep this thread longer than waitms.
+    if (wait) {
+      using namespace std::chrono;
+      const auto deadline = steady_clock::now() + milliseconds(waitms);
+      struct pollfd pfd = {Link->FDnum(), POLLIN | POLLRDNORM, 0};
+      int retc;
+      // After a signal, wait only for the time which is left
+      do {
+        const auto left = duration_cast<milliseconds>(deadline - steady_clock::now()).count();
+        retc = left > 0 ? poll(&pfd, 1, static_cast<int>(left)) : 0;
+      } while (retc < 0 && errno == EINTR);
+      if (retc <= 0) {
+        Link->setEtext(retc ? "link poll error" : "link timeout");
+        return -1;
+      }
+    }
+    rlen = Link->Recv(myBuffEnd, maxread);
 
 
     if (rlen == 0) {
@@ -1587,17 +1603,19 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
 
   if (wait) {
     // If there's not enough data in the buffer then wait on the socket until it
-    // comes. A read over TLS returns at most one record, thus read again, but
-    // not longer than readWait in total: a client which sends small records
-    // must not keep the thread.
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(readWait);
+    // comes. A read returns what has arrived, and over TLS at most one record,
+    // thus read again, but not longer than readWait in total: a client which
+    // sends a little data at a time must not keep the thread.
+    using namespace std::chrono;
+    const auto deadline = steady_clock::now() + milliseconds(readWait);
     while (blen > BuffUsed()) {
-      if (std::chrono::steady_clock::now() > deadline) {
+      const auto left = duration_cast<milliseconds>(deadline - steady_clock::now()).count();
+      if (left <= 0) {
         TRACE(REQ, "BuffgetData: timeout with " << blen - BuffUsed() << " bytes to read");
         return 0;
       }
       TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
-      if ( getDataOneShot(blen - BuffUsed(), true) )
+      if ( getDataOneShot(blen - BuffUsed(), true, static_cast<int>(left)) )
         // The wanted data could not be read. Either timeout of connection closed
         return 0;
     }

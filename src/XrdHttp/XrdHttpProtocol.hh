@@ -193,8 +193,10 @@ private:
   int HandleGridMap(XrdLink* lp, const char * eechash);
 
   /// Get up to blen bytes from the connection. Put them into mybuff.
-  /// This primitive, for the way it is used, is not supposed to block
-  int getDataOneShot(int blen, bool wait=false);
+  /// This primitive, for the way it is used, is not supposed to block. With
+  /// wait, it waits up to waitms ms for data over plain HTTP, and up to the
+  /// receive timeout of the socket over TLS.
+  int getDataOneShot(int blen, bool wait=false, int waitms=readWait);
 
   /// Create a new BIO object from an XrdLink.  Returns NULL on failure.
   static BIO *CreateBIO(XrdLink *lp);
