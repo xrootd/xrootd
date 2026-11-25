@@ -50,6 +50,8 @@
 
 #include <charconv>
 #include <chrono>
+#include <climits>
+#include <optional>
 #include <poll.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -300,6 +302,55 @@ char *XrdHttpProtocol::GetClientIPStr() {
   return strdup(buf);
 }
 
+namespace {
+
+// OpenSSL reads from the socket until it has a whole TLS record, and each
+// read can wait for the receive timeout of the socket. A client which sends
+// a record slowly can thus keep one SSL_read() for a long time. The BIO read
+// runs in the thread of SSL_read(), thus a time limit for the thread bounds
+// all the reads of one SSL_read().
+thread_local std::optional<std::chrono::steady_clock::time_point> tlsReadDeadline;
+
+// Set the time limit of the TLS reads of this thread, for the life of the object
+class TlsReadDeadline {
+public:
+  explicit TlsReadDeadline(int waitms) {
+    tlsReadDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(waitms);
+  }
+  ~TlsReadDeadline() { tlsReadDeadline.reset(); }
+  TlsReadDeadline(const TlsReadDeadline &) = delete;
+  TlsReadDeadline &operator=(const TlsReadDeadline &) = delete;
+};
+
+// Wait until the socket has data, but not after the deadline. After a signal,
+// wait only for the time which is left. Return the result of poll().
+int PollForData(int fd, std::chrono::steady_clock::time_point deadline) {
+  using namespace std::chrono;
+  struct pollfd pfd = {fd, POLLIN | POLLRDNORM, 0};
+  int retc;
+  do {
+    const auto left = duration_cast<milliseconds>(deadline - steady_clock::now()).count();
+    if (left <= 0)
+      return 0;
+    retc = poll(&pfd, 1, static_cast<int>(std::min<long long>(left, INT_MAX)));
+  } while (retc < 0 && errno == EINTR);
+  return retc;
+}
+
+// Wait until the socket has data, but not after the time limit of the
+// thread. Return false on a timeout or an error.
+bool WaitForTlsData(int fd) {
+  if (!tlsReadDeadline)
+    return true;
+
+  const int retc = PollForData(fd, *tlsReadDeadline);
+  if (retc == 0)
+    errno = ETIMEDOUT;
+  return retc > 0;
+}
+
+} // namespace
+
 // Various routines for handling XrdLink as BIO objects within OpenSSL.
 int BIO_XrdLink_write(BIO *bio, const char *data, int datal)
 {
@@ -328,6 +379,10 @@ static int BIO_XrdLink_read(BIO *bio, char *data, int datal)
 
   errno = 0;
   XrdLink *lp = static_cast<XrdLink *>(BIO_get_data(bio));
+  if (!WaitForTlsData(lp->FDnum())) {
+    BIO_clear_retry_flags(bio);
+    return -1;
+  }
   int ret = lp->Recv(data, datal);
   BIO_clear_retry_flags(bio);
   if (ret <= 0) {
@@ -1427,7 +1482,12 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait, int waitms) {
     TRACE(DEBUG, "getDataOneShot sslavail: " << sslavail);
     if (sslavail <= 0) return 0;
 
-    rlen = SSL_read(ssl, myBuffEnd, sslavail);
+    {
+      // Wait for the socket only up to waitms in total, also when the TLS
+      // layer reads a record in many parts
+      TlsReadDeadline deadline(waitms);
+      rlen = SSL_read(ssl, myBuffEnd, sslavail);
+    }
     if (rlen <= 0) {
       Link->setEtext("link SSL read error");
       ERR_print_errors(sslbio_err);
@@ -1441,15 +1501,8 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait, int waitms) {
     // all of maxread, and waits again for each part: a client which sends a
     // little data at a time would keep this thread longer than waitms.
     if (wait) {
-      using namespace std::chrono;
-      const auto deadline = steady_clock::now() + milliseconds(waitms);
-      struct pollfd pfd = {Link->FDnum(), POLLIN | POLLRDNORM, 0};
-      int retc;
-      // After a signal, wait only for the time which is left
-      do {
-        const auto left = duration_cast<milliseconds>(deadline - steady_clock::now()).count();
-        retc = left > 0 ? poll(&pfd, 1, static_cast<int>(left)) : 0;
-      } while (retc < 0 && errno == EINTR);
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(waitms);
+      const int retc = PollForData(Link->FDnum(), deadline);
       if (retc <= 0) {
         Link->setEtext(retc ? "link poll error" : "link timeout");
         return -1;
