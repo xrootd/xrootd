@@ -138,7 +138,7 @@ TEST(HeaderUtilsTest, ParseTransferEncodingRequiresChunkedAsTheLastToken) {
 
 // RFC 9110 section 5.6.1 and section 7.6.1: the value of Connection is a list,
 // and its options are not case-sensitive
-static const std::vector<std::tuple<std::string, std::string, bool>> tokenCases = {
+static inline const std::tuple<std::string, std::string, bool> tokenCases[] {
   {"close",                  "close",      true},
   {"Close\r\n",              "close",      true},
   {"CLOSE",                  "close",      true},

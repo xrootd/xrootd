@@ -83,6 +83,12 @@ pipeline() {
     local responses=$BATS_TEST_TMPDIR/responses
 
     if [[ ${2:-} == tls ]]; then
+        # The errors of the TLS client are discarded below, thus say here why
+        # the responses would be missing
+        if ! command -v openssl > /dev/null; then
+            echo "pipeline: openssl is missing" >&2
+            return 1
+        fi
         # -quiet also keeps the connection open at the end of the input
         printf '%s' "$requests" > "$BATS_TEST_TMPDIR/requests"
         openssl s_client -quiet -connect "localhost:$1" \
@@ -376,7 +382,6 @@ bodies() {
     assert_equal "${#lines[@]}" 2
 }
 
-# The redirector answered the second GET with 416
 # RFC 9110 section 10.1.1: the server does not skip a body larger than its
 # buffer (1 MB), thus the redirect must say that the connection closes
 @test "a redirector closes the connection after a PUT larger than the buffer" {
@@ -390,6 +395,7 @@ bodies() {
     run -0 grep -ai '^Connection: close' "$BATS_TEST_TMPDIR/responses"
 }
 
+# The redirector must redirect a later GET with a range, and not answer 416
 @test "a redirector redirects each GET with a range of a pipeline" {
     request GET /file 'Range: bytes=0-4\r\n'
     request GET /file 'Range: bytes=5-9\r\n'
@@ -584,7 +590,6 @@ bodies() {
 }
 
 @test "a pipeline of mixed methods gets the responses in order over HTTPS" {
-    require_commands openssl
     request OPTIONS /file
     request HEAD /file 'Want-Digest: adler32\r\n'
     request QUERY /file
