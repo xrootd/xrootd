@@ -197,6 +197,14 @@ connection_header() {
     assert_output $'200\nclosed'
 }
 
+# The options of all Connection header lines count, and close wins
+@test "RFC 9112 9.6: a keep-alive option in a later Connection line does not cancel close" {
+    request OPTIONS /file 'Connection: close\r\nConnection: TE, keep-alive\r\n'
+    request GET /file
+    run -0 exchange "$SERVER_PORT"
+    assert_output $'200\nclosed'
+}
+
 # RFC 9112 section 9.3: HTTP/1.1 connections persist by default, and HTTP/1.0
 # connections persist only with the keep-alive option
 
