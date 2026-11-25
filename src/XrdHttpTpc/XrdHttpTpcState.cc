@@ -138,6 +138,10 @@ void State::SetupHeaders(XrdHttpExtReq &req) {
         // See: https://github.com/xrootd/xrootd/issues/2470
         // See: https://github.com/curl/curl/issues/17004
         list = curl_slist_append(list, "Expect: 100-continue");
+        // libcurl gives the server one second to answer Expect: 100-continue.
+        // A redirector often uses that second to choose a data server, and
+        // curl then aborts the PUT before the 307 arrives.
+        curl_easy_setopt(m_curl, CURLOPT_EXPECT_100_TIMEOUT_MS, 10000L);
         // Add Repr-Digest header to PUT request (PUSH)
         auto reprDigest = XrdOucTUtils::caseInsensitiveFind(req.headers,"repr-digest");
         if(reprDigest != req.headers.end()) {
