@@ -46,6 +46,7 @@ jobs:
           fuse3-dev \
           g++ \
           git \
+          jq \
           json-c-dev \
           krb5 \
           krb5-dev \

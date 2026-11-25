@@ -208,9 +208,12 @@ namespace XrdCl
       std::string pId;
       uint64_t    pSize;
       uint32_t    pFlags;
-      uint64_t    pModifyTime;
-      uint64_t    pChangeTime;
-      uint64_t    pAccessTime;
+      // Stat replies encode times before the Unix epoch as negative seconds.
+      // Preserve the signed values parsed by strtoll here. The public
+      // constructor and numeric time getters use uint64_t for compatibility.
+      int64_t     pModifyTime;
+      int64_t     pChangeTime;
+      int64_t     pAccessTime;
       std::string pMode;
       std::string pOwner;
       std::string pGroup;
@@ -237,7 +240,7 @@ namespace XrdCl
     pImpl->pId         = id;
     pImpl->pSize       = size;
     pImpl->pFlags      = flags;
-    pImpl->pModifyTime = modTime;
+    pImpl->pModifyTime = static_cast<int64_t>( modTime );
   }
 
   //------------------------------------------------------------------------
