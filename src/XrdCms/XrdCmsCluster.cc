@@ -1001,7 +1001,12 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
                    {pmask = amask & ~(Sel.Vec.hf | Sel.Vec.bf); smask = 0;
                     if (!pmask && !Sel.Vec.bf) return SelFail(Sel,eNoRep);
                    }
-           else if (Sel.Vec.bf) pmask = smask = 0;
+           // A new file need not wait for the nodes to answer, as the
+           // selected server tells whether the path exists.
+           //
+           else if (Sel.Vec.bf && !(Sel.Vec.hf == 0
+                && (Sel.Opts & (XrdCmsSelect::Trunc | XrdCmsSelect::NewFile))))
+                   pmask = smask = 0;
            else if (Sel.Vec.hf)
                    // A new file goes to a server which has the path. The
                    // cache can be older than a remove, and a mkdir with
