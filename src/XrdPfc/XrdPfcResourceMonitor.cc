@@ -48,6 +48,10 @@ ResourceMonitor::~ResourceMonitor()
 
 void ResourceMonitor::CrossCheckIfScanIsInProgress(const std::string &lfn, XrdSysCondVar &cond)
 {
+   // Once the initial scan is over, this stays false.
+   if ( ! m_dir_scan_in_progress.load(std::memory_order_acquire))
+      return;
+
    m_dir_scan_mutex.Lock();
    if (m_dir_scan_in_progress) {
       bool dir_checked = false;

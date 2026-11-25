@@ -9,6 +9,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <atomic>
 #include <list>
 #include <set>
 #include <string>
@@ -150,7 +151,7 @@ class ResourceMonitor
    XrdSysMutex              m_dir_scan_mutex;
    std::list<LfnCondRecord> m_dir_scan_open_requests;
    int                      m_dir_scan_check_counter = 0;
-   bool                     m_dir_scan_in_progress = true;
+   std::atomic<bool>        m_dir_scan_in_progress {true};  //!< written under m_dir_scan_mutex
 
    //! cinfo mtime cannot tell open from close, so both get it.
    static void seed_last_times_from_cinfo(DirUsage &u, const struct stat &cinfo_stat) {
