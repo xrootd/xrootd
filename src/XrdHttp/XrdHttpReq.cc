@@ -162,10 +162,12 @@ int XrdHttpReq::parseLine(char *line, int len) {
 
     // Screen out the needed header lines
     if (!strcasecmp(key, "connection")) {
-      // RFC 9112 section 9.6: close wins over keep-alive
+      // RFC 9112 section 9.6: close wins over keep-alive, also when they are
+      // in different header lines
       if (XrdHttpHeaderUtils::hasToken(ss, "close")) {
+        connectionClose = true;
         keepalive = false;
-      } else if (XrdHttpHeaderUtils::hasToken(ss, "keep-alive")) {
+      } else if (!connectionClose && XrdHttpHeaderUtils::hasToken(ss, "keep-alive")) {
         keepalive = true;
       }
 
@@ -2808,6 +2810,7 @@ void XrdHttpReq::reset() {
 
   headerok = false;
   keepalive = true;
+  connectionClose = false;
   length = 0;
   length_seen = false;
   filesize = 0;

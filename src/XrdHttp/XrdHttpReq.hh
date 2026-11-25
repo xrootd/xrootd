@@ -311,6 +311,8 @@ public:
   bool                      closeAfterError;
 
   bool keepalive;
+  /// A Connection header line of the request has the close option
+  bool connectionClose{false};
   ssize_t length;  // Total size from client for PUT; total length of response TO client for GET.
   bool length_seen{false};  // Set once a Content-Length header has been accepted (RFC 7230 §3.3.3 rule 4).
   int depth;
