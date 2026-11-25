@@ -6,6 +6,10 @@
 
 load ../setup/server.bash
 
+# a server which keeps a connection open must not block the run
+# shellcheck disable=SC2034 # BATS reads it
+BATS_TEST_TIMEOUT=60
+
 setup_file() {
     require_plugin libXrdHttp
     require_commands curl python3
@@ -120,10 +124,15 @@ headers() {
 # A NUL byte ends the copy of a line, thus the line can be empty. The check
 # of an empty line before the request line must not read past its end. The
 # first bytes of a connection must look like a request, thus the line comes
-# after a request.
+# after a request. The line is no request line, thus the server closes the
+# connection there: the end of the connection shows that it parsed the line.
 
 @test "the server stays up after a line with only a NUL byte" {
-    send 'GET /file HTTP/1.1\r\nHost: x\r\n\r\n\0\n'
+    exec 5<> "/dev/tcp/localhost/$SERVER_PORT"
+    printf 'GET /file HTTP/1.1\r\nHost: x\r\n\r\n\0\n' >&5
+    run -0 grep -ao 'HTTP/1.1 [0-9]*' <&5
+    exec 5<&-
+    assert_line --index 0 'HTTP/1.1 200'
     run -0 status
     assert_output 200
 }
