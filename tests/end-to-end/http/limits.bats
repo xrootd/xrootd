@@ -116,3 +116,14 @@ headers() {
     exec 5<&-
     assert_output $'HTTP/1.1 200\nHTTP/1.1 200'
 }
+
+# A NUL byte ends the copy of a line, thus the line can be empty. The check
+# of an empty line before the request line must not read past its end. The
+# first bytes of a connection must look like a request, thus the line comes
+# after a request.
+
+@test "the server stays up after a line with only a NUL byte" {
+    send 'GET /file HTTP/1.1\r\nHost: x\r\n\r\n\0\n'
+    run -0 status
+    assert_output 200
+}
