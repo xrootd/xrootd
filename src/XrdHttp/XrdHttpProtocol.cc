@@ -1645,7 +1645,7 @@ void XrdHttpProtocol::BuffConsume(int blen) {
   
 /// Get a pointer, valid for up to blen bytes from the buffer. Returns the n
 /// of bytes that one is allowed to use in the *data block. A body of a known
-/// size gives no more than the rest of the body.
+/// size gives no more than the rest of the body, and 0 after its end.
 /// If wait = true then the call waits until it has blen bytes, the
 /// connection fails, or readWait passes, and returns what has arrived
 /// If wait = false then the call returns:
@@ -1666,6 +1666,13 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   if (CurrentReq.headerok && !CurrentReq.chunkedBody() && blen > bodyLeft) {
     TRACE(REQ, "BuffgetData: " << blen << " bytes requested, " << bodyLeft << " left in the body");
     blen = static_cast<int>(bodyLeft);
+  }
+
+  // Nothing to read, for example after the end of the body. A read of 0 bytes
+  // without wait fails, thus return before it.
+  if (blen == 0) {
+    *data = myBuffStart;
+    return 0;
   }
 
   if (wait) {
