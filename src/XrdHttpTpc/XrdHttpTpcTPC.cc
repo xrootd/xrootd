@@ -587,6 +587,10 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
                       const std::string &authz)
 {
     int open_result;
+    // A positive result is a stall, and the value is how many seconds to wait.
+    // A manager does this while it asks which server should create the file.
+    // Retry the open after waiting. Returning the stall used to fail the copy.
+    int stalls = 0;
     while (1) {
         int orig_ucap = fh.error.getUCap();
         fh.error.setUCap(orig_ucap | XrdOucEI::uIPv64);
@@ -606,10 +610,18 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
         }
         open_result = fh.open(path.c_str(), mode, openMode, &sec, opaque.c_str());
 
-        if ((open_result == SFS_STALL) || (open_result == SFS_STARTED)) {
+        if (open_result >= SFS_STALL) {
+            int secs_to_stall = open_result;
+            if (secs_to_stall > 30) secs_to_stall = 30;
+            if (++stalls > 8) break;
+            std::this_thread::sleep_for(std::chrono::seconds(secs_to_stall));
+            continue;
+        }
+        if (open_result == SFS_STARTED) {
             int secs_to_stall = fh.error.getErrInfo();
-            if (open_result == SFS_STARTED) {secs_to_stall = secs_to_stall/2 + 5;}
-            std::this_thread::sleep_for (std::chrono::seconds(secs_to_stall));
+            if (secs_to_stall < 1) secs_to_stall = 1;
+            secs_to_stall = secs_to_stall/2 + 5;
+            std::this_thread::sleep_for(std::chrono::seconds(secs_to_stall));
         }
         break;
     }
