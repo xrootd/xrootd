@@ -145,6 +145,7 @@ int retErr(int ecode, XrdNetAddr& theDest);
 XrdSysError* eDest;
 char*        dfltDest;
 int          FD     = -1;;
+sa_family_t  family = AF_UNSPEC;
 bool         destOK = false;
 bool         isRefr = false;
 };

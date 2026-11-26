@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <cerrno>
+#include <cstring>
 #include <poll.h>
 #include <sys/uio.h>
 
@@ -57,6 +58,16 @@ void FitDatagram(int fd)
    &&  curSize >= minSize) return;
    setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (Sokdata_t)&minSize, sizeof(minSize));
 }
+
+sa_family_t SocketFamily(int fd)
+{
+   struct sockaddr_storage self;
+   socklen_t len = sizeof(self);
+
+   if (fd < 0 || getsockname(fd, (struct sockaddr *)&self, &len))
+      return AF_UNSPEC;
+   return self.ss_family;
+}
 }
 
 /******************************************************************************/
@@ -76,7 +87,10 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest, bool *aOK, bool refr)
       {if ((FD = myNet.Relay(dest)) < 0)
          {eDest->Emsg("NetMsg", "Unable to create UDP msg socket.");
           aok = false;
-         } else FitDatagram(FD);
+         } else {
+          FitDatagram(FD);
+          family = SocketFamily(FD);
+         }
        if (aOK) *aOK = aok;
        return;
       }
@@ -108,6 +122,7 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest, bool *aOK, bool refr)
    dfltDest = strdup(myPeer.InetName ? myPeer.InetName : "Unknown!");
    FD       = myPeer.fd;
    destOK   = true;
+   family   = SocketFamily(FD);
    FitDatagram(FD);
 
 // If address refresh wanted, register this socket for refresh. This should
@@ -189,16 +204,32 @@ int XrdNetMsg::Send(const char *dest, const XrdNetSockAddr &netSA,
                     const char *Buff, int Blen, int tmo)
 {
    int aSize, retc;
+   const struct sockaddr *sap = &netSA.Addr;
+   struct sockaddr_in6 mapped;
 
    if (!Blen && !(Blen = strlen(Buff))) return  0;
 
-   if (netSA.Addr.sa_family == AF_INET) aSize = sizeof(netSA.v4);
-      else if (netSA.Addr.sa_family == AF_INET6) aSize = sizeof(netSA.v6);
+   if (netSA.Addr.sa_family == AF_INET)
+      {aSize = sizeof(netSA.v4);
+       // The socket is IPv6 when the host has IPv6. An IPv4 peer is sent as
+       // an IPv4-mapped address: macOS rejects an AF_INET sendto() on an
+       // AF_INET6 socket.
+       if (family == AF_INET6)
+          {memset(&mapped, 0, sizeof(mapped));
+           mapped.sin6_family = AF_INET6;
+           mapped.sin6_port   = netSA.v4.sin_port;
+           mapped.sin6_addr.s6_addr[10] = 0xff;
+           mapped.sin6_addr.s6_addr[11] = 0xff;
+           memcpy(mapped.sin6_addr.s6_addr+12, &netSA.v4.sin_addr, 4);
+           sap   = (struct sockaddr *)&mapped;
+           aSize = sizeof(mapped);
+          }
+      } else if (netSA.Addr.sa_family == AF_INET6) aSize = sizeof(netSA.v6);
               else return retErr(EAFNOSUPPORT, (dest ? dest : "Unknown!"));
 
    if (tmo >= 0 && !OK2Send(tmo, dest)) return 1;
 
-   do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0, &netSA.Addr, aSize);}
+   do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0, sap, aSize);}
        while (retc < 0 && errno == EINTR);
 
    if (retc >= 0) return 0;

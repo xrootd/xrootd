@@ -320,9 +320,19 @@ int XrdNet::Relay(XrdNetPeer &Peer, const char *dest, int opts)
 int XrdNet::Relay(const char *dest)
 {
    XrdNetPeer myPeer;
+   int opts = XRDNET_UDPSOCKET | XRDNET_SENDONLY;
+   int port = -1;
 
-   return (Connect(myPeer, dest, -1, XRDNET_UDPSOCKET | XRDNET_SENDONLY)
-          ? myPeer.fd : -1);
+// With no destination each send names its own. Connecting the socket to
+// the unspecified address is refused on some systems (macOS returns
+// EADDRNOTAVAIL), so bind an ephemeral port and leave it unconnected.
+//
+   if (!dest)
+      {opts |= XRDNET_SERVER;
+       port = 0;
+      }
+
+   return (Connect(myPeer, dest, port, opts) ? myPeer.fd : -1);
 }
   
 /******************************************************************************/
