@@ -1827,20 +1827,25 @@ int XrdXrootdProtocol::do_Open()
        const char *stage = cgiEnv.Get("tpc.stage");
        tpcCopy = stage && !strcmp(stage, "copy");
       }
-   // A later open on the HTTP bridge may name another flow. End the current
-   // firefly under the stream lock (the destructor emits end) and clear
-   // pmDone so the path below emits start. The same id keeps the one handle.
-   if (PMark && pmDone && pmHandle && !tpcCopy && pmMayReplace())
+   // A later open on the HTTP bridge may name a flow. An earlier open that
+   // was not marked left pmDone set and no handle, so clear pmDone and let
+   // the path below start one. A different id ends the current firefly
+   // under the stream lock (the destructor emits end) and clears pmDone
+   // the same way. The same id keeps the one handle.
+   if (PMark && pmDone && !tpcCopy && pmMayReplace())
       {int nExp, nAct;
        if (XrdNetPMark::getEA(opaque, nExp, nAct))
-          {int cExp = 0, cAct = 0;
-           streamMutex.Lock();
-           if (pmHandle
-           && (!pmHandle->getEA(cExp, cAct) || nExp != cExp || nAct != cAct))
-              {XrdNetPMark::Handle *old = pmHandle;
-               pmHandle = 0;
-               pmDone   = false;
-               delete old;
+          {streamMutex.Lock();
+           if (!pmHandle)
+              pmDone = false;
+           else
+              {int cExp = 0, cAct = 0;
+               if (!pmHandle->getEA(cExp, cAct) || nExp != cExp || nAct != cAct)
+                  {XrdNetPMark::Handle *old = pmHandle;
+                   pmHandle = 0;
+                   pmDone   = false;
+                   delete old;
+                  }
               }
            streamMutex.UnLock();
           }
