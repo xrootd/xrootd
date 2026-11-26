@@ -273,6 +273,20 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
 //
    if (windowsz) setWindow(SockFD, windowsz, eroute);
 
+// A send-only UDP socket with no destination is bound, then used with
+// sendto(). An IPv4 peer is written as an IPv4-mapped address, which an
+// IPv6 socket delivers only when IPV6_V6ONLY is off. macOS leaves it on.
+//
+#if defined(IPV6_V6ONLY)
+   if ((flags & (XRDNET_UDPSOCKET | XRDNET_SENDONLY | XRDNET_SERVER))
+            == (XRDNET_UDPSOCKET | XRDNET_SENDONLY | XRDNET_SERVER)
+   &&  SockProt == PF_INET6)
+      {int off = 0;
+       setsockopt(SockFD, IPPROTO_IPV6, IPV6_V6ONLY, (Sokdata_t)&off,
+                  (SOCKLEN_t)sizeof(off));
+      }
+#endif
+
 // Either do a bind or a connect.
 //
    if (flags & XRDNET_SERVER)
