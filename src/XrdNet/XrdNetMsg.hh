@@ -94,6 +94,34 @@ int           Send(          const char *dest,    // EP: host:port
                                    int   tmo=-1); // Timeout in ms (-1 = none)
 
 //------------------------------------------------------------------------------
+//! Send a UDP message to an endpoint from a chosen local address.
+//!
+//! @param  dest     The endpoint in the form as in "host:port". This is
+//!                  strictly used for error messages.
+//! @param  netSA    The endpoint address. This overrides the constructor.
+//!                  The family must be AF_INET or AF_INET6.
+//! @param  fromSA   The local address the datagram is sent from. On Linux
+//!                  this is applied with IP_PKTINFO or IPV6_PKTINFO. The
+//!                  address is this end of the data socket, so an upload is
+//!                  not sent from the client's address.
+//! @param  buff     The data to send.
+//! @param  blen     Length of the data in buff. If not specified, the length is
+//!                  computed as strlen(buff).
+//! @param  tmo      maximum seconds to wait for a idle socket. When negative,
+//!                  the default, no time limit applies.
+//! @return <0       Message not sent due to error.
+//! @return =0       Message send (well as defined by UDP)
+//! @return >0       Message not sent, timeout occurred.
+//------------------------------------------------------------------------------
+
+int           Send(          const char *dest,
+                   const XrdNetSockAddr &netSA,
+                   const XrdNetSockAddr &fromSA,
+                             const char *buff,
+                                   int   blen=0,
+                                   int   tmo=-1);
+
+//------------------------------------------------------------------------------
 //! Send a UDP message to an endpoint using an I/O vector.
 //!
 //! @param  iov      The vector of data to send. Total amount be <= 4096 bytes.

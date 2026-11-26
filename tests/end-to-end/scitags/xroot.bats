@@ -139,3 +139,33 @@ EOF
     firefly_check "$FIREFLY_RECORDS" "$OFF" 16 0 1 sent "$SIZE" \
         --src-port "$SERVER_PORT" --application xrdfs --select
 }
+
+@test "a download via 127.0.0.2 sends the port 10514 firefly from that address" {
+    local peer new addr
+    local -a got
+
+    [[ "$(uname)" == Linux ]] ||
+        skip 'the firefly source address is set with a Linux control message'
+    python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.2", 0))' \
+        || skip '127.0.0.2 is not configured'
+    [[ "$PEER_PORT" -eq 10514 ]]
+    # The client connects to 127.0.0.2 and its own address stays 127.0.0.1.
+    # The server's end of the flow, and the datagram's source, are 127.0.0.2.
+    # The source line is written before the datagram, so it can be one ahead.
+    # The sources of these datagrams are the last lines, one per new datagram.
+    peer=$(firefly_offset "$PEER_RECORDS")
+    xrdcp "root://127.0.0.2:${SERVER_PORT}//ref.dat?scitag.flow=144" copy.dat
+    run -0 cmp "$REF" copy.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application xrdcp \
+        --src-ip 127.0.0.2 --dst-ip 127.0.0.1
+    firefly_check "$PEER_RECORDS" "$peer" 2 16 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application xrdcp \
+        --src-ip 127.0.0.2 --dst-ip 127.0.0.1
+    new=$(tail -c +$((peer + 1)) "$PEER_RECORDS" | wc -l | tr -d '[:space:]')
+    mapfile -t got < <(tail -n "$new" "${PEER_RECORDS}.from")
+    [[ "$new" -ge 1 && ${#got[@]} -eq "$new" ]]
+    for addr in "${got[@]}"; do
+        [[ "$addr" == 127.0.0.2 ]]
+    done
+}

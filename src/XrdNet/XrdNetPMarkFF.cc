@@ -181,7 +181,13 @@ bool XrdNetPMarkFF::Emit(const char *state, const char *cT, const char *eT)
 
    if (odOK)
       {DEBUG("Sending pmark o-msg: " <<(netMsg ? "=s-msg" : msgBuff));
-       if (netOrg->Send(oDest, *mySad, msgBuff, n+ffTailsz) < 0)
+       // The datagram leaves from this end of the data socket. An upload's
+       // JSON names the client as the source; the server still sends from
+       // its own address.
+       int rc = (haveSrc
+                ? netOrg->Send(oDest, *mySad, mySrc, msgBuff, n+ffTailsz)
+                : netOrg->Send(oDest, *mySad, msgBuff, n+ffTailsz));
+       if (rc < 0)
           {odOK = false;
            return false;
           }
@@ -340,6 +346,15 @@ bool XrdNetPMarkFF::Start(XrdNetAddrInfo &addr)
 // Get the file descriptor for the socket
 //
    sockFD = addr.SockFD();
+
+// The origin firefly uses this address as its source, so a download accepted
+// on 127.0.0.2 is not sent from whichever address the kernel would pick.
+//
+   socklen_t srcLen = sizeof(mySrc);
+   memset(&mySrc, 0, sizeof(mySrc));
+   if (!getsockname(sockFD, &mySrc.Addr, &srcLen)
+   && (mySrc.Addr.sa_family == AF_INET || mySrc.Addr.sa_family == AF_INET6))
+      haveSrc = true;
 
 // Obtain connectivity information about the peer and ourselves. We really
 // should obtain our external address and use that but the issue is that

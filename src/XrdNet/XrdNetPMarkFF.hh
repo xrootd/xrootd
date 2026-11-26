@@ -31,9 +31,9 @@
 /******************************************************************************/
 
 #include "XrdNet/XrdNetPMark.hh"
+#include "XrdNet/XrdNetSockAddr.hh"
 
 class  XrdNetAddrInfo;
-union  XrdNetSockAddr;
 
 class XrdNetPMarkFF : public XrdNetPMark::Handle
 {
@@ -62,6 +62,7 @@ const char *getUTC(char *utcBuff, int utcBLen);
 void        SockStats(struct sockStats &ss);
 
 XrdNetSockAddr      *mySad  = 0;
+XrdNetSockAddr       mySrc{};
 XrdNetPMark::Handle *xtraFH = 0;
 
 const char *tident;
@@ -72,5 +73,6 @@ int         ffTailsz = 0;
 int         sockFD   =-1;
 bool        fdOK     = false;
 bool        odOK     = false;
+bool        haveSrc  = false;
 };
 #endif
