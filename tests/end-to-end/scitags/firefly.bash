@@ -179,14 +179,15 @@ def check(args):
             problems.append(f"{place}: application {got}, expected {args.application}")
         if not end["end"]:
             problems.append(f"{place}: end datagram has no end-time")
-        if args.no_usage:
-            continue
         before = start[args.direction]
         after = end[args.direction]
         if before == 0 and after == 0:
             skipped += 1
             continue
-        if after <= before:
+        # One connection carries the file after the start datagram, so its
+        # counter grows. A parallel stream may only complete its bind, so
+        # --sum accepts an end counter that stayed put and checks the total.
+        if after < before or (not args.sum and after == before):
             problems.append(
                 f"{place}: usage.{args.direction} end {after} "
                 f"is not greater than start {before}"
@@ -197,7 +198,7 @@ def check(args):
                 f"{place}: usage.{args.direction} end {after} "
                 f"is below the file size {args.minimum}"
             )
-    if args.sum and not args.no_usage and skipped != len(complete):
+    if args.sum and skipped != len(complete):
         total = sum(measured)
         if total < args.minimum:
             problems.append(
@@ -232,7 +233,6 @@ def main():
     check_p.add_argument("--dst-port", type=int)
     check_p.add_argument("--application")
     check_p.add_argument("--sum", action="store_true")
-    check_p.add_argument("--no-usage", action="store_true")
 
     args = parser.parse_args()
     if not args.mode:
@@ -285,9 +285,9 @@ firefly_gate() {
 #               [--application NAME] [--sum]
 #
 # <bytes> is the minimum of usage.<direction> on each end datagram. With
-# --sum it is the minimum of the sum, for a file spread across connections.
-# --no-usage skips those comparisons, for a socket closed before TCP_INFO
-# is read. --src-port and --dst-port are the known port of the flow.
+# --sum it is the minimum of the sum across the connections, and a
+# connection whose counter did not grow is allowed. --src-port and
+# --dst-port are the known port of the flow.
 firefly_check() {
     local records=$1 offset=$2 exp=$3 act=$4 pairs=$5 direction=$6 bytes=$7
     shift 7

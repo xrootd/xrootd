@@ -47,13 +47,12 @@ setup() {
     xrdcp --streams 3 "$SERVER_URL4//ref.dat?scitag.flow=144" copy.dat
     run -0 cmp "$REF" copy.dat
     # The client logs kXR_bind successful for each substream. The session
-    # connection is marked as well.
+    # connection is marked as well. The file is spread across the sockets,
+    # so the sum of usage.sent covers it.
     binds=$(grep -c 'kXR_bind successful' "$XRD_LOGFILE" || true)
     [[ "$binds" -eq 3 ]]
-    # A substream's end datagram is sent after its socket is closed, so
-    # TCP_INFO is 0 there. The mark and the connection count still hold.
     firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 "$((binds + 1))" sent "$SIZE" \
-        --src-port "$SERVER_PORT" --no-usage
+        --src-port "$SERVER_PORT" --sum
 }
 
 @test "a download marked 1024 reports experiment 16 and activity 0" {
