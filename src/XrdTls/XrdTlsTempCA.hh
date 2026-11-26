@@ -172,6 +172,7 @@ private:
     int m_maintenance_pipe_w{-1};
     int m_maintenance_thread_pipe_r{-1};
     int m_maintenance_thread_pipe_w{-1};
+    bool m_maintenance_started{false};
     XrdSysError &m_log;
     const std::string m_ca_dir;
     const bool m_build_store;

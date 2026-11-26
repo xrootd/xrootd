@@ -59,6 +59,37 @@ static uint64_t monotonic_time_s() {
   return tp.tv_sec + (tp.tv_nsec >= 500000000);
 }
 
+// Transfer one byte, retrying only when the call was interrupted.
+// A successful write must not be repeated: the caller has no reader draining
+// the pipe in a loop, so extra bytes fill it and the next write blocks forever.
+static int WriteByte(int fd)
+{
+    char indicator = '1';
+    int rval;
+    do {
+        rval = write(fd, &indicator, 1);
+    } while (rval == -1 && errno == EINTR);
+    return rval;
+}
+
+static int ReadByte(int fd)
+{
+    char indicator;
+    int rval;
+    do {
+        rval = read(fd, &indicator, 1);
+    } while (rval == -1 && errno == EINTR);
+    return rval;
+}
+
+static void CloseFd(int &fd)
+{
+    if (fd >= 0) {
+        close(fd);
+        fd = -1;
+    }
+}
+
 /**
  * Class managing the CRL or CA output file pointer. It is a RAII-style class that opens the output
  * file in the constructor and close the file when the instance is destroyed
@@ -361,25 +392,27 @@ XrdTlsTempCA::XrdTlsTempCA(XrdSysError *err, std::string ca_dir, bool build_stor
         m_log.Emsg("XrdTlsTempCA", "Failed to launch CA monitoring thread");
         m_ca_file.reset();
         m_crl_file.reset();
+        return;
     }
+    m_maintenance_started = true;
 }
 
 
 XrdTlsTempCA::~XrdTlsTempCA()
 {
-    char indicator[1];
-    if (m_maintenance_pipe_w >= 0) {
-        indicator[0] = '1';
-        int rval;
-        do {rval = write(m_maintenance_pipe_w, indicator, 1);} while (rval != -1 || errno == EINTR);
-        if (m_maintenance_thread_pipe_r >= 0) {
-            do {rval = read(m_maintenance_thread_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
-            close(m_maintenance_thread_pipe_r);
-            close(m_maintenance_thread_pipe_w);
-        }
-        close(m_maintenance_pipe_r);
-        close(m_maintenance_pipe_w);
+    // The maintenance thread is detached. When it was started, ask it to leave
+    // and wait for its ack before closing the pipes. Skip that when startup
+    // failed before the thread existed: nothing would ever write the ack, and
+    // the read would block for the rest of the process.
+    if (m_maintenance_started) {
+        WriteByte(m_maintenance_pipe_w);
+        ReadByte(m_maintenance_thread_pipe_r);
     }
+
+    CloseFd(m_maintenance_pipe_r);
+    CloseFd(m_maintenance_pipe_w);
+    CloseFd(m_maintenance_thread_pipe_r);
+    CloseFd(m_maintenance_thread_pipe_w);
 }
 
 
@@ -526,7 +559,8 @@ XrdTlsTempCA::Maintenance()
     }
 
     if (!new_file->commit()) {
-        m_log.Emsg("Maintenance", "Failed to finalize new CA / CRL files");
+        int rc = errno;
+        m_log.Emsg("Maintenance", "Failed to finalize new CA / CRL files:", strerror(rc));
         return false;
     }
     //m_log.Emsg("Maintenance", "Successfully created CA and CRL files", new_file->getCAFilename().c_str(),
@@ -589,29 +623,28 @@ void *XrdTlsTempCA::MaintenanceThread(void *myself_raw)
        struct pollfd fds;
        fds.fd = myself->m_maintenance_pipe_r;
        fds.events = POLLIN;
-       auto rval = poll(&fds, 1, remaining*1000);
+       int rval = poll(&fds, 1, remaining*1000);
        if (rval == -1) {
-           if (rval == EINTR) continue;
-           else break;
-       } else if (rval == 0) { // timeout!  Let's run maintenance.
+           if (errno == EINTR) continue;
+           myself->m_log.Emsg("Maintenance", "Failed to poll for events from parent object:", strerror(errno));
+           break;
+       }
+       if (rval == 0) { // timeout!  Let's run maintenance.
            if (myself->Maintenance()) {
                next_update = monotonic_time_s() + m_update_interval;
            } else {
                next_update = monotonic_time_s() + m_update_interval_failure;
            }
-       } else { // FD ready; let's shutdown
-           if (fds.revents & POLLIN) {
-               char indicator[1];
-               do {rval = read(myself->m_maintenance_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
-           }
+           continue;
        }
+       // Parent asked us to exit. Read the single signal byte and leave;
+       // reading until an error blocks, because the parent does not close
+       // its write end until after it has seen our ack.
+       if (fds.revents & POLLIN)
+           ReadByte(myself->m_maintenance_pipe_r);
+       break;
    }
-   if (errno) {
-       myself->m_log.Emsg("Maintenance", "Failed to poll for events from parent object");
-   }
-   char indicator = '1';
-   int rval;
-   do {rval = write(myself->m_maintenance_thread_pipe_w, &indicator, 1);} while (rval != -1 || errno == EINTR);
 
+   WriteByte(myself->m_maintenance_thread_pipe_w);
    return nullptr;
 }
