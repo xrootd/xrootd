@@ -70,6 +70,18 @@ http_copy() {
         "http://127.0.0.1:${DST_PORT}${dest}"
 }
 
+# http_push <source path> <dest path> [curl argument...]
+#
+# COPY from the source server, which pushes the file. Prints the HTTP status.
+http_push() {
+    local src=$1 dest=$2
+    shift 2
+    curl --silent --show-error -o body.txt -w '%{http_code}' -X COPY \
+        -H "Destination: http://127.0.0.1:${DST_PORT}${dest}" \
+        "$@" \
+        "http://127.0.0.1:${SRC_PORT}${src}"
+}
+
 @test "a GET with SciTag 144 counts the file in usage.sent" {
     curl --silent --show-error --fail -H 'SciTag: 144' -o copy.dat \
         "http://127.0.0.1:${SERVER_PORT}/ref.dat"
@@ -121,6 +133,22 @@ http_copy() {
     firefly_unchanged "$FIREFLY_RECORDS" "$OFF"
 }
 
+@test "a second GET on the same connection keeps the first SciTag" {
+    # --next reuses the connection. The second request names another flow,
+    # and the socket already has the first one.
+    curl --http1.1 --silent --show-error --fail \
+        -H 'Connection: keep-alive' -H 'SciTag: 144' \
+        -o first.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
+        --next \
+        -H 'Connection: keep-alive' -H 'SciTag: 1024' \
+        -o second.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" first.dat
+    run -0 cmp "$REF" second.dat
+    # Both responses travel on the socket the first request marked.
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$((2 * SIZE))" \
+        --src-port "$SERVER_PORT" --application http-get
+}
+
 @test "a pull with SciTag 144 is marked by the active server" {
     local src_off dst_off dest
 
@@ -154,6 +182,24 @@ http_copy() {
     firefly_check "$DSTFLY_RECORDS" "$dst_off" 2 16 1 sent "$SIZE" \
         --src-port "$SRC_PORT" --application http-put
     firefly_unchanged "$SRCFLY_RECORDS" "$src_off"
+}
+
+@test "a push with SciTag 144 is marked by the source server" {
+    local src_off dst_off dest
+
+    require_plugin libXrdHttpTPC
+    dest="/t${BATS_TEST_NUMBER}.dat"
+    src_off=$(firefly_offset "$SRCFLY_RECORDS")
+    dst_off=$(firefly_offset "$DSTFLY_RECORDS")
+    run -0 http_push /ref.dat "$dest" -H 'SciTag: 144'
+    assert_output 202
+    run -0 grep '^success' body.txt
+    run -0 cmp "$SRC_DATA/ref.dat" "$DST_DATA$dest"
+    # The source server sends the file. Its port on that socket is ephemeral,
+    # and the destination's listen port is the destination of the flow.
+    firefly_check "$SRCFLY_RECORDS" "$src_off" 2 16 1 sent "$SIZE" \
+        --dst-port "$DST_PORT" --application http-get
+    firefly_unchanged "$DSTFLY_RECORDS" "$dst_off"
 }
 
 @test "a pull with TransferHeaderSciTag 144 is marked by the source server" {
