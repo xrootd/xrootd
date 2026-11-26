@@ -162,12 +162,24 @@ def check(args):
     skipped = 0
     for start, end in complete:
         place = where(start)
-        if start["proto"] != "tcp":
-            problems.append(f"{place}: protocol {start['proto']}")
-        if start["afi"] != "ipv4":
-            problems.append(f"{place}: afi {start['afi']}")
-        if start["src"] != "127.0.0.1" or start["dst"] != "127.0.0.1":
-            problems.append(f"{place}: address is not 127.0.0.1")
+        # The pairing key does not include protocol or address family, and
+        # the two datagrams are separate messages. Both must describe the
+        # same TCP flow.
+        for item in (start, end):
+            if item["proto"] != "tcp":
+                problems.append(
+                    f"{place} {item['state']}: protocol {item['proto']}"
+                )
+            if item["afi"] != args.afi:
+                problems.append(
+                    f"{place} {item['state']}: afi {item['afi']}, "
+                    f"expected {args.afi}"
+                )
+        if start["src"] != args.address or start["dst"] != args.address:
+            problems.append(
+                f"{place}: address {start['src']} -> {start['dst']}, "
+                f"expected {args.address}"
+            )
         if start["sport"] <= 0 or start["dport"] <= 0 or start["sport"] == start["dport"]:
             problems.append(f"{place}: ports are not a connection")
         if args.src_port is not None and start["sport"] != args.src_port:
@@ -179,14 +191,15 @@ def check(args):
             problems.append(f"{place}: application {got}, expected {args.application}")
         if not end["end"]:
             problems.append(f"{place}: end datagram has no end-time")
-        if args.no_usage:
-            continue
         before = start[args.direction]
         after = end[args.direction]
         if before == 0 and after == 0:
             skipped += 1
             continue
-        if after <= before:
+        # One connection carries the file after the start datagram, so its
+        # counter grows. A parallel stream may only complete its bind, so
+        # --sum accepts an end counter that stayed put and checks the total.
+        if after < before or (not args.sum and after == before):
             problems.append(
                 f"{place}: usage.{args.direction} end {after} "
                 f"is not greater than start {before}"
@@ -197,7 +210,7 @@ def check(args):
                 f"{place}: usage.{args.direction} end {after} "
                 f"is below the file size {args.minimum}"
             )
-    if args.sum and not args.no_usage and skipped != len(complete):
+    if args.sum and skipped != len(complete):
         total = sum(measured)
         if total < args.minimum:
             problems.append(
@@ -231,8 +244,9 @@ def main():
     check_p.add_argument("--src-port", type=int)
     check_p.add_argument("--dst-port", type=int)
     check_p.add_argument("--application")
+    check_p.add_argument("--afi", default="ipv4")
+    check_p.add_argument("--address", default="127.0.0.1")
     check_p.add_argument("--sum", action="store_true")
-    check_p.add_argument("--no-usage", action="store_true")
 
     args = parser.parse_args()
     if not args.mode:
@@ -282,12 +296,14 @@ firefly_gate() {
 
 # firefly_check <records> <offset> <experiment> <activity> <pairs>
 #               <sent|received> <bytes> [--src-port P] [--dst-port P]
-#               [--application NAME] [--sum]
+#               [--application NAME] [--afi ipv4|ipv6] [--address IP]
+#               [--sum]
 #
 # <bytes> is the minimum of usage.<direction> on each end datagram. With
-# --sum it is the minimum of the sum, for a file spread across connections.
-# --no-usage skips those comparisons, for a socket closed before TCP_INFO
-# is read. --src-port and --dst-port are the known port of the flow.
+# --sum it is the minimum of the sum across the connections, and a
+# connection whose counter did not grow is allowed. --afi and --address
+# default to an IPv4 client at 127.0.0.1. --src-port and --dst-port are
+# the known port of the flow.
 firefly_check() {
     local records=$1 offset=$2 exp=$3 act=$4 pairs=$5 direction=$6 bytes=$7
     shift 7
