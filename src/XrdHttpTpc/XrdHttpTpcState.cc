@@ -1,7 +1,9 @@
 
 #include <algorithm>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
+#include <strings.h>
 
 #include "XrdVersion.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
@@ -16,6 +18,24 @@
 #include "XrdHttp/XrdHttpHeaderUtils.hh"
 
 using namespace TPC;
+
+namespace {
+
+// Section 3.5.2: a COPY that carries SciTag ignores TransferHeaderSciTag.
+bool CopyCarriesSciTag(const XrdHttpExtReq &req)
+{
+    for (const auto &header : req.headers)
+        if (!strcasecmp(header.first.c_str(), "scitag"))
+            return true;
+    return false;
+}
+
+bool IsTransferHeaderSciTag(const std::string &name)
+{
+    return name.size() == 20 && !strncasecmp(name.c_str(), "transferheaderscitag", 20);
+}
+
+} // namespace
 
 
 State::~State() {
@@ -105,6 +125,8 @@ void State::SetupHeaders(XrdHttpExtReq &req) {
         }
         // Note: len("TransferHeader") == 14
         if (!strncasecmp(header.c_str(),"transferheader",14)) {
+            if (CopyCarriesSciTag(req) && IsTransferHeaderSciTag(header))
+                continue;
             std::stringstream ss;
             ss << header.substr(14) << ": " << value;
             list = curl_slist_append(list, ss.str().c_str());
@@ -160,6 +182,8 @@ void State::SetupHeadersForHEAD(XrdHttpExtReq &req) {
     }
     // Note: len("TransferHeader") == 14
     if (!strncasecmp(header.c_str(),"transferheader",14)) {
+      if (CopyCarriesSciTag(req) && IsTransferHeaderSciTag(header))
+        continue;
       std::stringstream ss;
       ss << header.substr(14) << ": " << value;
       list = curl_slist_append(list, ss.str().c_str());
