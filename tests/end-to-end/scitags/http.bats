@@ -110,6 +110,51 @@ http_push() {
     firefly_check "$FIREFLY_RECORDS" "$OFF" 0 0 1 sent "$SIZE" \
         --src-port "$SERVER_PORT" --application http-get
 }
+@test "a later GET on an unmarked connection carries the SciTag" {
+    # The first request has no tag, so the socket is not marked. The second
+    # names one, and that mark has to start on the same connection.
+    curl --http1.1 --silent --show-error --fail \
+        -H 'Connection: keep-alive' \
+        -o first.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
+        --next \
+        -H 'Connection: keep-alive' -H 'SciTag: 144' \
+        -o second.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" first.dat
+    run -0 cmp "$REF" second.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get
+}
+@test "a second GET on the same connection carries the second SciTag" {
+    # --next reuses the connection. The second request names another flow,
+    # so the first firefly ends and a new one starts on that socket.
+    curl --http1.1 --silent --show-error --fail \
+        -H 'Connection: keep-alive' -H 'SciTag: 144' \
+        -o first.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
+        --next \
+        -H 'Connection: keep-alive' -H 'SciTag: 1024' \
+        -o second.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" first.dat
+    run -0 cmp "$REF" second.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get --select
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 16 0 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get --select
+    # The two tags are one socket. Two connections would not share a port.
+    [[ "$(firefly_endpoint "$FIREFLY_RECORDS" "$OFF" 2 16)" == \
+       "$(firefly_endpoint "$FIREFLY_RECORDS" "$OFF" 16 0)" ]]
+}
+@test "a second GET with the same SciTag keeps one firefly" {
+    curl --http1.1 --silent --show-error --fail \
+        -H 'Connection: keep-alive' -H 'SciTag: 144' \
+        -o first.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
+        --next \
+        -H 'Connection: keep-alive' -H 'SciTag: 144' \
+        -o second.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" first.dat
+    run -0 cmp "$REF" second.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$((2 * SIZE))" \
+        --src-port "$SERVER_PORT" --application http-get
+}
 @test "a pull with both SciTag headers keeps the SciTag of the COPY" {
     local src_off dst_off dest
 
