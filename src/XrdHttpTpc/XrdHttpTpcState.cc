@@ -1,7 +1,9 @@
 
 #include <algorithm>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
+#include <strings.h>
 
 #include "XrdVersion.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
@@ -16,6 +18,19 @@
 #include "XrdHttp/XrdHttpHeaderUtils.hh"
 
 using namespace TPC;
+
+namespace {
+
+// Section 3.5.2: SciTag on the COPY wins. TransferHeaderSciTag is then
+// not a header of the data request or of the HEAD probe.
+bool KeepTransferHeader(const XrdHttpExtReq &req, const std::string &name)
+{
+    if (name.size() != 20 || strncasecmp(name.c_str(), "transferheaderscitag", 20))
+        return true;
+    return XrdOucTUtils::caseInsensitiveFind(req.headers, "scitag") == req.headers.end();
+}
+
+} // namespace
 
 
 State::~State() {
@@ -105,6 +120,8 @@ void State::SetupHeaders(XrdHttpExtReq &req) {
         }
         // Note: len("TransferHeader") == 14
         if (!strncasecmp(header.c_str(),"transferheader",14)) {
+            if (!KeepTransferHeader(req, header))
+                continue;
             std::stringstream ss;
             ss << header.substr(14) << ": " << value;
             list = curl_slist_append(list, ss.str().c_str());
@@ -164,6 +181,8 @@ void State::SetupHeadersForHEAD(XrdHttpExtReq &req) {
     }
     // Note: len("TransferHeader") == 14
     if (!strncasecmp(header.c_str(),"transferheader",14)) {
+      if (!KeepTransferHeader(req, header))
+        continue;
       std::stringstream ss;
       ss << header.substr(14) << ": " << value;
       list = curl_slist_append(list, ss.str().c_str());
