@@ -68,6 +68,73 @@ sa_family_t SocketFamily(int fd)
       return AF_UNSPEC;
    return self.ss_family;
 }
+
+void Map4(struct in6_addr &addr, const struct in_addr &v4)
+{
+   memset(&addr, 0, sizeof(addr));
+   addr.s6_addr[10] = 0xff;
+   addr.s6_addr[11] = 0xff;
+   memcpy(addr.s6_addr + 12, &v4, 4);
+}
+
+#ifdef __linux__
+// The origin socket is shared and already bound, so the source of one
+// datagram is a control message rather than a bind. IP_PKTINFO carries an
+// IPv4 source. IPV6_PKTINFO carries an IPv6 source, including an IPv4-mapped
+// address when the data socket is IPv4 and this socket is IPv6.
+bool SourceControl(struct msghdr &hdr, char *cbuf, size_t cbufLen,
+                   const struct sockaddr *src, sa_family_t family)
+{
+   if (family == AF_INET)
+      {struct in_addr addr;
+       if (src->sa_family == AF_INET)
+          addr = reinterpret_cast<const struct sockaddr_in *>(src)->sin_addr;
+       else if (src->sa_family == AF_INET6
+            &&  IN6_IS_ADDR_V4MAPPED(&reinterpret_cast<const struct sockaddr_in6 *>(src)->sin6_addr))
+          memcpy(&addr,
+                 reinterpret_cast<const struct sockaddr_in6 *>(src)->sin6_addr.s6_addr + 12,
+                 4);
+       else return false;
+       if (cbufLen < CMSG_SPACE(sizeof(struct in_pktinfo))) return false;
+       memset(cbuf, 0, cbufLen);
+       hdr.msg_control = cbuf;
+       hdr.msg_controllen = CMSG_SPACE(sizeof(struct in_pktinfo));
+       struct cmsghdr *cmsg = CMSG_FIRSTHDR(&hdr);
+       if (!cmsg) return false;
+       cmsg->cmsg_level = IPPROTO_IP;
+       cmsg->cmsg_type  = IP_PKTINFO;
+       cmsg->cmsg_len   = CMSG_LEN(sizeof(struct in_pktinfo));
+       struct in_pktinfo *info = reinterpret_cast<struct in_pktinfo *>(CMSG_DATA(cmsg));
+       memset(info, 0, sizeof(*info));
+       info->ipi_spec_dst = addr;
+       return true;
+      }
+
+   if (family == AF_INET6)
+      {struct in6_addr addr;
+       if (src->sa_family == AF_INET6)
+          addr = reinterpret_cast<const struct sockaddr_in6 *>(src)->sin6_addr;
+       else if (src->sa_family == AF_INET)
+          Map4(addr, reinterpret_cast<const struct sockaddr_in *>(src)->sin_addr);
+       else return false;
+       if (cbufLen < CMSG_SPACE(sizeof(struct in6_pktinfo))) return false;
+       memset(cbuf, 0, cbufLen);
+       hdr.msg_control = cbuf;
+       hdr.msg_controllen = CMSG_SPACE(sizeof(struct in6_pktinfo));
+       struct cmsghdr *cmsg = CMSG_FIRSTHDR(&hdr);
+       if (!cmsg) return false;
+       cmsg->cmsg_level = IPPROTO_IPV6;
+       cmsg->cmsg_type  = IPV6_PKTINFO;
+       cmsg->cmsg_len   = CMSG_LEN(sizeof(struct in6_pktinfo));
+       struct in6_pktinfo *info =
+          reinterpret_cast<struct in6_pktinfo *>(CMSG_DATA(cmsg));
+       memset(info, 0, sizeof(*info));
+       info->ipi6_addr = addr;
+       return true;
+      }
+   return false;
+}
+#endif
 }
 
 /******************************************************************************/
@@ -203,37 +270,74 @@ int XrdNetMsg::Send(const char *Buff, int Blen, const char *dest, int tmo)
 int XrdNetMsg::Send(const char *dest, const XrdNetSockAddr &netSA,
                     const char *Buff, int Blen, int tmo)
 {
-   int aSize, retc;
-   const struct sockaddr *sap = &netSA.Addr;
+   return SendTo(dest, netSA, 0, Buff, Blen, tmo);
+}
+
+/******************************************************************************/
+
+int XrdNetMsg::Send(const char *dest, const XrdNetSockAddr &netSA,
+                    const XrdNetSockAddr &fromSA,
+                    const char *Buff, int Blen, int tmo)
+{
+   return SendTo(dest, netSA, &fromSA, Buff, Blen, tmo);
+}
+
+/******************************************************************************/
+
+int XrdNetMsg::SendTo(const char *dest, const XrdNetSockAddr &netSA,
+                      const XrdNetSockAddr *fromSA,
+                      const char *Buff, int Blen, int tmo)
+{
    struct sockaddr_in6 mapped;
+   const struct sockaddr *sap = &netSA.Addr;
+   const char *who = dest ? dest : "Unknown!";
+   socklen_t aSize;
+   int retc;
 
-   if (!Blen && !(Blen = strlen(Buff))) return  0;
+   if (!Blen && !(Blen = strlen(Buff))) return 0;
 
+// The socket is IPv6 when the host has IPv6. An IPv4 peer is sent as an
+// IPv4-mapped address: macOS rejects an AF_INET sendto() on an AF_INET6 socket.
+//
    if (netSA.Addr.sa_family == AF_INET)
       {aSize = sizeof(netSA.v4);
-       // The socket is IPv6 when the host has IPv6. An IPv4 peer is sent as
-       // an IPv4-mapped address: macOS rejects an AF_INET sendto() on an
-       // AF_INET6 socket.
        if (family == AF_INET6)
           {memset(&mapped, 0, sizeof(mapped));
            mapped.sin6_family = AF_INET6;
            mapped.sin6_port   = netSA.v4.sin_port;
-           mapped.sin6_addr.s6_addr[10] = 0xff;
-           mapped.sin6_addr.s6_addr[11] = 0xff;
-           memcpy(mapped.sin6_addr.s6_addr+12, &netSA.v4.sin_addr, 4);
+           Map4(mapped.sin6_addr, netSA.v4.sin_addr);
            sap   = (struct sockaddr *)&mapped;
            aSize = sizeof(mapped);
           }
       } else if (netSA.Addr.sa_family == AF_INET6) aSize = sizeof(netSA.v6);
-              else return retErr(EAFNOSUPPORT, (dest ? dest : "Unknown!"));
+              else return retErr(EAFNOSUPPORT, who);
 
    if (tmo >= 0 && !OK2Send(tmo, dest)) return 1;
 
-   do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0, sap, aSize);}
-       while (retc < 0 && errno == EINTR);
+   if (!fromSA)
+      {do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0, sap, aSize);}
+          while (retc < 0 && errno == EINTR);
+      } else {
+       struct msghdr mHdr{};
+       struct iovec  iov;
+       iov.iov_base = const_cast<char *>(Buff);
+       iov.iov_len  = Blen;
+       mHdr.msg_name = const_cast<struct sockaddr *>(sap);
+       mHdr.msg_namelen = aSize;
+       mHdr.msg_iov = &iov;
+       mHdr.msg_iovlen = 1;
+#ifdef __linux__
+       char cbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+       if (!SourceControl(mHdr, cbuf, sizeof(cbuf), &fromSA->Addr, family))
+          return retErr(EAFNOSUPPORT, who);
+#else
+       (void)fromSA;
+#endif
+       do {retc = sendmsg(FD, &mHdr, 0);} while (retc < 0 && errno == EINTR);
+      }
 
    if (retc >= 0) return 0;
-   return retErr(errno, (dest ? dest : "Unknown!"));
+   return retErr(errno, who);
 }
 
 /******************************************************************************/
