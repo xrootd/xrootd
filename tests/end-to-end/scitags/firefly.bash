@@ -179,10 +179,12 @@ def check(args):
                     f"{place} {item['state']}: afi {item['afi']}, "
                     f"expected {args.afi}"
                 )
-        if start["src"] != args.address or start["dst"] != args.address:
+        src_ip = args.src_ip if args.src_ip is not None else args.address
+        dst_ip = args.dst_ip if args.dst_ip is not None else args.address
+        if start["src"] != src_ip or start["dst"] != dst_ip:
             problems.append(
                 f"{place}: address {start['src']} -> {start['dst']}, "
-                f"expected {args.address}"
+                f"expected {src_ip} -> {dst_ip}"
             )
         if start["sport"] <= 0 or start["dport"] <= 0 or start["sport"] == start["dport"]:
             problems.append(f"{place}: ports are not a connection")
@@ -251,6 +253,8 @@ def main():
     check_p.add_argument("--application")
     check_p.add_argument("--afi", default="ipv4")
     check_p.add_argument("--address", default="127.0.0.1")
+    check_p.add_argument("--src-ip")
+    check_p.add_argument("--dst-ip")
     check_p.add_argument("--select", action="store_true")
     check_p.add_argument("--sum", action="store_true")
 
@@ -303,14 +307,14 @@ firefly_gate() {
 # firefly_check <records> <offset> <experiment> <activity> <pairs>
 #               <sent|received> <bytes> [--src-port P] [--dst-port P]
 #               [--application NAME] [--afi ipv4|ipv6] [--address IP]
-#               [--select] [--sum]
+#               [--src-ip IP] [--dst-ip IP] [--select] [--sum]
 #
 # <bytes> is the minimum of usage.<direction> on each end datagram. With
 # --sum it is the minimum of the sum across the connections, and a
 # connection whose counter did not grow is allowed. --afi and --address
-# default to an IPv4 client at 127.0.0.1. --src-port and --dst-port are
-# the known port of the flow. --select keeps this tag and ignores any
-# other tag in the slice.
+# default to an IPv4 client at 127.0.0.1. --src-ip and --dst-ip override
+# one side of that pair. --src-port and --dst-port are the known port of
+# the flow. --select keeps this tag and ignores any other tag in the slice.
 firefly_check() {
     local records=$1 offset=$2 exp=$3 act=$4 pairs=$5 direction=$6 bytes=$7
     shift 7
