@@ -713,6 +713,14 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
                streamMutex.UnLock();
               }
           } else streamMutex.UnLock();
+       // The end firefly reads TCP_INFO. Close() closes this descriptor
+       // after Recycle returns, so the counters have to be read here, while
+       // the socket still exists. The later Recycle(0) finds no handle.
+       if (pmHandle)
+          {XrdNetPMark::Handle *handle = pmHandle;
+           pmHandle = 0;
+           delete handle;
+          }
        boundRecycle->Post();
        if (lp) return;  // Async close
       }
