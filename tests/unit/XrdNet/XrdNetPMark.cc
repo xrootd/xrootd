@@ -2,8 +2,9 @@
 // Unit tests for XrdNetPMark::getEA and Handle::Valid.
 //
 // getEA splits scitag.flow into a 9-bit experiment and a 6-bit activity.
-// Activity 0 with an experiment in range is a partial mark. A value outside
-// 65..65535 is reported as 0,0, the mark for an out-of-range tag.
+// The name is the CGI key, and the last one wins. Activity 0 with an
+// experiment in range is a partial mark. A present value that is not one
+// integer in 65..65535 is reported as 0,0. A missing key is not a tag.
 //------------------------------------------------------------------------------
 
 #include "XrdNet/XrdNetPMark.hh"
@@ -45,6 +46,8 @@ TEST(PMarkTest, Flow144IsExperiment2Activity16)
 {
   ExpectFlow("scitag.flow=144", 2, 16);
   ExpectFlow("scitag.flow=144&pmark.appname=http-get", 2, 16);
+  ExpectFlow("scitag.flow=00144", 2, 16);
+  ExpectFlow("scitag.flow=+144", 2, 16);
 }
 
 // 1024 is 16 << 6 | 0. Activity 0 must stay valid so the partial mark is emitted.
@@ -74,6 +77,38 @@ TEST(PMarkTest, MissingFlowIsNotATag)
   EXPECT_FALSE(XrdNetPMark::getEA(nullptr, experimentId, activityId));
   EXPECT_FALSE(XrdNetPMark::getEA("", experimentId, activityId));
   EXPECT_FALSE(XrdNetPMark::getEA("xrd.close=1", experimentId, activityId));
+}
+
+// note=scitag.flow=1024 is the key "note". The last real scitag.flow wins.
+TEST(PMarkTest, TheKeyIsTheNameAndTheLastOneWins)
+{
+  ExpectFlow("note=scitag.flow=1024&scitag.flow=144", 2, 16);
+  ExpectFlow("scitag.flow=144&note=scitag.flow=1024", 2, 16);
+  ExpectFlow("scitag.flow=1024&scitag.flow=144", 2, 16);
+  ExpectFlow("&scitag.flow=144", 2, 16);
+}
+
+// A present value has to be the whole token. 144abc is not 144, and an
+// empty value is present too. The last one wins, so it replaces 144.
+TEST(PMarkTest, APartialValueIsTheZeroMark)
+{
+  ExpectZero("scitag.flow=144abc");
+  ExpectZero("scitag.flow=abc");
+  ExpectZero("scitag.flow=144&scitag.flow=abc");
+  ExpectZero("scitag.flow=");
+  ExpectZero("scitag.flow=144&scitag.flow=");
+  ExpectZero("scitag.flow=+");
+  ExpectZero("scitag.flow=000");
+  ExpectZero("scitag.flow=999999999999999999");
+}
+
+TEST(PMarkTest, AKeyThatOnlyContainsTheNameIsNotATag)
+{
+  int experimentId = -1, activityId = -1;
+
+  EXPECT_FALSE(XrdNetPMark::getEA("xscitag.flow=144", experimentId, activityId));
+  EXPECT_EQ(experimentId, 0);
+  EXPECT_EQ(activityId, 0);
 }
 
 // Activity 0 is valid across the experiment field, and only 0,0 has no
