@@ -81,6 +81,17 @@ virtual Handle *Begin(XrdNetAddrInfo &addr, Handle     &handle,
 
 static  bool    getEA(const char *cgi, int &ecode, int &acode);
 
+// The last value of key in an &-separated CGI string. XrdOucEnv drops an
+// empty value, so a present empty token is not a missing key. Returns false
+// when the key is absent. On success val points into cgi and n is its length.
+static  bool    FindCgi(const char *cgi, const char *key,
+                        const char *&val, size_t &n);
+
+// One flow id: an optional '+', then digits, the whole token, in
+// minTotID..maxTotID. Leading zeros do not change the integer. flow is that
+// integer, or 0 when the token is anything else.
+static  bool    FlowID(const char *val, size_t n, int &flow);
+
                 XrdNetPMark() {}
 virtual        ~XrdNetPMark() {} // This object cannot be deleted!
 

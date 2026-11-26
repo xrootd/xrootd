@@ -209,18 +209,15 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdSecEntity &client,
 
 // Obtain the appname overridefrom the cgi
 //
-   if (cgi)                        // 01234567890123
-      {const char *apP = strstr(cgi, "pmark.appname=");
-       if (apP)
-          {apP += 14;
-           const char* aP = apP;
-           while(*aP && *aP != '&') aP++;
-           int apLen = aP - apP;
-           if (apLen > 0)
-              {altApp = "";
-               altApp.insert(apP, 0, apLen);
-               app = altApp.c_str();
-              }
+   if (cgi)
+      {const char *apP = 0;
+       size_t apLen = 0;
+       // The name is the key. note=pmark.appname=other is not this parameter,
+       // and the last one wins, as it does for scitag.flow.
+       if (XrdNetPMark::FindCgi(cgi, "pmark.appname", apP, apLen) && apLen)
+          {altApp = "";
+           altApp.insert(apP, 0, static_cast<int>(apLen));
+           app = altApp.c_str();
           }
       }
 
