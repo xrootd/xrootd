@@ -29,6 +29,7 @@
 
 #include <cctype>
 #include <cstdio>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -1816,7 +1817,16 @@ int XrdXrootdProtocol::do_Open()
 // We also need to extend the marking to any associated streams.
 //
    int eCode, aCode;
-   if (PMark && !pmDone)
+   // tpc.stage is a CGI key. The control connection of a copy carries the
+   // value "copy" and does not move the file. Text that only contains
+   // "tpc.stage=copy" is still a data open.
+   bool tpcCopy = false;
+   if (opaque && !pmDone && (PMark || Monitor.Logins()))
+      {XrdOucEnv cgiEnv(opaque);
+       const char *stage = cgiEnv.Get("tpc.stage");
+       tpcCopy = stage && !strcmp(stage, "copy");
+      }
+   if (PMark && !pmDone && !tpcCopy)
       {streamMutex.Lock();
        pmDone = true;
        if ((pmHandle = PMark->Begin(*Client, fn, opaque, AppName)))
@@ -1832,7 +1842,7 @@ int XrdXrootdProtocol::do_Open()
 
        if (pmHandle && Monitor.Logins() && pmHandle->getEA(eCode, aCode))
           Monitor.Report(eCode, aCode);
-      } else {
+      } else if (!tpcCopy) {
        if (!pmDone  && Monitor.Logins()
        &&  XrdNetPMark::getEA(opaque, eCode, aCode))
           {Monitor.Report(eCode, aCode); pmDone = true;}

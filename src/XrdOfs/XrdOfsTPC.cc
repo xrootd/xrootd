@@ -31,11 +31,13 @@
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <strings.h>
   
 #include "XrdAcc/XrdAccAccess.hh"
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetPMark.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 #include "XrdOfs/XrdOfsStats.hh"
@@ -615,6 +617,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
    const char *xProt = (!tpcSpr || strcmp("xroots",tpcSpr) ? "xroot" : tpcSpr);
    n = snprintf(myURL, myURLen, "%s://%s/%s?", xProt, tpcSrc, tpcLfn);
    char *cgiP = myURL+n;
+   char *cgi0 = cgiP;
    int   cgiL = myURLen-n;
    if (cgiL < 3) return Death(Args, "url too long", EINVAL);
 
@@ -629,6 +632,39 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
       {if ((int)strlen(tpcSgi) >= cgiL)
           return Death(Args, "url too long", EINVAL);
        n = XrdOucTPC::copyCGI(tpcSgi, cgiP, cgiL);
+       cgiP += n;
+       cgiL -= n;
+      }
+
+// The open that starts the copy carries the flow id, and the bytes move
+// on the socket this URL opens. A flow id copyCGI already placed in that
+// URL is kept; the check reads the copied CGI, not the raw tpc.scgi text.
+// The open's value is the last scitag.flow in the raw CGI. XrdOucEnv drops
+// an empty value, so scitag.flow=144&scitag.flow= would otherwise travel
+// as 144. The value that travels is the integer FlowID accepts, or 0.
+// Client text is not copied into the source URL.
+   bool haveFlow = false;
+   if (cgiP != cgi0)
+      {XrdOucEnv copied(cgi0);
+       const char *kept = copied.Get("scitag.flow");
+       haveFlow = kept && *kept;
+      }
+   int envLen = 0;
+   const char *val = 0;
+   size_t nlen = 0;
+   const char *env = Args.Env ? Args.Env->Env(envLen) : 0;
+   if (!haveFlow && XrdNetPMark::FindCgi(env, "scitag.flow", val, nlen))
+      {int flow = 0;
+       char canon[8];
+       const char *use = "0";
+       if (XrdNetPMark::FlowID(val, nlen, flow))
+          {snprintf(canon, sizeof(canon), "%d", flow);
+           use = canon;
+          }
+       n = snprintf(cgiP, cgiL, "%sscitag.flow=%s",
+                    cgiP == cgi0 ? "" : "&", use);
+       if (n < 0 || n >= cgiL)
+          return Death(Args, "url too long", EINVAL);
        cgiP += n;
        cgiL -= n;
       }
