@@ -1,6 +1,7 @@
 add_unit_tests(
   SOURCES
     XrdTlsNotaryUtils.cc
+    XrdTlsTempCA.cc
   LIBRARIES
     XrdUtils
     OpenSSL::Crypto

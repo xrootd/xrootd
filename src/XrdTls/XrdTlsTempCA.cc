@@ -619,11 +619,16 @@ void *XrdTlsTempCA::MaintenanceThread(void *myself_raw)
    auto next_update = now + m_update_interval;
    while (true) {
        now = monotonic_time_s();
-       auto remaining = next_update - now;
+       // Once the deadline has passed, next_update - now wraps: both are
+       // unsigned. A negative poll() timeout waits until the pipe is
+       // readable, so a missed deadline would stop reloads until shutdown.
+       int timeout_ms = 0;
+       if (now < next_update)
+           timeout_ms = static_cast<int>((next_update - now) * 1000);
        struct pollfd fds;
        fds.fd = myself->m_maintenance_pipe_r;
        fds.events = POLLIN;
-       int rval = poll(&fds, 1, remaining*1000);
+       int rval = poll(&fds, 1, timeout_ms);
        if (rval == -1) {
            if (errno == EINTR) continue;
            myself->m_log.Emsg("Maintenance", "Failed to poll for events from parent object:", strerror(errno));
