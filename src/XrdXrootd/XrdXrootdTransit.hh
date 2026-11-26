@@ -155,6 +155,8 @@ int           setSF(kXR_char *fhandle, bool seton=false)
 void          SetWait(int wtime, bool notify=false)
                      {runWMax = wtime; runWCall = notify;}
 
+bool          pmMayReplace() const override {return true;}
+
 //-----------------------------------------------------------------------------
 //! Constructor & Destructor
 //-----------------------------------------------------------------------------

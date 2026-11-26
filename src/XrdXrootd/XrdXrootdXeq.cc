@@ -1818,13 +1818,32 @@ int XrdXrootdProtocol::do_Open()
 //
    int eCode, aCode;
    // tpc.stage is a CGI key. The control connection of a copy carries the
-   // value "copy" and does not move the file. Text that only contains
-   // "tpc.stage=copy" is still a data open.
+   // value "copy" and does not move the file, so it is not marked and it
+   // does not replace a mark. Text that only contains "tpc.stage=copy" is
+   // still a data open.
    bool tpcCopy = false;
-   if (opaque && !pmDone && (PMark || Monitor.Logins()))
+   if (opaque && (PMark || Monitor.Logins()))
       {XrdOucEnv cgiEnv(opaque);
        const char *stage = cgiEnv.Get("tpc.stage");
        tpcCopy = stage && !strcmp(stage, "copy");
+      }
+   // A later open on the HTTP bridge may name another flow. End the current
+   // firefly under the stream lock (the destructor emits end) and clear
+   // pmDone so the path below emits start. The same id keeps the one handle.
+   if (PMark && pmDone && pmHandle && !tpcCopy && pmMayReplace())
+      {int nExp, nAct;
+       if (XrdNetPMark::getEA(opaque, nExp, nAct))
+          {int cExp = 0, cAct = 0;
+           streamMutex.Lock();
+           if (pmHandle
+           && (!pmHandle->getEA(cExp, cAct) || nExp != cExp || nAct != cAct))
+              {XrdNetPMark::Handle *old = pmHandle;
+               pmHandle = 0;
+               pmDone   = false;
+               delete old;
+              }
+           streamMutex.UnLock();
+          }
       }
    if (PMark && !pmDone && !tpcCopy)
       {streamMutex.Lock();
