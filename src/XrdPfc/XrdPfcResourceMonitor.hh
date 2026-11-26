@@ -152,7 +152,6 @@ class ResourceMonitor
 
    XrdSysMutex              m_dir_scan_mutex;
    std::list<LfnCondRecord> m_dir_scan_open_requests;
-   int                      m_dir_scan_check_counter = 0;
    std::atomic<bool>        m_dir_scan_in_progress {true};  //!< written under m_dir_scan_mutex
    time_t                   m_dir_scan_last_wait_report = 0; //!< under m_dir_scan_mutex
    int                      m_dir_scan_n_released = 0;       //!< opens released by the scan, scan thread only
