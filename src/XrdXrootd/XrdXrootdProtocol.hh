@@ -210,6 +210,10 @@ XrdSfsXioHandle      Swap(const char *buff, XrdSfsXioHandle h=0) override; // Xr
 
 XrdXrootdProtocol   *VerifyStream(int &rc, int pID, bool lok=true);
 
+       // A later open on this connection may carry another flow id. The HTTP
+       // bridge does. A native connection keeps the first mark.
+       virtual bool  pmMayReplace() const {return false;}
+
               XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}

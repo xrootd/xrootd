@@ -113,12 +113,14 @@ def parse(event):
         raise FireflyError(f"firefly field ({exc}): {event}") from exc
 
 
-def load(path, offset, exp, act):
+def load(path, offset, exp, act, select=False):
     groups = {}
     order = []
     for event in read_events(path, offset):
         item = parse(event)
         if item["exp"] != exp or item["act"] != act:
+            if select:
+                continue
             raise FireflyError(
                 f"unexpected tag experiment {item['exp']} activity {item['act']}"
             )
@@ -151,7 +153,9 @@ def where(item):
 
 
 def check(args):
-    complete, incomplete = load(args.records, args.offset, args.exp, args.act)
+    complete, incomplete = load(
+        args.records, args.offset, args.exp, args.act, args.select
+    )
     if len(complete) != args.pairs or incomplete:
         raise FireflyError(
             f"{len(complete)} complete pair(s), {incomplete} open, "
@@ -232,6 +236,7 @@ def main():
     gate.add_argument("exp", type=int)
     gate.add_argument("act", type=int)
     gate.add_argument("pairs", type=int)
+    gate.add_argument("--select", action="store_true")
 
     check_p = sub.add_parser("check")
     check_p.add_argument("records")
@@ -246,6 +251,7 @@ def main():
     check_p.add_argument("--application")
     check_p.add_argument("--afi", default="ipv4")
     check_p.add_argument("--address", default="127.0.0.1")
+    check_p.add_argument("--select", action="store_true")
     check_p.add_argument("--sum", action="store_true")
 
     args = parser.parse_args()
@@ -254,7 +260,7 @@ def main():
     if args.mode == "gate":
         try:
             complete, incomplete = load(
-                args.records, args.offset, args.exp, args.act
+                args.records, args.offset, args.exp, args.act, args.select
             )
         except FireflyError as exc:
             with open(args.fatal, "w") as handle:
@@ -297,20 +303,23 @@ firefly_gate() {
 # firefly_check <records> <offset> <experiment> <activity> <pairs>
 #               <sent|received> <bytes> [--src-port P] [--dst-port P]
 #               [--application NAME] [--afi ipv4|ipv6] [--address IP]
-#               [--sum]
+#               [--select] [--sum]
 #
 # <bytes> is the minimum of usage.<direction> on each end datagram. With
 # --sum it is the minimum of the sum across the connections, and a
 # connection whose counter did not grow is allowed. --afi and --address
 # default to an IPv4 client at 127.0.0.1. --src-port and --dst-port are
-# the known port of the flow.
+# the known port of the flow. --select keeps this tag and ignores any
+# other tag in the slice.
 firefly_check() {
     local records=$1 offset=$2 exp=$3 act=$4 pairs=$5 direction=$6 bytes=$7
     shift 7
     local fatal="${BATS_TEST_TMPDIR}/firefly.fatal"
+    local select=()
 
+    [[ " $* " == *" --select "* ]] && select=(--select)
     rm -f "$fatal"
-    if ! wait_for 10 firefly_gate "$fatal" "$records" "$offset" "$exp" "$act" "$pairs"; then
+    if ! wait_for 10 firefly_gate "$fatal" "$records" "$offset" "$exp" "$act" "$pairs" ${select[@]+"${select[@]}"}; then
         echo "timed out waiting for ${pairs} firefly pair(s) for experiment ${exp} activity ${act}" >&2
         firefly_py check "$records" "$offset" "$exp" "$act" "$pairs" "$direction" "$bytes" "$@" >&2 || true
         firefly_dump "$records" "$offset"

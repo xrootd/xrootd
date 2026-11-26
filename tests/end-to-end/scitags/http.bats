@@ -141,9 +141,9 @@ http_push() {
     firefly_unchanged "$FIREFLY_RECORDS" "$OFF"
 }
 
-@test "a second GET on the same connection keeps the first SciTag" {
+@test "a second GET on the same connection carries the second SciTag" {
     # --next reuses the connection. The second request names another flow,
-    # and the socket already has the first one.
+    # so the first firefly ends and a new one starts on that socket.
     curl --http1.1 --silent --show-error --fail \
         -H 'Connection: keep-alive' -H 'SciTag: 144' \
         -o first.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
@@ -152,7 +152,21 @@ http_push() {
         -o second.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat"
     run -0 cmp "$REF" first.dat
     run -0 cmp "$REF" second.dat
-    # Both responses travel on the socket the first request marked.
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get --select
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 16 0 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get --select
+}
+
+@test "a second GET with the same SciTag keeps one firefly" {
+    curl --http1.1 --silent --show-error --fail \
+        -H 'Connection: keep-alive' -H 'SciTag: 144' \
+        -o first.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
+        --next \
+        -H 'Connection: keep-alive' -H 'SciTag: 144' \
+        -o second.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" first.dat
+    run -0 cmp "$REF" second.dat
     firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$((2 * SIZE))" \
         --src-port "$SERVER_PORT" --application http-get
 }
