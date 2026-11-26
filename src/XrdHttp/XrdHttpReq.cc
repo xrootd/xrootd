@@ -294,16 +294,20 @@ int XrdHttpReq::parseHost(char *line) {
 }
 
 void XrdHttpReq::parseScitag(const std::string & val) {
-  // The scitag header has been populated and the packet marking was configured, the scitag will either be equal to 0
-  // or to the value passed by the client
+  // The scitag header has been populated and the packet marking was configured.
+  // The value has to be the whole integer. std::stoi stops at the first
+  // non-digit, so 144abc must not become 144. Anything else is the 0,0 mark.
   mScitag = 0;
   std::string scitagS = val;
   trim(scitagS);
   if(scitagS.size()) {
     if(scitagS[0] != '-') {
       try {
-        mScitag = std::stoi(scitagS.c_str(), nullptr, 10);
-        if (mScitag > XrdNetPMark::maxTotID || mScitag < XrdNetPMark::minTotID) {
+        size_t consumed = 0;
+        mScitag = std::stoi(scitagS, &consumed, 10);
+        if (consumed != scitagS.size()
+            || mScitag > XrdNetPMark::maxTotID
+            || mScitag < XrdNetPMark::minTotID) {
           mScitag = 0;
         }
       } catch (...) {

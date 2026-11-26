@@ -71,6 +71,13 @@ setup() {
         --src-port "$SERVER_PORT" --application xrdcp
 }
 
+@test "a download marked 144abc reports the out-of-range mark" {
+    xrdcp "$SERVER_URL4//ref.dat?scitag.flow=144abc" copy.dat
+    run -0 cmp "$REF" copy.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 0 0 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application xrdcp
+}
+
 @test "a data open is marked when tpc.stage is only text in another value" {
     # The exclusion is the CGI key tpc.stage, value copy. A note that
     # happens to contain that text still moves the file on this socket.
