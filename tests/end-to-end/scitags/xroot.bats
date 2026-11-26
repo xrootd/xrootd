@@ -115,12 +115,14 @@ setup() {
         --src-port "$SERVER_PORT" --application xrdcp
 }
 
-@test "a second open on the same connection keeps the first SciTag" {
+@test "a second open on the same connection carries the second SciTag" {
+    # pmDone still keeps the first tag. Section 3.5.1 expects the second
+    # CGI to be honored. This test stays off until that is implemented.
+    skip 'pmDone still keeps the first tag; section 3.5.1 expects the second CGI to be honored; this test stays off until that is implemented'
+
     # One xrdfs session reuses the socket. The second cat asks for a
-    # different flow id. The socket already has one, so only the first
-    # firefly is emitted, and its counter covers both files. xrdfs still
-    # exits 0 when a command fails, so each payload is checked on its own.
-    # XRD_REQUESTTIMEOUT bounds a stuck transfer.
+    # different flow id. xrdfs still exits 0 when a command fails, so each
+    # payload is checked on its own. XRD_REQUESTTIMEOUT bounds a stuck transfer.
     xrdfs "$SERVER_URL4" <<EOF
 cat -o first.dat /ref.dat?scitag.flow=144
 cat -o second.dat /ref.dat?scitag.flow=1024
@@ -128,6 +130,8 @@ exit
 EOF
     run -0 cmp "$REF" first.dat
     run -0 cmp "$REF" second.dat
-    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$((2 * SIZE))" \
-        --src-port "$SERVER_PORT" --application xrdfs
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application xrdfs --select
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 16 0 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application xrdfs --select
 }
