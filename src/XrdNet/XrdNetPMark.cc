@@ -74,8 +74,8 @@ bool XrdNetPMark::getEA(const char *cgi, int &ecode, int &acode)
 
 // Walk &-separated pairs, the same way XrdOucEnv does. The name has to be
 // scitag.flow: note=scitag.flow=1024 is a different key. The last one wins.
-// A present value that is not one integer in 65..65535 is the 0,0 mark.
-// A missing key is not a tag.
+// A present value that is not one integer in 65..65535 is the 0,0 mark,
+// and that includes an empty value. A missing key is not a tag.
 //
    bool found = false;
    const char *p = cgi;
@@ -90,13 +90,12 @@ bool XrdNetPMark::getEA(const char *cgi, int &ecode, int &acode)
          const char *val = p;
          while (*p && *p != '&') p++;
          size_t vlen = static_cast<size_t>(p - val);
-         if (!nlen || !vlen) continue;
-         if (nlen != keyLen || memcmp(name, key, keyLen)) continue;
+         if (!nlen || nlen != keyLen || memcmp(name, key, keyLen)) continue;
 
          found = true;
          ecode = acode = 0;
          long flow = 0;
-         if (WholeFlow(val, vlen, flow)
+         if (vlen && WholeFlow(val, vlen, flow)
          &&  flow >= minTotID && flow <= maxTotID)
             {ecode = static_cast<int>(flow) >> btsActID;
              acode = static_cast<int>(flow) & mskActID;

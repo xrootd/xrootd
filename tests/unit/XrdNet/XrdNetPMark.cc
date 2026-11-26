@@ -87,12 +87,15 @@ TEST(PMarkTest, TheKeyIsTheNameAndTheLastOneWins)
   ExpectFlow("scitag.flow=+144", 2, 16);
 }
 
-// A present value has to be the whole token. 144abc is not 144.
+// A present value has to be the whole token. 144abc is not 144, and an
+// empty value is present too. The last one wins, so it replaces 144.
 TEST(PMarkTest, APartialValueIsTheZeroMark)
 {
   ExpectZero("scitag.flow=144abc");
   ExpectZero("scitag.flow=abc");
   ExpectZero("scitag.flow=144&scitag.flow=abc");
+  ExpectZero("scitag.flow=");
+  ExpectZero("scitag.flow=144&scitag.flow=");
 }
 
 TEST(PMarkTest, AKeyThatOnlyContainsTheNameIsNotATag)
