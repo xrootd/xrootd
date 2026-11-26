@@ -139,6 +139,23 @@ http_copy() {
     firefly_unchanged "$SRCFLY_RECORDS" "$src_off"
 }
 
+@test "a pull with both SciTag headers keeps the SciTag of the COPY" {
+    local src_off dst_off dest
+
+    require_plugin libXrdHttpTPC
+    dest="/t${BATS_TEST_NUMBER}.dat"
+    src_off=$(firefly_offset "$SRCFLY_RECORDS")
+    dst_off=$(firefly_offset "$DSTFLY_RECORDS")
+    # 1024 would be experiment 16. Section 3.5.2 says it is ignored.
+    run -0 http_copy /ref.dat "$dest" -H 'SciTag: 144' -H 'TransferHeaderSciTag: 1024'
+    assert_output 202
+    run -0 grep '^success' body.txt
+    run -0 cmp "$SRC_DATA/ref.dat" "$DST_DATA$dest"
+    firefly_check "$DSTFLY_RECORDS" "$dst_off" 2 16 1 sent "$SIZE" \
+        --src-port "$SRC_PORT" --application http-put
+    firefly_unchanged "$SRCFLY_RECORDS" "$src_off"
+}
+
 @test "a pull with TransferHeaderSciTag 144 is marked by the source server" {
     local src_off dst_off dest
 
