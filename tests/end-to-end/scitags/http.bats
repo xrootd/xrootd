@@ -171,6 +171,9 @@ http_push() {
         --src-port "$SERVER_PORT" --application http-get --select
     firefly_check "$FIREFLY_RECORDS" "$OFF" 16 0 1 sent "$SIZE" \
         --src-port "$SERVER_PORT" --application http-get --select
+    # The two tags are one socket. Two connections would not share a port.
+    [[ "$(firefly_endpoint "$FIREFLY_RECORDS" "$OFF" 2 16)" == \
+       "$(firefly_endpoint "$FIREFLY_RECORDS" "$OFF" 16 0)" ]]
 }
 
 @test "a second GET with the same SciTag keeps one firefly" {

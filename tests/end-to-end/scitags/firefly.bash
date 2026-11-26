@@ -258,9 +258,38 @@ def main():
     check_p.add_argument("--select", action="store_true")
     check_p.add_argument("--sum", action="store_true")
 
+    end_p = sub.add_parser("endpoint")
+    end_p.add_argument("records")
+    end_p.add_argument("offset", type=int)
+    end_p.add_argument("exp", type=int)
+    end_p.add_argument("act", type=int)
+
     args = parser.parse_args()
     if not args.mode:
         parser.error("a mode is required")
+    if args.mode == "endpoint":
+        try:
+            complete, incomplete = load(
+                args.records, args.offset, args.exp, args.act, True
+            )
+        except FireflyError as exc:
+            print(exc, flush=True)
+            return 1
+        if len(complete) != 1 or incomplete:
+            print(
+                f"{len(complete)} complete pair(s), {incomplete} open, expected 1",
+                flush=True,
+            )
+            return 1
+        start, end = complete[0]
+        if (start["src"], start["sport"], start["dst"], start["dport"]) != (
+            end["src"], end["sport"], end["dst"], end["dport"]
+        ):
+            print("start and end are not one flow", flush=True)
+            return 1
+        print(f"{start['src']} {start['sport']} {start['dst']} {start['dport']}")
+        return 0
+
     if args.mode == "gate":
         try:
             complete, incomplete = load(
@@ -302,6 +331,15 @@ firefly_gate() {
     local fatal=$1
     shift
     firefly_py gate "$fatal" "$@"
+}
+
+# firefly_endpoint <records> <offset> <experiment> <activity>
+#
+# Print the TCP ends of that tag's one pair: source, source port,
+# destination, destination port. Two tags on one kept-alive connection
+# print the same line.
+firefly_endpoint() {
+    firefly_py endpoint "$@"
 }
 
 # firefly_check <records> <offset> <experiment> <activity> <pairs>
