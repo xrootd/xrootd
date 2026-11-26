@@ -1489,6 +1489,77 @@ int XrdXrootdProtocol::do_OffloadIO()
 }
 
 /******************************************************************************/
+/*                             M a r k O p e n                                */
+/******************************************************************************/
+
+void XrdXrootdProtocol::MarkOpen(const char *fn, const char *opaque)
+{
+   int eCode, aCode;
+
+// tpc.stage is a CGI key. The control connection of a copy carries the value
+// "copy" and does not move the file, so it is not marked. Text that only
+// contains "tpc.stage=copy" is still a data open.
+//
+   if (opaque && (PMark || Monitor.Logins()))
+      {XrdOucEnv cgiEnv(opaque);
+       const char *stage = cgiEnv.Get("tpc.stage");
+       if (stage && !strcmp(stage, "copy")) return;
+      }
+
+   if (!PMark)
+      {if (!pmDone && Monitor.Logins()
+       &&  XrdNetPMark::getEA(opaque, eCode, aCode))
+          {Monitor.Report(eCode, aCode);
+           pmDone = true;
+          }
+       return;
+      }
+
+// One decision, under the stream lock. A native connection marks the first
+// open and keeps that handle. The HTTP bridge may replace it: no handle yet
+// means this open starts the mark, a different id ends the current firefly
+// (the destructor emits end) and starts the new one, and the same id keeps
+// the one handle. Streams that are not yet marked follow the session mark.
+//
+   bool start;
+   streamMutex.Lock();
+   start = !pmDone;
+   if (pmMayReplace())
+      {int nExp, nAct;
+       if (XrdNetPMark::getEA(opaque, nExp, nAct))
+          {if (!pmHandle) start = true;
+           else {int cExp = 0, cAct = 0;
+                 if (!pmHandle->getEA(cExp, cAct) || nExp != cExp || nAct != cAct)
+                    {XrdNetPMark::Handle *old = pmHandle;
+                     pmHandle = 0;
+                     delete old;
+                     start = true;
+                    } else {
+                     start = false;
+                     pmDone = true;
+                    }
+                }
+          }
+      }
+   if (start)
+      {pmDone = true;
+       if ((pmHandle = PMark->Begin(*Client, fn, opaque, AppName)))
+          for (int i = 1; i < maxStreams; i++)
+              {if (Stream[i] && !Stream[i]->pmDone)
+                  {Stream[i]->pmDone = true;
+                   Stream[i]->pmHandle =
+                       PMark->Begin(*(Stream[i]->Link->AddrInfo()),
+                                    *pmHandle, Stream[i]->Link->ID);
+                  }
+              }
+      }
+   streamMutex.UnLock();
+
+   if (start && pmHandle && Monitor.Logins() && pmHandle->getEA(eCode, aCode))
+      Monitor.Report(eCode, aCode);
+}
+
+/******************************************************************************/
 /*                               d o _ O p e n                                */
 /******************************************************************************/
 
@@ -1813,40 +1884,9 @@ int XrdXrootdProtocol::do_Open()
    memcpy((void *)myResp.fhandle,(const void *)&fhandle,sizeof(myResp.fhandle));
    numFiles++;
 
-// If packet marking is enabled, notify that we have potentially started data.
-// We also need to extend the marking to any associated streams.
+// The mark belongs to the socket that will carry this file.
 //
-   int eCode, aCode;
-   // tpc.stage is a CGI key. The control connection of a copy carries the
-   // value "copy" and does not move the file. Text that only contains
-   // "tpc.stage=copy" is still a data open.
-   bool tpcCopy = false;
-   if (opaque && !pmDone && (PMark || Monitor.Logins()))
-      {XrdOucEnv cgiEnv(opaque);
-       const char *stage = cgiEnv.Get("tpc.stage");
-       tpcCopy = stage && !strcmp(stage, "copy");
-      }
-   if (PMark && !pmDone && !tpcCopy)
-      {streamMutex.Lock();
-       pmDone = true;
-       if ((pmHandle = PMark->Begin(*Client, fn, opaque, AppName)))
-          for (int i = 1; i < maxStreams; i++)
-              {if (Stream[i] && !(Stream[i]->pmDone))
-                  {Stream[i]->pmDone = true;
-                   Stream[i]->pmHandle =
-                       PMark->Begin(*(Stream[i]->Link->AddrInfo()),
-                                    *pmHandle, Stream[i]->Link->ID);
-                  }
-              }
-       streamMutex.UnLock();
-
-       if (pmHandle && Monitor.Logins() && pmHandle->getEA(eCode, aCode))
-          Monitor.Report(eCode, aCode);
-      } else if (!tpcCopy) {
-       if (!pmDone  && Monitor.Logins()
-       &&  XrdNetPMark::getEA(opaque, eCode, aCode))
-          {Monitor.Report(eCode, aCode); pmDone = true;}
-      }
+   MarkOpen(fn, opaque);
 
 // Respond (failure is not an option now)
 //

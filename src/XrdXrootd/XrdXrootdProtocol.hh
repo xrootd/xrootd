@@ -210,6 +210,10 @@ XrdSfsXioHandle      Swap(const char *buff, XrdSfsXioHandle h=0) override; // Xr
 
 XrdXrootdProtocol   *VerifyStream(int &rc, int pID, bool lok=true);
 
+       // A later open on this connection may carry another flow id. The HTTP
+       // bridge does. A native connection keeps the first mark.
+       virtual bool  pmMayReplace() const {return false;}
+
               XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
@@ -264,6 +268,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Offload(int (XrdXrootdProtocol::*Invoke)(), int pathID);
        int   do_OffloadIO();
        int   do_Open();
+       void  MarkOpen(const char *fn, const char *opaque);
        bool  do_PgClose(XrdXrootdFile *fP, int &rc);
        int   do_PgRead();
        int   do_PgRIO();
