@@ -1,4 +1,5 @@
 add_bats_tests(xroot.bats)
+add_bats_tests(xroot-tpc.bats)
 
 # GET and PUT need the HTTP server. TPC cases skip when libXrdHttpTPC is absent.
 if(BUILD_HTTP)

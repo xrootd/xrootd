@@ -31,6 +31,7 @@
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <strings.h>
   
@@ -615,6 +616,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
    const char *xProt = (!tpcSpr || strcmp("xroots",tpcSpr) ? "xroot" : tpcSpr);
    n = snprintf(myURL, myURLen, "%s://%s/%s?", xProt, tpcSrc, tpcLfn);
    char *cgiP = myURL+n;
+   char *cgi0 = cgiP;
    int   cgiL = myURLen-n;
    if (cgiL < 3) return Death(Args, "url too long", EINVAL);
 
@@ -631,6 +633,30 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
        n = XrdOucTPC::copyCGI(tpcSgi, cgiP, cgiL);
        cgiP += n;
        cgiL -= n;
+      }
+
+// The open that starts the copy carries the flow id, and the bytes move
+// on the socket this URL opens. A flow id already copied into that URL is
+// kept. The check reads the copied CGI, not the raw tpc.scgi text.
+   const char *flow = Args.Env->Get("scitag.flow");
+   bool haveFlow = false;
+   if (cgiP != cgi0)
+      {XrdOucEnv copied(cgi0);
+       const char *kept = copied.Get("scitag.flow");
+       haveFlow = kept && *kept;
+      }
+   if (flow && *flow && !haveFlow)
+      {bool digits = true;
+       for (const char *p = flow; *p; p++)
+           if (*p < '0' || *p > '9') {digits = false; break;}
+       if (digits)
+          {n = snprintf(cgiP, cgiL, "%sscitag.flow=%s",
+                        cgiP == cgi0 ? "" : "&", flow);
+           if (n < 0 || n >= cgiL)
+              return Death(Args, "url too long", EINVAL);
+           cgiP += n;
+           cgiL -= n;
+          }
       }
 
 // Insert tpc tokens unless this is a delegated tpc which needs no tokens
