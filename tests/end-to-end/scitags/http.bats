@@ -126,3 +126,20 @@ http_push() {
         --src-port "$SRC_PORT" --application http-put
     firefly_unchanged "$SRCFLY_RECORDS" "$src_off"
 }
+@test "a push with SciTag 144 is marked by the source server" {
+    local src_off dst_off dest
+
+    require_plugin libXrdHttpTPC
+    dest="/t${BATS_TEST_NUMBER}.dat"
+    src_off=$(firefly_offset "$SRCFLY_RECORDS")
+    dst_off=$(firefly_offset "$DSTFLY_RECORDS")
+    run -0 http_push /ref.dat "$dest" -H 'SciTag: 144'
+    assert_output 202
+    run -0 grep '^success' body.txt
+    run -0 cmp "$SRC_DATA/ref.dat" "$DST_DATA$dest"
+    # The source server sends the file. Its port on that socket is ephemeral,
+    # and the destination's listen port is the destination of the flow.
+    firefly_check "$SRCFLY_RECORDS" "$src_off" 2 16 1 sent "$SIZE" \
+        --dst-port "$DST_PORT" --application http-get
+    firefly_unchanged "$DSTFLY_RECORDS" "$dst_off"
+}
