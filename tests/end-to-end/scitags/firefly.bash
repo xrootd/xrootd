@@ -162,12 +162,24 @@ def check(args):
     skipped = 0
     for start, end in complete:
         place = where(start)
-        if start["proto"] != "tcp":
-            problems.append(f"{place}: protocol {start['proto']}")
-        if start["afi"] != "ipv4":
-            problems.append(f"{place}: afi {start['afi']}")
-        if start["src"] != "127.0.0.1" or start["dst"] != "127.0.0.1":
-            problems.append(f"{place}: address is not 127.0.0.1")
+        # The pairing key does not include protocol or address family, and
+        # the two datagrams are separate messages. Both must describe the
+        # same TCP flow.
+        for item in (start, end):
+            if item["proto"] != "tcp":
+                problems.append(
+                    f"{place} {item['state']}: protocol {item['proto']}"
+                )
+            if item["afi"] != args.afi:
+                problems.append(
+                    f"{place} {item['state']}: afi {item['afi']}, "
+                    f"expected {args.afi}"
+                )
+        if start["src"] != args.address or start["dst"] != args.address:
+            problems.append(
+                f"{place}: address {start['src']} -> {start['dst']}, "
+                f"expected {args.address}"
+            )
         if start["sport"] <= 0 or start["dport"] <= 0 or start["sport"] == start["dport"]:
             problems.append(f"{place}: ports are not a connection")
         if args.src_port is not None and start["sport"] != args.src_port:
@@ -232,6 +244,8 @@ def main():
     check_p.add_argument("--src-port", type=int)
     check_p.add_argument("--dst-port", type=int)
     check_p.add_argument("--application")
+    check_p.add_argument("--afi", default="ipv4")
+    check_p.add_argument("--address", default="127.0.0.1")
     check_p.add_argument("--sum", action="store_true")
 
     args = parser.parse_args()
@@ -282,12 +296,14 @@ firefly_gate() {
 
 # firefly_check <records> <offset> <experiment> <activity> <pairs>
 #               <sent|received> <bytes> [--src-port P] [--dst-port P]
-#               [--application NAME] [--sum]
+#               [--application NAME] [--afi ipv4|ipv6] [--address IP]
+#               [--sum]
 #
 # <bytes> is the minimum of usage.<direction> on each end datagram. With
 # --sum it is the minimum of the sum across the connections, and a
-# connection whose counter did not grow is allowed. --src-port and
-# --dst-port are the known port of the flow.
+# connection whose counter did not grow is allowed. --afi and --address
+# default to an IPv4 client at 127.0.0.1. --src-port and --dst-port are
+# the known port of the flow.
 firefly_check() {
     local records=$1 offset=$2 exp=$3 act=$4 pairs=$5 direction=$6 bytes=$7
     shift 7

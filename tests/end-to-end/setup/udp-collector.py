@@ -3,10 +3,11 @@
 line of a file, for the tests of the monitoring (see start_collector in
 server.bash).
 
-Usage: udp-collector.py <portfile> <outfile> <pidfile>
+Usage: udp-collector.py <portfile> <outfile> <pidfile> [port]
 
-Binds a free port on both IP stacks, or on IPv4 only when the kernel has no
-IPv6 (Linux with ipv6.disable=1), writes it to <portfile>, then detaches
+Binds <port>, or a free port when it is omitted or 0, on both IP stacks, or
+on IPv4 only when the kernel has no IPv6 (Linux with ipv6.disable=1), writes
+it to <portfile>, then detaches
 into its own session, thus a test can start a server which sends to the port
 as soon as this command returns. With 'send json' a datagram is JSON, the last
 record terminated by a null byte."""
@@ -16,14 +17,15 @@ import socket
 import sys
 
 portfile, outfile, pidfile = sys.argv[1:4]
+port = int(sys.argv[4]) if len(sys.argv) > 4 else 0
 
 try:
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-    sock.bind(("::", 0))
+    sock.bind(("::", port))
 except OSError:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", 0))
+    sock.bind(("0.0.0.0", port))
 
 with open(portfile, "w") as f:
     f.write("%d\n" % sock.getsockname()[1])
