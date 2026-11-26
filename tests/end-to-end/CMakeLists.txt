@@ -6,6 +6,11 @@
 # The credentials which all tests share, see setup/credentials.sh
 set(CREDENTIALS_DIR ${CMAKE_BINARY_DIR}/tests/credentials)
 
+# setup/pmark.cfg turns on UDP firefly. The server also sends each datagram
+# to the peer on UDP port 10514. xroot.bats binds that port and reads every
+# datagram that arrives, so every test that loads the snippet takes this lock.
+set(PMARK_PEER_LOCK firefly-peer-10514)
+
 function(add_bats_tests)
   if(ARGC EQUAL 1)
     set(script ${ARGV0})
@@ -49,6 +54,7 @@ add_subdirectory(mirage)
 add_subdirectory(monitoring)
 add_subdirectory(posix)
 add_subdirectory(redirect)
+add_subdirectory(scitags)
 add_subdirectory(sec)
 add_subdirectory(xrdclhttp)
 add_subdirectory(xrdcl)

@@ -40,4 +40,6 @@ if(BUILD_SCITOKENS AND HAVE_SCITOKEN_CONFIG_SET_STR)
   add_bats_tests(curl.bats)
   set_property(TEST end-to-end.tpc.http.curl APPEND PROPERTY
     ENVIRONMENT "CHECKCLOSE=$<TARGET_FILE:checkclose>")
+  set_property(TEST end-to-end.tpc.http.curl APPEND PROPERTY
+    RESOURCE_LOCK "${PMARK_PEER_LOCK}")
 endif()
