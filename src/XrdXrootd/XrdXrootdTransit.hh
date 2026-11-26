@@ -79,7 +79,7 @@ static int    Attn(XrdLink *lP, short *theSID, int rcode,
 //! Handle dismantlement
 //-----------------------------------------------------------------------------
 
-bool          Disc();
+bool          Disc() override;
 
 //-----------------------------------------------------------------------------
 //! Perform one-time initialization
@@ -97,13 +97,13 @@ void          Proceed();
 //! Handle link activation (replaces parent activation).
 //-----------------------------------------------------------------------------
 
-int           Process(XrdLink *lp); // XrdProtocol override
+int           Process(XrdLink *lp) override;
 
 //-----------------------------------------------------------------------------
 //! Handle link shutdown.
 //-----------------------------------------------------------------------------
 
-void          Recycle(XrdLink *lp, int consec, const char *reason);
+void          Recycle(XrdLink *lp, int consec, const char *reason) override;
 
 //-----------------------------------------------------------------------------
 //! Redrive a request after a wait
@@ -125,7 +125,7 @@ const char   *ReqTable();
 bool          Run(const char *xreqP,       //!< xrootd request header
                         char *xdataP=0,    //!< xrootd request data (optional)
                         int   xdataL=0     //!< xrootd request data length
-                 );
+                 ) override;
 
 //-----------------------------------------------------------------------------
 //! Handle request data response.
@@ -145,15 +145,17 @@ int           Send(XrdOucSFVec *sfvec, int sfvnum, int dlen);
 //! Set sendfile() enablement.
 //-----------------------------------------------------------------------------
 
-int           setSF(kXR_char *fhandle, bool seton=false)
+int           setSF(kXR_char *fhandle, bool seton=false) override
                    {return SetSF(fhandle, seton);}
 
 //-----------------------------------------------------------------------------
 //! Set maximum wait time.
 //-----------------------------------------------------------------------------
 
-void          SetWait(int wtime, bool notify=false)
+void          SetWait(int wtime, bool notify=false) override
                      {runWMax = wtime; runWCall = notify;}
+
+bool          pmMayReplace() const override {return true;}
 
 //-----------------------------------------------------------------------------
 //! Constructor & Destructor
