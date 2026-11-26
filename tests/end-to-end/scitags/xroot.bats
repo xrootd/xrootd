@@ -102,6 +102,10 @@ setup() {
         --afi ipv6 --address '::1'
 }
 
+@test "an IPv6 download sets one flow label for the life of the flow" {
+    skip 'section 1.2 is not implemented: activity in bits 24-29, experiment in bits 14-22 reversed, entropy in bits 12-13, 23, and 30-31, one label for the life of the flow'
+}
+
 @test "the copy sent to the peer on port 10514 matches the collector" {
     local peer
 
