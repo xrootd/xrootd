@@ -48,10 +48,13 @@ class Handle
                        {if (Valid()) {ec = eCode; ac = aCode; return true;}
                         ec = ac = 0; return false;
                        }
-                  // According to the specifications, ExpID and actID can be equal to 0 for HTTP-TPC.
-      bool        Valid() {return (eCode == 0 && aCode == 0) 
+                  // 0,0 is the mark for an out-of-range tag. Activity 0 with an
+                  // experiment in range is a partial mark (scitag.flow=1024).
+                  // minActID stays the registry floor used by the defs loader.
+      bool        Valid() {return (eCode == 0 && aCode == 0)
                                || (eCode >= minExpID && eCode <= maxExpID
-                               &&  aCode >= minActID && aCode <= maxActID);}
+                               && (aCode == 0
+                               || (aCode >= minActID && aCode <= maxActID)));}
 
                   Handle(const char *app=0, int ecode=0, int acode=0)
                         : appName(strdup(app ? app : "unknown")),
