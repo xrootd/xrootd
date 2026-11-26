@@ -1,5 +1,6 @@
 add_bats_tests(bigfiles.bats)
 add_bats_tests(connections.bats)
+add_bats_tests(redirector.bats)
 add_bats_tests(https.bats)
 add_bats_tests(plain.bats)
 add_bats_tests(protocol.bats)
