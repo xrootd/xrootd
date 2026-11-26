@@ -94,6 +94,7 @@ http_push() {
     firefly_check "$FIREFLY_RECORDS" "$OFF" 16 0 1 sent "$SIZE" \
         --src-port "$SERVER_PORT" --application http-get
 }
+
 @test "a PUT with SciTag 1024 reports experiment 16 and activity 0" {
     local path="/t${BATS_TEST_NUMBER}.dat"
 
@@ -103,6 +104,7 @@ http_push() {
     firefly_check "$FIREFLY_RECORDS" "$OFF" 16 0 1 sent "$SIZE" \
         --dst-port "$SERVER_PORT" --application http-put
 }
+
 @test "a GET with SciTag 144abc reports the out-of-range mark" {
     curl --silent --show-error --fail -H 'SciTag: 144abc' -o copy.dat \
         "http://127.0.0.1:${SERVER_PORT}/ref.dat"
@@ -110,6 +112,7 @@ http_push() {
     firefly_check "$FIREFLY_RECORDS" "$OFF" 0 0 1 sent "$SIZE" \
         --src-port "$SERVER_PORT" --application http-get
 }
+
 @test "a later GET on an unmarked connection carries the SciTag" {
     # The first request has no tag, so the socket is not marked. The second
     # names one, and that mark has to start on the same connection.
@@ -124,6 +127,7 @@ http_push() {
     firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
         --src-port "$SERVER_PORT" --application http-get
 }
+
 @test "a second GET on the same connection carries the second SciTag" {
     # --next reuses the connection. The second request names another flow,
     # so the first firefly ends and a new one starts on that socket.
@@ -143,6 +147,7 @@ http_push() {
     [[ "$(firefly_endpoint "$FIREFLY_RECORDS" "$OFF" 2 16)" == \
        "$(firefly_endpoint "$FIREFLY_RECORDS" "$OFF" 16 0)" ]]
 }
+
 @test "a second GET with the same SciTag keeps one firefly" {
     curl --http1.1 --silent --show-error --fail \
         -H 'Connection: keep-alive' -H 'SciTag: 144' \
@@ -155,6 +160,7 @@ http_push() {
     firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$((2 * SIZE))" \
         --src-port "$SERVER_PORT" --application http-get
 }
+
 @test "a pull with both SciTag headers keeps the SciTag of the COPY" {
     local src_off dst_off dest
 
@@ -171,6 +177,7 @@ http_push() {
         --src-port "$SRC_PORT" --application http-put
     firefly_unchanged "$SRCFLY_RECORDS" "$src_off"
 }
+
 @test "a push with SciTag 144 is marked by the source server" {
     local src_off dst_off dest
 
@@ -187,4 +194,92 @@ http_push() {
     firefly_check "$SRCFLY_RECORDS" "$src_off" 2 16 1 sent "$SIZE" \
         --dst-port "$DST_PORT" --application http-get
     firefly_unchanged "$DSTFLY_RECORDS" "$dst_off"
+}
+
+# --- Spec coverage ---------------------------------------------------------
+
+@test "a GET with SciTag 144 counts the file in usage.sent" {
+    curl --silent --show-error --fail -H 'SciTag: 144' -o copy.dat \
+        "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" copy.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get
+}
+
+@test "a PUT with SciTag 144 counts the file in usage.sent" {
+    local path="/t${BATS_TEST_NUMBER}.dat"
+
+    curl --silent --show-error --fail -H 'SciTag: 144' -T "$REF" \
+        "http://127.0.0.1:${SERVER_PORT}${path}"
+    run -0 cmp "$REF" "$SERVER_DATA$path"
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
+        --dst-port "$SERVER_PORT" --application http-put
+}
+
+@test "a GET with SciTag 10 reports the out-of-range mark" {
+    curl --silent --show-error --fail -H 'SciTag: 10' -o copy.dat \
+        "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" copy.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 0 0 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get
+}
+
+@test "a GET without SciTag sends no firefly" {
+    curl --silent --show-error --fail -o copy.dat \
+        "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" copy.dat
+    firefly_unchanged "$FIREFLY_RECORDS" "$OFF"
+}
+
+@test "a pull with SciTag 144 is marked by the active server" {
+    local src_off dst_off dest
+
+    require_plugin libXrdHttpTPC
+    dest="/t${BATS_TEST_NUMBER}.dat"
+    src_off=$(firefly_offset "$SRCFLY_RECORDS")
+    dst_off=$(firefly_offset "$DSTFLY_RECORDS")
+    run -0 http_copy /ref.dat "$dest" -H 'SciTag: 144'
+    assert_output 202
+    run -0 grep '^success' body.txt
+    run -0 cmp "$SRC_DATA/ref.dat" "$DST_DATA$dest"
+    # The active server emits for the server-to-server socket. The source
+    # of that flow is the source server. The GET to the source has no SciTag.
+    firefly_check "$DSTFLY_RECORDS" "$dst_off" 2 16 1 sent "$SIZE" \
+        --src-port "$SRC_PORT" --application http-put
+    firefly_unchanged "$SRCFLY_RECORDS" "$src_off"
+}
+
+@test "a pull with TransferHeaderSciTag 144 is marked by the source server" {
+    local src_off dst_off dest
+
+    require_plugin libXrdHttpTPC
+    dest="/t${BATS_TEST_NUMBER}.dat"
+    src_off=$(firefly_offset "$SRCFLY_RECORDS")
+    dst_off=$(firefly_offset "$DSTFLY_RECORDS")
+    run -0 http_copy /ref.dat "$dest" -H 'TransferHeaderSciTag: 144'
+    assert_output 202
+    run -0 grep '^success' body.txt
+    run -0 cmp "$SRC_DATA/ref.dat" "$DST_DATA$dest"
+    firefly_check "$SRCFLY_RECORDS" "$src_off" 2 16 1 sent "$SIZE" \
+        --src-port "$SRC_PORT" --application http-get
+    firefly_unchanged "$DSTFLY_RECORDS" "$dst_off"
+}
+
+@test "a pull with SciTag 144 and 4 streams marks each data socket" {
+    local src_off dst_off wide dest
+
+    require_plugin libXrdHttpTPC
+    # One socket carries one 16 MiB block, so four streams need 64 MiB.
+    wide=$((64 * 1024 * 1024))
+    dest="/t${BATS_TEST_NUMBER}.dat"
+    make_random_file "$SRC_DATA/wide.dat" "$wide"
+    src_off=$(firefly_offset "$SRCFLY_RECORDS")
+    dst_off=$(firefly_offset "$DSTFLY_RECORDS")
+    run -0 http_copy /wide.dat "$dest" -H 'SciTag: 144' -H 'X-Number-Of-Streams: 4'
+    assert_output 202
+    run -0 grep '^success' body.txt
+    run -0 cmp "$SRC_DATA/wide.dat" "$DST_DATA$dest"
+    firefly_check "$DSTFLY_RECORDS" "$dst_off" 2 16 4 sent "$wide" \
+        --src-port "$SRC_PORT" --application http-put --sum
+    firefly_unchanged "$SRCFLY_RECORDS" "$src_off"
 }
