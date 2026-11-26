@@ -646,17 +646,23 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
        haveFlow = kept && *kept;
       }
    if (flow && *flow && !haveFlow)
-      {bool digits = true;
-       for (const char *p = flow; *p; p++)
-           if (*p < '0' || *p > '9') {digits = false; break;}
-       if (digits)
-          {n = snprintf(cgiP, cgiL, "%sscitag.flow=%s",
-                        cgiP == cgi0 ? "" : "&", flow);
-           if (n < 0 || n >= cgiL)
-              return Death(Args, "url too long", EINVAL);
-           cgiP += n;
-           cgiL -= n;
-          }
+      {const char *use = flow;
+       const char *p = flow;
+       // Optional leading '+', then digits, and nothing else. Copying any
+       // other text into the source URL can add CGI past the value, and
+       // dropping it leaves the transfer unmarked. Forward 0 so the source
+       // emits the 0,0 mark.
+       if (*p == '+') p++;
+       bool digits = (*p != 0);
+       for (; digits && *p; p++)
+           if (*p < '0' || *p > '9') digits = false;
+       if (!digits) use = "0";
+       n = snprintf(cgiP, cgiL, "%sscitag.flow=%s",
+                    cgiP == cgi0 ? "" : "&", use);
+       if (n < 0 || n >= cgiL)
+          return Death(Args, "url too long", EINVAL);
+       cgiP += n;
+       cgiL -= n;
       }
 
 // Insert tpc tokens unless this is a delegated tpc which needs no tokens

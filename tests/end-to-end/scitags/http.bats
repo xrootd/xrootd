@@ -118,6 +118,14 @@ http_push() {
         --dst-port "$SERVER_PORT" --application http-put
 }
 
+@test "a GET with SciTag 144abc reports the out-of-range mark" {
+    curl --silent --show-error --fail -H 'SciTag: 144abc' -o copy.dat \
+        "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+    run -0 cmp "$REF" copy.dat
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 0 0 1 sent "$SIZE" \
+        --src-port "$SERVER_PORT" --application http-get
+}
+
 @test "a GET with SciTag 10 reports the out-of-range mark" {
     curl --silent --show-error --fail -H 'SciTag: 10' -o copy.dat \
         "http://127.0.0.1:${SERVER_PORT}/ref.dat"
