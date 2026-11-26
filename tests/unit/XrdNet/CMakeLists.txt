@@ -3,6 +3,7 @@ add_unit_tests(
     XrdNetAddr.cc
     XrdNetIdentity.cc
     XrdNetMsg.cc
+    XrdNetPMark.cc
   LIBRARIES
     XrdUtils
 )
