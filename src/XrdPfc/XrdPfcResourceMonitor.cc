@@ -189,11 +189,7 @@ void ResourceMonitor::scan_dir_and_recurse(FsTraversal &fst)
    std::vector<std::string> dirs;
    dirs.swap(fst.m_current_dirs);
 
-   if (++m_dir_scan_check_counter >= 100)
-   {
-      process_inter_dir_scan_open_requests(fst);
-      m_dir_scan_check_counter = 0;
-   }
+   process_inter_dir_scan_open_requests(fst);
 
    // Descend into sub-dirs, do not accumulate into recursive_subdir_usage yet. This is done
    // in a separate pass to allow for proper accounting of files being opened during the initial scan.
@@ -222,9 +218,8 @@ bool ResourceMonitor::perform_initial_scan()
    if ( ! fst.begin_traversal(root_ds, "/"))
       return false;
 
-   // The following are initialized in ResourceMonitor.hh to avoid a race at startup:
+   // The following is initialized in ResourceMonitor.hh to avoid a race at startup:
    //   m_dir_scan_in_progress = true;
-   //   m_dir_scan_check_counter = 0;
 
    scan_dir_and_recurse(fst);
 
@@ -235,7 +230,6 @@ bool ResourceMonitor::perform_initial_scan()
    {
       XrdSysMutexHelper _lock(m_dir_scan_mutex);
       m_dir_scan_in_progress = false;
-      m_dir_scan_check_counter = 0;
    }
    // m_dir_scan_open_requests should now be final, ie, no new entries will be added.
    while ( ! m_dir_scan_open_requests.empty())
