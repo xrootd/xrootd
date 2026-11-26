@@ -294,23 +294,13 @@ int XrdHttpReq::parseHost(char *line) {
 }
 
 void XrdHttpReq::parseScitag(const std::string & val) {
-  // The scitag header has been populated and the packet marking was configured, the scitag will either be equal to 0
-  // or to the value passed by the client
-  mScitag = 0;
+  // The header is present. FlowID is the same integer getEA accepts, so
+  // 144abc is not 144. Anything else is the 0,0 mark.
   std::string scitagS = val;
   trim(scitagS);
-  if(scitagS.size()) {
-    if(scitagS[0] != '-') {
-      try {
-        mScitag = std::stoi(scitagS.c_str(), nullptr, 10);
-        if (mScitag > XrdNetPMark::maxTotID || mScitag < XrdNetPMark::minTotID) {
-          mScitag = 0;
-        }
-      } catch (...) {
-        //Nothing to do, scitag = 0 by default
-      }
-    }
-  }
+  int flow = 0;
+  XrdNetPMark::FlowID(scitagS.data(), scitagS.size(), flow);
+  mScitag = flow;
   addCgi("scitag.flow", std::to_string(mScitag));
   if(request == ReqType::rtGET || request == ReqType::rtPUT) {
     // We specify to the packet marking handle the type of transfer this request is
