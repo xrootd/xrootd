@@ -639,15 +639,16 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 // The open that starts the copy carries the flow id, and the bytes move
 // on the socket this URL opens. A flow id copyCGI already placed in that
 // URL is kept; the check reads the copied CGI, not the raw tpc.scgi text.
-// The open's value is the last scitag.flow in the raw CGI. XrdOucEnv drops
-// an empty value, so scitag.flow=144&scitag.flow= would otherwise travel
-// as 144. The value that travels is the integer FlowID accepts, or 0.
-// Client text is not copied into the source URL.
+// The last scitag.flow wins, including an empty one: FindCgi keeps that
+// value where XrdOucEnv would drop it, so scitag.flow=144&scitag.flow=
+// does not look like a kept 144. The value that travels is the integer
+// FlowID accepts, or 0. Client text is not copied into the source URL.
    bool haveFlow = false;
    if (cgiP != cgi0)
-      {XrdOucEnv copied(cgi0);
-       const char *kept = copied.Get("scitag.flow");
-       haveFlow = kept && *kept;
+      {const char *kept = 0;
+       size_t      klen = 0;
+       if (XrdNetPMark::FindCgi(cgi0, "scitag.flow", kept, klen))
+          haveFlow = klen > 0;
       }
    int envLen = 0;
    const char *val = 0;

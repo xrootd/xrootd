@@ -197,7 +197,11 @@ http_push() {
     # The check returns on the first read that has the one pair. A second
     # pair that arrives after that read would be another firefly for this
     # tag, and the test would still pass. Silence means it did not arrive.
+    # A pair that lands between the check and the baseline would be in
+    # that baseline, so the check runs again from OFF after the wait.
     firefly_unchanged "$FIREFLY_RECORDS" "$(firefly_offset "$FIREFLY_RECORDS")"
+    firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$((2 * SIZE))" \
+        --src-port "$SERVER_PORT" --application http-get
 }
 
 @test "an ignored SciTag keeps the configured default mark" {
@@ -220,6 +224,8 @@ http_push() {
     firefly_check "$PLAINFLY_RECORDS" "$off" 2 16 1 sent "$((2 * SIZE))" \
         --src-port "$PLAIN_PORT"
     firefly_unchanged "$PLAINFLY_RECORDS" "$(firefly_offset "$PLAINFLY_RECORDS")"
+    firefly_check "$PLAINFLY_RECORDS" "$off" 2 16 1 sent "$((2 * SIZE))" \
+        --src-port "$PLAIN_PORT"
 }
 
 @test "a pull with both SciTag headers keeps the SciTag of the COPY" {

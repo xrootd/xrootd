@@ -10,8 +10,12 @@
 # both addresses are 127.0.0.1. The counters are cumulative. Unless --sum,
 # a socket that has not yet carried the file must reach the file size by
 # the end datagram, and a socket that already has must grow by the whole
-# file during the mark. Both comparisons are skipped when the counter is
-# 0 on start and on end, which is what a host without TCP_INFO reports.
+# file during the mark. With --sum the end counters are added, so bytes
+# counted before the start datagram still count. A pair whose counter is
+# 0 on start and on end is skipped for that socket: a parallel stream
+# that only completes its bind, or a host without TCP_INFO. The file-size
+# minimum still applies to the sockets that reported bytes, and fails when
+# every pair was skipped so nothing accounted for the transfer.
 
 # The size of the collector file, so a later check reads only new datagrams.
 firefly_offset() {
@@ -218,14 +222,15 @@ def check(args):
         # must grow by the whole file during this mark, so an earlier
         # transfer cannot satisfy the check. A parallel stream may only
         # complete its bind, so --sum accepts a difference of zero and
-        # checks the total of the differences.
+        # checks the total of the end counters, which include those
+        # pre-start bytes the same way the per-socket check does.
         delta = after - before
         if delta < 0 or (not args.sum and delta == 0):
             problems.append(
                 f"{place}: usage.{args.direction} grew by {delta} "
                 f"from {before} to {after}"
             )
-        measured.append(delta)
+        measured.append(after if args.sum else delta)
         if not args.sum and before < args.minimum and after < args.minimum:
             problems.append(
                 f"{place}: usage.{args.direction} end {after} "
@@ -236,13 +241,21 @@ def check(args):
                 f"{place}: usage.{args.direction} grew by {delta}, "
                 f"below the file size {args.minimum}"
             )
-    if args.sum and skipped != len(complete):
+    # A 0/0 pair is allowed for one stream, but the transfer still has to
+    # show the file size somewhere. If every pair was 0/0, measured is
+    # empty and the minimum is not met.
+    if args.sum:
         total = sum(measured)
         if total < args.minimum:
             problems.append(
                 f"sum of usage.{args.direction} {total} "
                 f"is below the file size {args.minimum}"
             )
+    elif skipped == len(complete) and args.minimum > 0:
+        problems.append(
+            f"all usage.{args.direction} counters were 0; "
+            f"file size {args.minimum} was not accounted"
+        )
     if problems:
         raise FireflyError("\n".join(problems))
 
@@ -370,9 +383,11 @@ firefly_endpoint() {
 # <bytes> is the minimum of usage.<direction>. A socket below that at
 # the start datagram must reach it by the end datagram. A socket already
 # at it must grow by it during the mark. With --sum, <bytes> is the
-# minimum of the sum of the growths, and a connection whose counter did
-# not grow is allowed. --afi and --address default to an IPv4 client at
-# 127.0.0.1.
+# minimum of the sum of the end counters, so bytes counted before the
+# start datagram still count, and a connection whose counter did not
+# grow is allowed. A 0/0 counter on one socket is skipped; if every
+# socket is 0/0 the minimum fails. --afi and --address default to an
+# IPv4 client at 127.0.0.1.
 # --src-ip and --dst-ip override one side of that pair. --src-port and
 # --dst-port are the known port of the flow. --select keeps this tag and
 # ignores any other tag in the slice.
