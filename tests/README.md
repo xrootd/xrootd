@@ -427,7 +427,34 @@ A test or a helper which starts a daemon directly must obey these conventions:
   `X509_USER_PROXY=/dev/null/x509`, if it does not use `roots://`.
 
 When a test fails, BATS prints the client log of the test and the log of
-each server.
+each server. Before them, `print_cores` in `helper/common.bash` prints the
+backtraces of the programs which crashed during the test, as CDash cuts a
+long output. `gdb`, or `lldb` on macOS, prints them.
+
+`tests/print-cores.sh` has the functions which find and print the cores.
+`test.cmake` also makes it the launcher of the tests (`CMAKE_TEST_LAUNCHER`),
+except with `-DMEMCHECK=ON` and on macOS. The launcher runs the command of a
+unit test (CMake 3.29 or later) or of a Python test. When the command fails,
+the launcher prints its cores, and ends with the signal of the command.
+
+- `allow_cores` raises the limit of the core size to the hard limit, and
+  sets `disable_coredump=0` for each sanitizer. A sanitizer on a 64-bit
+  system sets the limit to one byte by default.
+- A failed test prints only the cores of its own programs, as tests run at
+  the same time. The launcher exports `PRINT_CORES_TAG`, and BATS exports
+  the directory of its run. A core, and the journal of `systemd-coredump`,
+  contain the environment of the program.
+- The setting `kernel.core_pattern`, or `kern.corefile` on macOS, gives the
+  place of the cores: an absolute path, a file in the working directory of
+  the program, or `systemd-coredump`. Another pipe, for example to `apport`,
+  keeps no core.
+
+The CI jobs which run `test.cmake` on Linux set an absolute path with the
+action `.github/actions/core-dumps`. A job in a container runs with the
+options `--privileged --ulimit core=-1`. The package builds of `RPM.yml` and
+`DEB.yml` keep no cores. macOS writes a core only for a program with the
+entitlement `com.apple.security.get-task-allow`, which the build does not
+give.
 
 ### Example
 

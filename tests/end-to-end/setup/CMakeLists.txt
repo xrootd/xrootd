@@ -24,3 +24,4 @@ set_tests_properties(end-to-end.setup.credentials.remove PROPERTIES
   FIXTURES_CLEANUP credentials)
 
 add_bats_tests(setup.bats)
+add_bats_tests(cores.bats)

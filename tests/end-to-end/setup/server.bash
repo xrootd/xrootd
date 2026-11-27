@@ -590,10 +590,13 @@ stop_servers() {
     return "$status"
 }
 
-# On failure, print the client log of the test and the log of each server,
-# which has only the lines of the test.
+# On failure, print the backtraces of the programs which crashed, first, as
+# CDash cuts a long output, then the client log of the test and the log of
+# each server, which has only the lines of the test.
 bats::on_failure() {
     local log name
+
+    print_cores
 
     [[ -z "${BATS_SKIP_SERVER_LOGS:-}" ]] || return 0
 

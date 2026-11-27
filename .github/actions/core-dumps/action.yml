@@ -1,0 +1,25 @@
+name: Keep core dumps
+description: >
+  Make the kernel write the cores of crashed programs to /tmp/cores, so that
+  a failed test prints their backtraces (see tests/print-cores.sh). The
+  setting is global to the kernel of the runner. Thus a job in a container
+  needs the container options --privileged and --ulimit core=-1. On macOS,
+  this action does nothing.
+
+runs:
+  using: composite
+  steps:
+    - name: Set the core pattern
+      if: runner.os == 'Linux'
+      shell: sh
+      run: |
+        sudo=
+        [ "$(id -u)" = 0 ] || sudo=sudo
+        $sudo mkdir -p /tmp/cores
+        $sudo chmod 1777 /tmp/cores
+        # The time in the name keeps two cores with the same PID apart
+        if echo '/tmp/cores/core.%e.%p.%t' | $sudo tee /proc/sys/kernel/core_pattern > /dev/null; then
+          echo "core pattern: $(cat /proc/sys/kernel/core_pattern), core size limit: $(ulimit -H -c)"
+        else
+          echo "::warning::The core pattern is not set: a job in a container needs --privileged"
+        fi
