@@ -30,10 +30,17 @@ fi
 
 # The tests must not read or change the files in the home directory of the
 # user, for example the history file of the interactive xrdfs. Each test, and
-# the setup of each file, has its own home directory, which BATS removes.
+# the setup of each file, has its own home directory, which BATS removes. A
+# marker file in it records the start, for print_cores.
 if [[ -n "${BATS_TEST_TMPDIR:-${BATS_FILE_TMPDIR:-}}" ]]; then
     export HOME="${BATS_TEST_TMPDIR:-$BATS_FILE_TMPDIR}"
+    _core_since="$HOME/.core-since"
+    [[ -e "$_core_since" ]] || touch "$_core_since"
 fi
+
+# A program which crashes writes a core file (see tests/print-cores.sh)
+source "${BASH_SOURCE[0]%/*}/../../print-cores.sh"
+allow_cores
 
 # Return success if the process exists and has not exited. A daemon which
 # exited stays a zombie until its parent reaps it, and in a container the
@@ -243,4 +250,15 @@ request_macaroon() {
         -X POST -H 'Content-Type: application/macaroon-request' \
         -d '{ "caveats": [ "activity:READ_METADATA,UPDATE_METADATA,LIST,DOWNLOAD,UPLOAD,MANAGE,DELETE" ], "validity": "PT1H" }' \
         "$url" | jq -er .macaroon
+}
+
+# print_cores
+#
+# Print the backtraces of the programs which crashed since the start of the
+# test, or of the file in setup_file. Each program of this run of BATS has
+# the directory of the run in its environment, for example in HOME, thus the
+# cores of other test files do not show.
+print_cores() {
+    print_cores_since "${_core_since:-}" "${BATS_RUN_TMPDIR:-}" \
+        "${BATS_FILE_TMPDIR:-}" ${BATS_TEST_TMPDIR:+"$BATS_TEST_TMPDIR"}
 }

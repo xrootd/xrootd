@@ -115,6 +115,13 @@ if(NOT DEFINED CTEST_SOURCE_DIRECTORY)
   set(CTEST_SOURCE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
 endif()
 
+# The launcher prints the backtraces of the crashes of a failed test (CMake
+# 3.29 or later). Valgrind must check the program of the test itself. macOS
+# keeps no cores, and its /usr/bin/env removes DYLD_LIBRARY_PATH.
+if(NOT MEMCHECK AND NOT CMAKE_HOST_APPLE)
+  set(TEST_LAUNCHER ${CTEST_SOURCE_DIRECTORY}/tests/print-cores.sh)
+endif()
+
 if(NOT DEFINED CTEST_BINARY_DIRECTORY)
   get_filename_component(CTEST_BINARY_DIRECTORY "build" REALPATH)
 endif()

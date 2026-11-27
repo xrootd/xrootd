@@ -8,5 +8,8 @@ set(CTEST_CUSTOM_MAXIMUM_NUMBER_OF_ERRORS   100)
 set(CTEST_CUSTOM_MAXIMUM_NUMBER_OF_WARNINGS 100)
 set(CTEST_CUSTOM_MAXIMUM_PASSED_TEST_OUTPUT_SIZE  4096)
 set(CTEST_CUSTOM_MAXIMUM_FAILED_TEST_OUTPUT_SIZE 65536)
+# Keep the head and the tail of a long output (CMake 3.24 or later): BATS
+# prints the backtraces of crashes first, the launcher of a test last.
+set(CTEST_CUSTOM_TEST_OUTPUT_TRUNCATION middle)
 
 set(CTEST_CUSTOM_COVERAGE_EXCLUDE "^${CMAKE_CURRENT_LIST_DIR}/vendor/")
