@@ -586,6 +586,58 @@ int DirList( const std::vector<std::string> &args )
   return 0;
 }
 
+// recreate <url> <cycles> [dir]: make the file of the URL with OpenFlags::New,
+// write to it, close it and remove it, the given number of times, each cycle
+// right after the one before. With "dir", make the directory with
+// MkDirFlags::MakePath and remove it. All requests go to the host of the URL,
+// for example a manager. Then a stat of the path must report that it does not
+// exist. Prints the number of cycles.
+int Recreate( const std::vector<std::string> &args )
+{
+  if( args.size() < 2 || args.size() > 3 || ( args.size() == 3 && args[2] != "dir" ) )
+    Usage( "recreate <url> <cycles> [dir]" );
+
+  const URL url( args[0] );
+  if( !url.IsValid() ) Usage( "not a valid URL: '" + args[0] + "'" );
+
+  const uint64_t    cycles = ToNumber( args[1] );
+  const bool        dir    = args.size() == 3;
+  const std::string path   = url.GetPath();
+  FileSystem        fs( url );
+
+  for( uint64_t i = 1; i <= cycles; ++i )
+  {
+    const std::string cycle = "cycle " + std::to_string( i ) + ": ";
+
+    if( dir )
+    {
+      Check( fs.MkDir( path, MkDirFlags::MakePath, Access::UR | Access::UW | Access::UX ),
+             cycle + "mkdir" );
+      Check( fs.RmDir( path ), cycle + "rmdir" );
+      continue;
+    }
+
+    File file;
+    Check( file.Open( url.GetURL(), OpenFlags::New | OpenFlags::Write,
+                      Access::UR | Access::UW ), cycle + "open" );
+    Check( file.Write( 0, 4, "data" ), cycle + "write" );
+    Check( file.Close(), cycle + "close" );
+    Check( fs.Rm( path ), cycle + "rm" );
+  }
+
+  StatInfo *info = nullptr;
+  const XRootDStatus st = fs.Stat( path, info );
+  std::unique_ptr<StatInfo> owner( info );
+
+  if( st.IsOK() )
+    throw Failure{ ExitError, "stat: the path exists after the last remove" };
+  if( st.code != errErrorResponse || st.errNo != kXR_NotFound )
+    Check( st, "stat" );
+
+  std::cout << cycles << " cycles\n";
+  return 0;
+}
+
 //------------------------------------------------------------------------------
 // Concurrency
 //------------------------------------------------------------------------------
@@ -1320,6 +1372,7 @@ const std::map<std::string, std::function<int( const std::vector<std::string>& )
   { "protocol",   Protocol        },
   { "sendinfo",   SendInfo        },
   { "dirlist",    DirList         },
+  { "recreate",   Recreate        },
   { "threads",    Threads         },
   { "fork",       Fork            },
   { "open-users", OpenUsers       },

@@ -151,11 +151,16 @@ XrdCmsRouting::theRouting initRDRrouting[] =
   
 namespace XrdCms
 {
+// A node sends a have and a gone of the same path in the order of its changes.
+// Both run in the thread of the node, thus a manager does them in this order.
+// Else a have can run after the gone of a removed path, and the cache then
+// keeps a location of the path which no longer exists.
+//
 XrdCmsRouting::theRouting initRSProuting[] =
      {{kYR_avail,   XrdCmsRouting::isSync},
       {kYR_disc,    XrdCmsRouting::isSync | XrdCmsRouting::noArgs},
       {kYR_gone,    XrdCmsRouting::isSync},
-      {kYR_have,    XrdCmsRouting::AsyncQ0},
+      {kYR_have,    XrdCmsRouting::isSync},
       {kYR_load,    XrdCmsRouting::isSync},
       {kYR_pong,    XrdCmsRouting::isSync | XrdCmsRouting::noArgs},
       {kYR_status,  XrdCmsRouting::isSync | XrdCmsRouting::noArgs},

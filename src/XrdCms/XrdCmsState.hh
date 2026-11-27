@@ -51,6 +51,10 @@ int   Port();
 void  sendState(XrdLink *Link);
 
 void  Set(int ncount);
+
+// Send the state of the service to the redirectors, for a redirector which
+// may have missed a change during its login
+void  SyncRedirectors();
 void  Set(int ncount, int isman, const char *AdminPath);
 
 enum  StateType {Active = 0, Counts, FrontEnd, Space, Stage};
@@ -67,6 +71,7 @@ static const char All_NoStage = 4;
 
 private:
 unsigned char Status(int Changes, int theState);
+void          SendRedirectors(int theState, int thePort);
 
 XrdSysSemaphore mySemaphore;
 XrdSysMutex     myMutex;
@@ -87,6 +92,7 @@ char            adminSuspend; // Admin asked for suspension
 char            adminNoStage; // Admin asked for no staging
 char            isMan;        // We are a manager (i.e., have redirectors)
 char            Enabled;      // We are now enabled for reporting
+char            rdrSync;      // A redirector needs the service state
 };
 
 namespace XrdCms

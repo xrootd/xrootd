@@ -107,6 +107,39 @@ _setup_admin_dir() {
     echo "$dir"
 }
 
+# _setup_admin <rundir>
+#
+# Print the admin directory of a run directory: the directory "admin", or
+# the target of the link "admin" of a long run directory.
+_setup_admin() {
+    if [[ -L "$1/admin" ]]; then
+        readlink "$1/admin"
+    else
+        echo "$1/admin"
+    fi
+}
+
+# admin_path <name> <file>
+#
+# Print the path of a file in the admin directory of a server, for example
+# "<name>/.olb/olbd.nimda", the admin socket of the cmsd of node <name>. Fail
+# when the path does not fit in the address of a Unix socket, 108 bytes with
+# the end byte. Do not search the run directory with "find -L" for a file of
+# the admin directory: the admin directory has links to the run directory
+# and to /proc/<pid> of each daemon, thus find goes through the whole file
+# system, and can print a long path to the socket of another test.
+admin_path() {
+    local rundir path
+
+    rundir=$(_setup_rundir "$1") || return 1
+    path="$(_setup_admin "$rundir")/$2"
+    if (( ${#path} >= 108 )); then
+        echo "the admin path $path is too long for a Unix socket" >&2
+        return 1
+    fi
+    echo "$path"
+}
+
 # _setup_run [--foreground] <program> <name> <port> [argument...]
 #
 # Start the program, xrootd or cmsd, with the configuration in the run
@@ -126,11 +159,7 @@ _setup_run() {
     shift 3
     local rundir admin log offset bind=$port
     rundir=$(_setup_rundir "$name") || return 1
-    admin="$rundir/admin"
-    # a link to a directory outside of a long run directory
-    if [[ -L "$admin" ]]; then
-        admin=$(readlink "$admin")
-    fi
+    admin=$(_setup_admin "$rundir")
     log="$rundir/$prog.log"
 
     # For "any", a random port above the fixed ports of the old test suites

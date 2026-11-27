@@ -203,7 +203,12 @@ int XrdCmsCache::DelFile(XrdCmsSelect &Sel, SMask_t mask)
       {iP->Loc.hfvec &= ~mask;
        iP->Loc.pfvec &= ~mask;
        if ((gone4good = (iP->Loc.hfvec == 0)))
-          {if (nilTMO) iP->Loc.lifeline = nilTMO + time(0);
+          {// The node can have made the path again, and its have may still be
+           // on the way. Thus, ask the node before a later request trusts
+           // that no node has the path.
+           //
+           if (Sel.Opts & XrdCmsSelect::Advisory) iP->Loc.qfvec |= mask;
+           if (nilTMO) iP->Loc.lifeline = nilTMO + time(0);
            if (!(Sel.Opts & XrdCmsSelect::Advisory)
            &&  XrdCmsKeyItem::Unload(iP) && !CTable.Recycle(iP))
               Say.Emsg("DelFile", "Delete failed for", iP->Key.Val);

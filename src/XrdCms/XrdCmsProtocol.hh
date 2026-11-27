@@ -70,7 +70,7 @@ private:
 
 XrdCmsRouting  *Admit();
 XrdCmsRouting  *Admit_DataServer(int);
-XrdCmsRouting  *Admit_Redirector(int);
+XrdCmsRouting  *Admit_Redirector();
 XrdCmsRouting  *Admit_Supervisor(int);
 SMask_t         AddPath(XrdCmsNode *nP, const char *pType, const char *Path);
 int             Authenticate();

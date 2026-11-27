@@ -76,6 +76,7 @@ XrdCmsState::XrdCmsState() : mySemaphore(0)
    isMan        = 0;
    dataPort     = 0;
    Enabled      = 0;
+   rdrSync      = 0;
 }
  
 /******************************************************************************/
@@ -105,13 +106,31 @@ void XrdCmsState::Enable()
 }
 
 /******************************************************************************/
+/* Private                   S e n d R e d i r e c t o r s                    */
+/******************************************************************************/
+
+// A redirector sees only the suspend of the service, not the one of the
+// front end
+void XrdCmsState::SendRedirectors(int theState, int thePort)
+{
+   CmsStatusRequest rdrStatus = {{0, kYR_status, 0, 0}};
+
+   if (theState & SRV_Suspend)
+      rdrStatus.Hdr.modifier = CmsStatusRequest::kYR_Suspend;
+      else {rdrStatus.Hdr.modifier = CmsStatusRequest::kYR_Resume;
+            rdrStatus.Hdr.streamid = htonl(thePort);
+           }
+   RTable.Send("status", (char *)&rdrStatus, sizeof(rdrStatus));
+}
+
+/******************************************************************************/
 /* Public                        M o n i t o r                                */
 /******************************************************************************/
   
 void *XrdCmsState::Monitor()
 {
    CmsStatusRequest myStatus = {{0, kYR_status, 0, 0}};
-   int RTsend, theState, Changes, myPort;
+   int RTsend, theState, Changes, myPort, rdrSent, rdrNeeds;
 
 // Do this forever (we are only posted when finally enabled)
 //
@@ -121,7 +140,11 @@ void *XrdCmsState::Monitor()
        theState  = currState;
        prevState = currState;
        myPort    = dataPort;
+       rdrNeeds  = rdrSync;
+       rdrSync   = 0;
        myMutex.UnLock();
+
+       rdrSent = 0;
 
        if (Changes && (myStatus.Hdr.modifier = Status(Changes, theState)))
           {if (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Resume)
@@ -133,9 +156,24 @@ void *XrdCmsState::Monitor()
                            && (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Suspend));
                     }
            if (isMan && RTsend)
-              RTable.Send("status", (char *)&myStatus, sizeof(myStatus));
+              {RTable.Send("status", (char *)&myStatus, sizeof(myStatus));
+               rdrSent = 1;
+              }
+              else if (isMan && (Changes & SRV_Suspend) && !(theState & SRV_Suspend))
+                      {// The service resumed while the front end stays
+                       // suspended. The managers stay suspended, but the
+                       // redirectors, which see only the service, resume.
+                       SendRedirectors(theState, myPort);
+                       rdrSent = 1;
+                      }
            XrdCmsManager::Inform(myStatus.Hdr);
           }
+
+       // A redirector logged in, and its login reply can be older than the
+       // last notice. Send the state of the service which this pass read.
+       // A later change posts a new pass, thus no change can be lost.
+       //
+       if (isMan && rdrNeeds && !rdrSent) SendRedirectors(theState, myPort);
       } while(1);
 
 // All done
@@ -254,6 +292,21 @@ unsigned char XrdCmsState::Status(int Changes, int theState)
    return rrModifier;
 }
  
+/******************************************************************************/
+/* Public                   S y n c R e d i r e c t o r s                     */
+/******************************************************************************/
+
+void XrdCmsState::SyncRedirectors()
+{
+// Before Enable(), Monitor() does not run. Enable() then sends the state to
+// all, and the flag adds no notice.
+//
+   myMutex.Lock();
+   rdrSync = 1;
+   if (Enabled) mySemaphore.Post();
+   myMutex.UnLock();
+}
+
 /******************************************************************************/
 /* Public                         U p d a t e                                 */
 /******************************************************************************/
