@@ -81,6 +81,13 @@ virtual Handle *Begin(XrdNetAddrInfo &addr, Handle     &handle,
 
 static  bool    getEA(const char *cgi, int &ecode, int &acode);
 
+// The mark Begin() would emit for this open. False when Begin() would not
+// mark it. This does not start a firefly, so the caller can compare the
+// effective mark with the one already running. Static like getEA: the mark
+// policy is process-wide, and a virtual here would change the public vtable.
+static  bool    getMark(XrdSecEntity &Client, const char *path,
+                        const char *cgi, int &ecode, int &acode);
+
 // The last value of key in an &-separated CGI string. XrdOucEnv drops an
 // empty value, so a present empty token is not a missing key. Returns false
 // when the key is absent. On success val points into cgi and n is its length.
@@ -94,13 +101,6 @@ static  bool    FlowID(const char *val, size_t n, int &flow);
 
                 XrdNetPMark() {}
 virtual        ~XrdNetPMark() {} // This object cannot be deleted!
-
-// The mark Begin() would emit for this open. False when Begin() would not
-// mark it. This does not start a firefly, so the caller can compare the
-// effective mark with the one already running.
-virtual bool    getMark(XrdSecEntity &Client, const char *path,
-                        const char *cgi, int &ecode, int &acode)
-                       {ecode = acode = 0; return false;}
 
 // ID limits and specifications
 //

@@ -240,12 +240,13 @@ bool XrdNetPMarkCfg::Admitted(XrdSecEntity &client)
 /*                               g e t M a r k                                */
 /******************************************************************************/
 
-bool XrdNetPMarkCfg::getMark(XrdSecEntity &client, const char *path,
-                             const char *cgi, int &ecode, int &acode)
+bool XrdNetPMark::getMark(XrdSecEntity &client, const char *path,
+                          const char *cgi, int &ecode, int &acode)
 {
    ecode = acode = 0;
-   if (!Admitted(client)) return false;
-   if (!getCodes(client, path, cgi, ecode, acode)) return false;
+   if (!XrdNetPMarkCfg::Admitted(client)) return false;
+   if (!XrdNetPMarkCfg::getCodes(client, path, cgi, ecode, acode))
+      return false;
 
 // Begin() emits only a valid mark, and only when firefly is on. The same
 // test here lets the caller keep a running firefly when this open would

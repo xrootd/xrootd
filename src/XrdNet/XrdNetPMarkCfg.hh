@@ -42,6 +42,8 @@ class XrdSysTrace;
 
 class XrdNetPMarkCfg : public XrdNetPMark
 {
+friend bool XrdNetPMark::getMark(XrdSecEntity &client, const char *path,
+                                 const char *cgi, int &ecode, int &acode);
 public:
 
         XrdNetPMark::Handle *Begin(XrdSecEntity &Client,
@@ -52,10 +54,6 @@ public:
         XrdNetPMark::Handle *Begin(XrdNetAddrInfo      &addr,
                                    XrdNetPMark::Handle &handle,
                                    const char          *tident) override;
-
-        bool                 getMark(XrdSecEntity &client, const char *path,
-                                     const char *cgi, int &ecode,
-                                     int &acode) override;
 
 static  XrdNetPMark *Config(XrdSysError *eLog, XrdScheduler *sched,
                             XrdSysTrace *trc,  bool &fatal);

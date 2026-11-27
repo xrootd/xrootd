@@ -1534,7 +1534,8 @@ void XrdXrootdProtocol::MarkOpen(const char *fn, const char *opaque)
        if (XrdNetPMark::getEA(opaque, nExp, nAct))
           {if (!pmHandle) start = true;
            else {int cExp = 0, cAct = 0, eExp = 0, eAct = 0;
-                 bool emit = PMark->getMark(*Client, fn, opaque, eExp, eAct);
+                 bool emit = XrdNetPMark::getMark(*Client, fn, opaque,
+                                                  eExp, eAct);
                  if (emit && pmHandle->getEA(cExp, cAct)
                  &&  cExp == eExp && cAct == eAct)
                     {start = false;
