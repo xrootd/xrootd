@@ -336,8 +336,7 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
               {if (!(pInfo->isEnabled) && pInfo->FD >= 0)
                   remFD(*pInfo, PollTab[i].events);
                   else {pInfo->isEnabled = 0;
-                        if (!(PollTab[i].events & pollOK)
-                        ||   (PollTab[i].events & POLLRDHUP))
+                        if (!(PollTab[i].events & pollOK))
                            Finish(*pInfo, x2Text(PollTab[i].events, eBuff));
                         lp = &(pInfo->Link);
                         lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
