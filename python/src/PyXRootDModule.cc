@@ -80,6 +80,15 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyMODINIT_FUNC PyInit_client( void )
   {
+#if PY_VERSION_HEX < 0x03070000
+    //--------------------------------------------------------------------------
+    // The threads of the client call PyGILState_Ensure() for the callbacks.
+    // Before Python 3.7, the global interpreter lock exists only after this
+    // call or the start of a Python thread.
+    //--------------------------------------------------------------------------
+    PyEval_InitThreads();
+#endif
+
     FileSystemType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &FileSystemType ) < 0 ) {
       return NULL;

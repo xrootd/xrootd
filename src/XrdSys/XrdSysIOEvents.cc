@@ -788,10 +788,13 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
        return 0;
       }
 
-// Now start a thread to handle this poller object
+// Now start a thread to handle this poller object. The thread is joinable,
+// thus Stop() can wait until it really ends.
 //
    if ((eNum = XrdSysThread::Run(&tid, XrdSys::IOEvents::BootStrap::Start,
-                                 (void *)&pArg, XRDSYSTHREAD_BIND, "Poller")))
+                                 (void *)&pArg,
+                                 XRDSYSTHREAD_BIND | XRDSYSTHREAD_HOLD,
+                                 "Poller")))
       {if (eTxt) *eTxt = "creating poller thread"; return 0;}
 
 // Now wait for the thread to finish initializing before we allow use
@@ -806,6 +809,7 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
    if (pArg.retCode)
       {if (eTxt) *eTxt = (pArg.retMsg ? pArg.retMsg : "starting poller");
        eNum = pArg.retCode;
+       XrdSysThread::Join(tid, 0);
        delete pArg.pollP;
        return 0;
       }
@@ -1054,10 +1058,13 @@ void XrdSys::IOEvents::Poller::Stop()
 //
    if (cmdFD == -1) {adMutex.UnLock(); return;}
 
-// First we must stop the poller thread in an orderly fashion.
+// First we must stop the poller thread in an orderly fashion. The thread
+// confirms the stop before it ends, thus we also wait until it has ended.
+// Otherwise, it can still run when the process exits and the C library and
+// OpenSSL free their data (e.g. OPENSSL_cleanup()), which corrupts the heap.
 //
    adMutex.UnLock();
-   SendCmd(cmdbuff);
+   if (!SendCmd(cmdbuff)) XrdSysThread::Join(pollTid, 0);
    adMutex.Lock();
 
 // Close the pipe communication mechanism

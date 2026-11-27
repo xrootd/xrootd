@@ -1,5 +1,6 @@
 add_bats_tests(commands.bats)
 add_bats_tests(connection.bats)
+add_bats_tests(exit.bats)
 add_bats_tests(full-url.bats)
 add_bats_tests(listing.bats)
 add_bats_tests(login.bats)
