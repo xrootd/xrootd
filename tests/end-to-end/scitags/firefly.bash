@@ -11,11 +11,12 @@
 # a socket that has not yet carried the file must reach the file size by
 # the end datagram, and a socket that already has must grow by the whole
 # file during the mark. With --sum the end counters are added, so bytes
-# counted before the start datagram still count. A pair whose counter is
-# 0 on start and on end is skipped for that socket: a parallel stream
-# that only completes its bind, or a host without TCP_INFO. The file-size
-# minimum still applies to the sockets that reported bytes, and fails when
-# every pair was skipped so nothing accounted for the transfer.
+# counted before the start datagram still count. Socket byte checks run
+# only on Linux, where SockStats reads TCP_INFO. Elsewhere the counters
+# are always zero, so only the firefly metadata is checked. On Linux a
+# pair that is 0/0 is skipped for that socket (a bind-only parallel
+# stream); the file-size minimum still applies to the sockets that
+# reported bytes, and fails when every pair was skipped.
 
 # The size of the collector file, so a later check reads only new datagrams.
 firefly_offset() {
@@ -47,6 +48,14 @@ firefly_unchanged() {
         fi
         now=$(firefly_mono)
         if python3 -c 'import sys; raise SystemExit(0 if float(sys.argv[2]) - float(sys.argv[1]) >= 1 else 1)' "$start" "$now"; then
+            # A datagram can arrive after the last size read and before
+            # this clock sample crosses one second. Read again.
+            size=$(firefly_offset "$records")
+            if [[ "$size" != "$offset" ]]; then
+                echo "collector $records grew from $offset to $size bytes" >&2
+                firefly_dump "$records" "$offset"
+                return 1
+            fi
             return 0
         fi
         sleep 0.2
@@ -212,6 +221,10 @@ def check(args):
             problems.append(f"{place}: end datagram has no end-time")
         before = start[args.direction]
         after = end[args.direction]
+        # Byte checks need SockStats. That is Linux TCP_INFO only; elsewhere
+        # the counters are always zero. Metadata above still runs.
+        if not args.usage:
+            continue
         if before == 0 and after == 0:
             skipped += 1
             continue
@@ -241,17 +254,17 @@ def check(args):
                 f"{place}: usage.{args.direction} grew by {delta}, "
                 f"below the file size {args.minimum}"
             )
-    # A 0/0 pair is allowed for one stream, but the transfer still has to
-    # show the file size somewhere. If every pair was 0/0, measured is
-    # empty and the minimum is not met.
-    if args.sum:
+    # A 0/0 pair is allowed for one stream, but when usage is checked the
+    # transfer still has to show the file size somewhere. If every pair
+    # was 0/0, measured is empty and the minimum is not met.
+    if args.usage and args.sum:
         total = sum(measured)
         if total < args.minimum:
             problems.append(
                 f"sum of usage.{args.direction} {total} "
                 f"is below the file size {args.minimum}"
             )
-    elif skipped == len(complete) and args.minimum > 0:
+    elif args.usage and skipped == len(complete) and args.minimum > 0:
         problems.append(
             f"all usage.{args.direction} counters were 0; "
             f"file size {args.minimum} was not accounted"
@@ -290,6 +303,8 @@ def main():
     check_p.add_argument("--dst-ip")
     check_p.add_argument("--select", action="store_true")
     check_p.add_argument("--sum", action="store_true")
+    check_p.add_argument("--usage", action="store_true",
+                         help="check socket byte counters (Linux TCP_INFO)")
 
     end_p = sub.add_parser("endpoint")
     end_p.add_argument("records")
@@ -386,8 +401,8 @@ firefly_endpoint() {
 # minimum of the sum of the end counters, so bytes counted before the
 # start datagram still count, and a connection whose counter did not
 # grow is allowed. A 0/0 counter on one socket is skipped; if every
-# socket is 0/0 the minimum fails. --afi and --address default to an
-# IPv4 client at 127.0.0.1.
+# socket is 0/0 the minimum fails. Byte checks run only on Linux
+# (--usage). --afi and --address default to an IPv4 client at 127.0.0.1.
 # --src-ip and --dst-ip override one side of that pair. --src-port and
 # --dst-port are the known port of the flow. --select keeps this tag and
 # ignores any other tag in the slice.
@@ -395,13 +410,16 @@ firefly_check() {
     local records=$1 offset=$2 exp=$3 act=$4 pairs=$5 direction=$6 bytes=$7
     shift 7
     local fatal="${BATS_TEST_TMPDIR}/firefly.fatal"
-    local select=()
+    local select=() usage=()
 
     [[ " $* " == *" --select "* ]] && select=(--select)
+    # SockStats fills counters only on Linux; elsewhere they stay zero.
+    [[ "$(uname)" == Linux ]] && usage=(--usage)
     rm -f "$fatal"
     if ! wait_for 10 firefly_gate "$fatal" "$records" "$offset" "$exp" "$act" "$pairs" ${select[@]+"${select[@]}"}; then
         echo "timed out waiting for ${pairs} firefly pair(s) for experiment ${exp} activity ${act}" >&2
-        firefly_py check "$records" "$offset" "$exp" "$act" "$pairs" "$direction" "$bytes" "$@" >&2 || true
+        firefly_py check "$records" "$offset" "$exp" "$act" "$pairs" "$direction" "$bytes" \
+            ${usage[@]+"${usage[@]}"} "$@" >&2 || true
         firefly_dump "$records" "$offset"
         return 1
     fi
@@ -410,7 +428,8 @@ firefly_check() {
         firefly_dump "$records" "$offset"
         return 1
     fi
-    if ! firefly_py check "$records" "$offset" "$exp" "$act" "$pairs" "$direction" "$bytes" "$@"; then
+    if ! firefly_py check "$records" "$offset" "$exp" "$act" "$pairs" "$direction" "$bytes" \
+            ${usage[@]+"${usage[@]}"} "$@"; then
         firefly_dump "$records" "$offset"
         return 1
     fi
