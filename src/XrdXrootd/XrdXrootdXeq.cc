@@ -1516,28 +1516,39 @@ void XrdXrootdProtocol::MarkOpen(const char *fn, const char *opaque)
       }
 
 // One decision, under the stream lock. A native connection marks the first
-// open and keeps that handle. The HTTP bridge may replace it: no handle yet
-// means this open starts the mark, a different id ends the current firefly
-// (the destructor emits end) and starts the new one, and the same id keeps
-// the one handle. Streams that are not yet marked follow the session mark.
+// open and keeps that handle. The HTTP bridge may replace it when the open
+// carries a flow id. No handle yet starts the mark. The id compared with the
+// current firefly is the mark Begin() would emit, so a header the policy
+// ignores (pmark noscitag) does not end a firefly whose effective mark is
+// unchanged. A different effective mark ends the current firefly (the
+// destructor emits end) and starts the new one. The same mark keeps the one
+// handle. Streams that are not yet marked follow the session mark.
 //
    bool start;
    streamMutex.Lock();
    start = !pmDone;
    if (pmMayReplace())
-      {int nExp, nAct;
+      {[[maybe_unused]] int nExp, nAct;
+       // The return is the presence of the key. The parsed ids are not the
+       // mark Begin() will emit.
        if (XrdNetPMark::getEA(opaque, nExp, nAct))
           {if (!pmHandle) start = true;
-           else {int cExp = 0, cAct = 0;
-                 if (!pmHandle->getEA(cExp, cAct) || nExp != cExp || nAct != cAct)
-                    {XrdNetPMark::Handle *old = pmHandle;
-                     pmHandle = 0;
-                     delete old;
-                     start = true;
-                    } else {
-                     start = false;
+           else {int cExp = 0, cAct = 0, eExp = 0, eAct = 0;
+                 bool emit = PMark->getMark(*Client, fn, opaque, eExp, eAct);
+                 if (emit && pmHandle->getEA(cExp, cAct)
+                 &&  cExp == eExp && cAct == eAct)
+                    {start = false;
                      pmDone = true;
                     }
+                 else if (!emit)
+                    {start = false;
+                     pmDone = true;
+                    }
+                 else {XrdNetPMark::Handle *old = pmHandle;
+                       pmHandle = 0;
+                       delete old;
+                       start = true;
+                      }
                 }
           }
       }

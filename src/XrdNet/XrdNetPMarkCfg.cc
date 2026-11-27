@@ -183,20 +183,9 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdSecEntity &client,
 
 // If we need to screen out domains, do that
 //
-   if (chkDom)
-      {XrdNetAddrInfo &addrInfo = *client.addrInfo;
-       char domType = (addrInfo.isPrivate() ? domLcl : domRmt);
-       if (domType == domRmt && *myDomain)
-          {const char *urName = addrInfo.Name();
-           if (urName && XrdNetAddrInfo::isHostName(urName))
-              {const char *dot = index(urName, '.');
-               if (dot && !strcmp(dot+1, myDomain)) domType = domLcl;
-              }
-          }
-       if (domType != chkDom)
-          {DBGID(client.tident, "Skipping sending flow info; unwanted domain");
-           return 0;
-          }
+   if (!Admitted(client))
+      {DBGID(client.tident, "Skipping sending flow info; unwanted domain");
+       return 0;
       }
 
 // Now get the experiment and activity code. If we can't get at least the
@@ -225,6 +214,49 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdSecEntity &client,
 //
    XrdNetPMark::Handle handle(app, eCode, aCode);
    return Begin(*client.addrInfo, handle, client.tident);
+}
+
+/******************************************************************************/
+/*                              A d m i t t e d                               */
+/******************************************************************************/
+
+bool XrdNetPMarkCfg::Admitted(XrdSecEntity &client)
+{
+   if (!chkDom) return true;
+
+   XrdNetAddrInfo &addrInfo = *client.addrInfo;
+   char domType = (addrInfo.isPrivate() ? domLcl : domRmt);
+   if (domType == domRmt && *myDomain)
+      {const char *urName = addrInfo.Name();
+       if (urName && XrdNetAddrInfo::isHostName(urName))
+          {const char *dot = index(urName, '.');
+           if (dot && !strcmp(dot+1, myDomain)) domType = domLcl;
+          }
+      }
+   return domType == chkDom;
+}
+
+/******************************************************************************/
+/*                               g e t M a r k                                */
+/******************************************************************************/
+
+bool XrdNetPMarkCfg::getMark(XrdSecEntity &client, const char *path,
+                             const char *cgi, int &ecode, int &acode)
+{
+   ecode = acode = 0;
+   if (!Admitted(client)) return false;
+   if (!getCodes(client, path, cgi, ecode, acode)) return false;
+
+// Begin() emits only a valid mark, and only when firefly is on. The same
+// test here lets the caller keep a running firefly when this open would
+// not replace it.
+//
+   XrdNetPMark::Handle handle(0, ecode, acode);
+   if (!(handle.Valid() && useFFly))
+      {ecode = acode = 0;
+       return false;
+      }
+   return true;
 }
 
 /******************************************************************************/

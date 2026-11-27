@@ -95,6 +95,13 @@ static  bool    FlowID(const char *val, size_t n, int &flow);
                 XrdNetPMark() {}
 virtual        ~XrdNetPMark() {} // This object cannot be deleted!
 
+// The mark Begin() would emit for this open. False when Begin() would not
+// mark it. This does not start a firefly, so the caller can compare the
+// effective mark with the one already running.
+virtual bool    getMark(XrdSecEntity &Client, const char *path,
+                        const char *cgi, int &ecode, int &acode)
+                       {ecode = acode = 0; return false;}
+
 // ID limits and specifications
 //
 /**

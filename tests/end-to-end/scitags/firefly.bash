@@ -7,10 +7,11 @@
 #
 # firefly_check polls until the expected start/end pairs are in the file,
 # then checks each pair. Clients are driven at 127.0.0.1, so afi is ipv4 and
-# both addresses are 127.0.0.1. The usage counter of the file's direction on
-# end is greater than on start, and, unless --sum, at least the file size.
-# Both comparisons are skipped when the counter is 0 on start and on end,
-# which is what a host without TCP_INFO reports.
+# both addresses are 127.0.0.1. The counters are cumulative. Unless --sum,
+# a socket that has not yet carried the file must reach the file size by
+# the end datagram, and a socket that already has must grow by the whole
+# file during the mark. Both comparisons are skipped when the counter is
+# 0 on start and on end, which is what a host without TCP_INFO reports.
 
 # The size of the collector file, so a later check reads only new datagrams.
 firefly_offset() {
@@ -22,18 +23,26 @@ firefly_offset() {
 # Succeed when the collector file is still at <offset> after a second. The
 # end datagram follows the close of the client, so the wait covers a late
 # one. The size is read again after that wait: a datagram that arrives
-# during it is growth, not silence.
-firefly_unchanged() {
-    local records=$1 offset=$2 deadline=$(( SECONDS + 1 )) now
+# during it is growth, not silence. The clock is monotonic: SECONDS ticks
+# once a second, so a wait that starts just before a tick can return after
+# a fraction of a second and miss that datagram.
+firefly_mono() {
+    python3 -c 'import time; print("%.6f" % time.monotonic())'
+}
 
+firefly_unchanged() {
+    local records=$1 offset=$2 start now size
+
+    start=$(firefly_mono)
     while true; do
-        now=$(firefly_offset "$records")
-        if [[ "$now" != "$offset" ]]; then
-            echo "collector $records grew from $offset to $now bytes" >&2
+        size=$(firefly_offset "$records")
+        if [[ "$size" != "$offset" ]]; then
+            echo "collector $records grew from $offset to $size bytes" >&2
             firefly_dump "$records" "$offset"
             return 1
         fi
-        if (( SECONDS >= deadline )); then
+        now=$(firefly_mono)
+        if python3 -c 'import sys; raise SystemExit(0 if float(sys.argv[2]) - float(sys.argv[1]) >= 1 else 1)' "$start" "$now"; then
             return 0
         fi
         sleep 0.2
@@ -202,19 +211,30 @@ def check(args):
         if before == 0 and after == 0:
             skipped += 1
             continue
-        # One connection carries the file after the start datagram, so its
-        # counter grows. A parallel stream may only complete its bind, so
-        # --sum accepts an end counter that stayed put and checks the total.
-        if after < before or (not args.sum and after == before):
+        # The counters are cumulative. A socket that has not yet carried
+        # the file must reach the file size by the end datagram: bytes
+        # already counted at the start, which a PUT can have, belong to
+        # this transfer. A socket that has already reached the file size
+        # must grow by the whole file during this mark, so an earlier
+        # transfer cannot satisfy the check. A parallel stream may only
+        # complete its bind, so --sum accepts a difference of zero and
+        # checks the total of the differences.
+        delta = after - before
+        if delta < 0 or (not args.sum and delta == 0):
             problems.append(
-                f"{place}: usage.{args.direction} end {after} "
-                f"is not greater than start {before}"
+                f"{place}: usage.{args.direction} grew by {delta} "
+                f"from {before} to {after}"
             )
-        measured.append(after)
-        if not args.sum and after < args.minimum:
+        measured.append(delta)
+        if not args.sum and before < args.minimum and after < args.minimum:
             problems.append(
                 f"{place}: usage.{args.direction} end {after} "
                 f"is below the file size {args.minimum}"
+            )
+        if not args.sum and before >= args.minimum and delta < args.minimum:
+            problems.append(
+                f"{place}: usage.{args.direction} grew by {delta}, "
+                f"below the file size {args.minimum}"
             )
     if args.sum and skipped != len(complete):
         total = sum(measured)
@@ -347,12 +367,15 @@ firefly_endpoint() {
 #               [--application NAME] [--afi ipv4|ipv6] [--address IP]
 #               [--src-ip IP] [--dst-ip IP] [--select] [--sum]
 #
-# <bytes> is the minimum of usage.<direction> on each end datagram. With
-# --sum it is the minimum of the sum across the connections, and a
-# connection whose counter did not grow is allowed. --afi and --address
-# default to an IPv4 client at 127.0.0.1. --src-ip and --dst-ip override
-# one side of that pair. --src-port and --dst-port are the known port of
-# the flow. --select keeps this tag and ignores any other tag in the slice.
+# <bytes> is the minimum of usage.<direction>. A socket below that at
+# the start datagram must reach it by the end datagram. A socket already
+# at it must grow by it during the mark. With --sum, <bytes> is the
+# minimum of the sum of the growths, and a connection whose counter did
+# not grow is allowed. --afi and --address default to an IPv4 client at
+# 127.0.0.1.
+# --src-ip and --dst-ip override one side of that pair. --src-port and
+# --dst-port are the known port of the flow. --select keeps this tag and
+# ignores any other tag in the slice.
 firefly_check() {
     local records=$1 offset=$2 exp=$3 act=$4 pairs=$5 direction=$6 bytes=$7
     shift 7

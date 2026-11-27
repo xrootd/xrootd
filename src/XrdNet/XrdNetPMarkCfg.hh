@@ -53,6 +53,10 @@ public:
                                    XrdNetPMark::Handle &handle,
                                    const char          *tident) override;
 
+        bool                 getMark(XrdSecEntity &client, const char *path,
+                                     const char *cgi, int &ecode,
+                                     int &acode) override;
+
 static  XrdNetPMark *Config(XrdSysError *eLog, XrdScheduler *sched,
                             XrdSysTrace *trc,  bool &fatal);
 
@@ -64,6 +68,7 @@ static  int          Parse(XrdSysError *eLog, XrdOucStream &Config);
 private:
            ~XrdNetPMarkCfg() {}
 
+static bool Admitted(XrdSecEntity &client);
 static bool ConfigDefs();
 static bool ConfigPV2E(char *info);
 static bool ConfigRU2A(char *info);

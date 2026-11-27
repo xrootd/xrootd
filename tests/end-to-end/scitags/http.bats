@@ -50,6 +50,36 @@ setup_file() {
         export FIREFLY_PORT=$saved
         cp "$REF" "$SRC_DATA/ref.dat"
     fi
+
+    # noscitag marks from the configured default and ignores a SciTag header.
+    # atlas/transfers is experiment 2, activity 16, the same pair a SciTag of
+    # 144 names. A later header of 1024 must not end that firefly.
+    cat > "$BATS_FILE_TMPDIR/scitags.json" <<'EOF'
+{
+  "modified": "test",
+  "experiments": [
+    {
+      "expName": "atlas",
+      "expId": 2,
+      "activities": [
+        {"activityName": "transfers", "activityId": 16}
+      ]
+    }
+  ]
+}
+EOF
+    start_collector plainfly
+    cat > "$BATS_FILE_TMPDIR/noscitag.cfg" <<EOF
+set firefly = $PLAINFLY_PORT
+xrootd.pmark use firefly noscitag
+xrootd.pmark ffdest localhost:\$firefly
+xrootd.pmark domain any
+xrootd.pmark defsfile $BATS_FILE_TMPDIR/scitags.json
+xrootd.pmark map2exp default atlas
+xrootd.pmark map2act atlas default transfers
+EOF
+    start_server plain http.cfg "$BATS_FILE_TMPDIR/noscitag.cfg"
+    cp "$REF" "$PLAIN_DATA/ref.dat"
 }
 
 teardown_file() {
@@ -115,13 +145,18 @@ http_push() {
 
 @test "a later GET on an unmarked connection carries the SciTag" {
     # The first request has no tag, so the socket is not marked. The second
-    # names one, and that mark has to start on the same connection.
-    curl --http1.1 --silent --show-error --fail \
+    # names one, and that mark has to start on the same connection. Curl
+    # reports the new connections of each transfer; the second must be zero.
+    local connects
+    connects=$(curl --http1.1 --silent --show-error --fail \
         -H 'Connection: keep-alive' \
-        -o first.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
+        -o first.dat --write-out '%{num_connects}\n' \
+        "http://127.0.0.1:${SERVER_PORT}/ref.dat" \
         --next \
         -H 'Connection: keep-alive' -H 'SciTag: 144' \
-        -o second.dat "http://127.0.0.1:${SERVER_PORT}/ref.dat"
+        -o second.dat --write-out '%{num_connects}\n' \
+        "http://127.0.0.1:${SERVER_PORT}/ref.dat") || return 1
+    [[ "$(sed -n '2p' <<<"$connects")" == 0 ]]
     run -0 cmp "$REF" first.dat
     run -0 cmp "$REF" second.dat
     firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$SIZE" \
@@ -159,6 +194,32 @@ http_push() {
     run -0 cmp "$REF" second.dat
     firefly_check "$FIREFLY_RECORDS" "$OFF" 2 16 1 sent "$((2 * SIZE))" \
         --src-port "$SERVER_PORT" --application http-get
+    # The check returns on the first read that has the one pair. A second
+    # pair that arrives after that read would be another firefly for this
+    # tag, and the test would still pass. Silence means it did not arrive.
+    firefly_unchanged "$FIREFLY_RECORDS" "$(firefly_offset "$FIREFLY_RECORDS")"
+}
+
+@test "an ignored SciTag keeps the configured default mark" {
+    # The first GET has no header, so the default (2, 16) marks the socket.
+    # The second names 1024. noscitag does not use that header, and the
+    # firefly that is already (2, 16) has to stay and count both files.
+    local off connects
+    off=$(firefly_offset "$PLAINFLY_RECORDS")
+    connects=$(curl --http1.1 --silent --show-error --fail \
+        -H 'Connection: keep-alive' \
+        -o first.dat --write-out '%{num_connects}\n' \
+        "http://127.0.0.1:${PLAIN_PORT}/ref.dat" \
+        --next \
+        -H 'Connection: keep-alive' -H 'SciTag: 1024' \
+        -o second.dat --write-out '%{num_connects}\n' \
+        "http://127.0.0.1:${PLAIN_PORT}/ref.dat") || return 1
+    [[ "$(sed -n '2p' <<<"$connects")" == 0 ]]
+    run -0 cmp "$REF" first.dat
+    run -0 cmp "$REF" second.dat
+    firefly_check "$PLAINFLY_RECORDS" "$off" 2 16 1 sent "$((2 * SIZE))" \
+        --src-port "$PLAIN_PORT"
+    firefly_unchanged "$PLAINFLY_RECORDS" "$(firefly_offset "$PLAINFLY_RECORDS")"
 }
 
 @test "a pull with both SciTag headers keeps the SciTag of the COPY" {
