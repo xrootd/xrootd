@@ -96,10 +96,13 @@ int          Run(char *outBuff, int outBsz,
                  const char *arg1=0, const char *arg2=0,
                  const char *arg3=0, const char *arg4=0) const;
 
-// RunDone should be called to drain the output stream and get the ending
-// status of the running process.
+// RunDone terminates any remaining process group and reports the exit status.
 //
 int          RunDone(XrdOucStream &cmd) const;
+
+// After reading output to EOF, wait for the command's natural exit status.
+//
+int          WaitDone(XrdOucStream &cmd) const;
 
 // Start executes the command that was passed via Setup(). The started
 // program is expected to linger so that you can send directives to it
@@ -122,6 +125,7 @@ int          Setup(const char *prog,
 /******************************************************************************/
   
 private:
+  int           Finish(XrdOucStream &cmd, bool terminate) const;
   void          Reset();
   int           Restart();
   XrdSysError  *eDest;

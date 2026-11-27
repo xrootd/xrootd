@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
+#include <new>
 #ifndef WIN32
 #include <unistd.h>
 #endif
@@ -103,10 +104,11 @@ XrdOucBuffer *XrdOucBuffPool::Alloc(int bsz)
   XrdOucBuffer  *bP;
   int snum;
 
-// Compute buffer slot
+// Round the byte size up to a size class. Slot zero holds the first
+// increment, so convert the number of increments to a zero-based index.
 //
-   snum = (bsz <= incBsz ? 0 : (bsz + rndBsz) >> shfBsz);
-   if (snum >= slots) return 0;
+   if (bsz > maxBsz) return 0;
+   snum = bsz <= incBsz ? 0 : ((static_cast<unsigned int>(bsz) + rndBsz) >> shfBsz) - 1;
    sP = &bSlot[snum];
 
 // Lock the data area
@@ -120,7 +122,7 @@ XrdOucBuffer *XrdOucBuffPool::Alloc(int bsz)
        bP->buffPool = this;
        sP->numbuff--;
       } else {
-       if ((bP = new XrdOucBuffer(this, snum)))
+       if ((bP = new (std::nothrow) XrdOucBuffer(this, snum)))
           {int mema;
            if (sP->size >= alignit) mema = alignit;
               else if (sP->size > 2048) mema = 4096;
