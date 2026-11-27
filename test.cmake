@@ -412,16 +412,20 @@ else()
   if(NOT DEFINED CTEST_MEMORYCHECK_TYPE)
     section("Test")
     ctest_test(RETURN_VALUE TEST_RESULT
+      CAPTURE_CMAKE_ERROR TEST_ERROR
       PARALLEL_LEVEL $ENV{CTEST_PARALLEL_LEVEL})
     endsection()
   else()
     section("${CTEST_MEMORYCHECK_TYPE}")
     ctest_memcheck(RETURN_VALUE TEST_RESULT
+      CAPTURE_CMAKE_ERROR TEST_ERROR
       PARALLEL_LEVEL $ENV{CTEST_PARALLEL_LEVEL})
     endsection()
   endif()
 
-  if(NOT ${TEST_RESULT} EQUAL 0)
+  if(TEST_ERROR EQUAL -1)
+    message(SEND_ERROR "Tests could not run")
+  elseif(NOT ${TEST_RESULT} EQUAL 0)
     message(SEND_ERROR "Tests failed")
   endif()
 
