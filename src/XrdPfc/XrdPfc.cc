@@ -654,7 +654,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
 
       if (m_gstream)
       {
-         const Stats       &st = f->RefStats();
+         const FileStats   &st = f->RefStats();
          const Info::AStat *as = f->GetLastAccessStats();
 
          char buf[4096];

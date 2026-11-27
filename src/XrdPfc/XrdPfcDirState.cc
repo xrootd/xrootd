@@ -245,7 +245,7 @@ int DirState::count_dirs_to_level(int max_depth) const
 //----------------------------------------------------------------------------
 void DirState::dump_recursively(const char *name, int max_depth) const
 {
-   printf("%*d %s usage_here=%lld usage_sub=%lld usage_total=%lld num_ios=%d duration=%d b_hit=%lld b_miss=%lld b_byps=%lld b_wrtn=%lld\n",
+   printf("%*d %s usage_here=%lld usage_sub=%lld usage_total=%lld num_ios=%lld duration=%lld b_hit=%lld b_miss=%lld b_byps=%lld b_wrtn=%lld\n",
           2 + 2 * m_depth, m_depth, name,
           512 * m_here_usage.m_StBlocks, 512 * m_recursive_subdir_usage.m_StBlocks,
           512 * (m_here_usage.m_StBlocks + m_recursive_subdir_usage.m_StBlocks),

@@ -272,9 +272,9 @@ int ResourceMonitor::process_queues()
 
    for (auto &i : m_file_update_stats_q.read_queue())
    {
-      // i.id: token, i.record: Stats
+      // i.id: token, i.record: FileStats
       AccessToken &at = token(i.id);
-      // Stats
+      // FileStats
       DirState *ds = at.m_dir_state;
       dprintf("process file update for token %d, %p -- %s\n",
              i.id, ds, at.m_filename.c_str());

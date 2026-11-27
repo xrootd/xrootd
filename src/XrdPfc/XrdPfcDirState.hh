@@ -14,7 +14,7 @@
 //==============================================================================
 // Manifest:
 //------------------------------------------------------------------------------
-// - Data-holding struct DirUsage -- complementary to Stats.
+// - Data-holding struct DirUsage -- complementary to DirStats.
 // - Base classes for DirState and DataFsState, shared between in-memory
 //   tree form and snap-shot vector form.
 // - Forward declatation of structs for DirState export in vector form:
