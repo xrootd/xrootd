@@ -449,6 +449,13 @@ the launcher prints its cores, and ends with the signal of the command.
   the program, or `systemd-coredump`. Another pipe, for example to `apport`,
   keeps no core.
 
+The CI jobs which run `test.cmake` on Linux set an absolute path with the
+action `.github/actions/core-dumps`. A job in a container runs with the
+options `--privileged --ulimit core=-1`. The package builds of `RPM.yml` and
+`DEB.yml` keep no cores. macOS writes a core only for a program with the
+entitlement `com.apple.security.get-task-allow`, which the build does not
+give.
+
 ### Example
 
 A minimal test file is:

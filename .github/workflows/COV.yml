@@ -37,12 +37,15 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update -q
-        sudo apt install -y devscripts equivs git
+        sudo apt install -y devscripts equivs gdb git
 
     - name: Checkout repository
       uses: actions/checkout@v7
       with:
         fetch-depth: 0
+
+    - name: Keep core dumps
+      uses: ./.github/actions/core-dumps
 
     - name: Install XRootD build dependencies
       run: mk-build-deps --install --remove -s sudo debian/control <<< yes

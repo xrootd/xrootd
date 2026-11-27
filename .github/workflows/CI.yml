@@ -27,7 +27,9 @@ jobs:
   alpine:
     name: Alpine
     runs-on: ubuntu-latest
-    container: alpine
+    container:
+      image: alpine
+      options: --privileged --ulimit core=-1
 
     env:
       CMAKE_ARGS: -DCMAKE_INSTALL_PREFIX=/usr
@@ -45,6 +47,7 @@ jobs:
           fuse-dev \
           fuse3-dev \
           g++ \
+          gdb \
           git \
           json-c-dev \
           krb5 \
@@ -54,6 +57,7 @@ jobs:
           libzip-dev \
           linux-headers \
           make \
+          musl-dbg \
           nlohmann-json \
           openssl \
           openssl-dev \
@@ -80,6 +84,9 @@ jobs:
     - name: Setup GitHub runner user within container
       run: adduser -D --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
 
+    - name: Keep core dumps
+      uses: ./.github/actions/core-dumps
+
     - name: Build and Test with CTest
       run: sudo -E -u runner ctest -VV -S test.cmake
 
@@ -94,7 +101,9 @@ jobs:
   alma8:
     name: Alma 8
     runs-on: ubuntu-latest
-    container: almalinux:8
+    container:
+      image: almalinux:8
+      options: --privileged --ulimit core=-1
 
     env:
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
@@ -102,7 +111,7 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
-        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf install -y dnf-plugins-core epel-release gdb git rpmdevtools sudo
         dnf install -y epel-rpm-macros
         dnf config-manager --set-enabled powertools
         dnf install -y gtest-devel
@@ -114,6 +123,9 @@ jobs:
 
     - name: Setup GitHub runner user within container
       run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Keep core dumps
+      uses: ./.github/actions/core-dumps
 
     - name: Install XRootD build dependencies
       run: dnf builddep -y xrootd.spec
@@ -132,7 +144,9 @@ jobs:
   alma9:
     name: Alma 9
     runs-on: ubuntu-latest
-    container: almalinux:9
+    container:
+      image: almalinux:9
+      options: --privileged --ulimit core=-1
 
     env:
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
@@ -140,7 +154,7 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
-        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf install -y dnf-plugins-core epel-release gdb git rpmdevtools sudo
         dnf config-manager --set-enabled crb
 
     - name: Clone repository
@@ -150,6 +164,9 @@ jobs:
 
     - name: Setup GitHub runner user within container
       run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Keep core dumps
+      uses: ./.github/actions/core-dumps
 
     - name: Install XRootD build dependencies
       run: dnf builddep -y xrootd.spec
@@ -168,7 +185,9 @@ jobs:
   alma10:
     name: Alma 10
     runs-on: ubuntu-latest
-    container: almalinux:10
+    container:
+      image: almalinux:10
+      options: --privileged --ulimit core=-1
 
     env:
       CMAKE_ARGS: "-DCMAKE_INSTALL_PREFIX=/usr;-DCMAKE_INSTALL_RPATH='$ORIGIN/../$LIB'"
@@ -176,7 +195,7 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
-        dnf install -y dnf-plugins-core epel-release git rpmdevtools sudo
+        dnf install -y dnf-plugins-core epel-release gdb git rpmdevtools sudo
         dnf config-manager --set-enabled crb
 
     - name: Clone repository
@@ -186,6 +205,9 @@ jobs:
 
     - name: Setup GitHub runner user within container
       run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Keep core dumps
+      uses: ./.github/actions/core-dumps
 
     - name: Install XRootD build dependencies
       run: dnf builddep -y xrootd.spec
@@ -204,7 +226,9 @@ jobs:
   fedora:
     name: Fedora
     runs-on: ubuntu-latest
-    container: fedora
+    container:
+      image: fedora
+      options: --privileged --ulimit core=-1
 
     strategy:
       matrix:
@@ -220,7 +244,7 @@ jobs:
 
     steps:
     - name: Install dependencies
-      run: dnf install -y dnf-plugins-core git ninja-build rpmdevtools ${{ matrix.compiler }}
+      run: dnf install -y dnf-plugins-core gdb git ninja-build rpmdevtools ${{ matrix.compiler }}
 
     - name: Clone repository
       uses: actions/checkout@v7
@@ -229,6 +253,9 @@ jobs:
 
     - name: Setup GitHub runner user within container
       run: adduser --uid 1001 runner && chown -R runner:runner ${GITHUB_WORKSPACE}
+
+    - name: Keep core dumps
+      uses: ./.github/actions/core-dumps
 
     - name: Install XRootD build dependencies
       run: dnf builddep -y --define 'with_ceph 1' xrootd.spec
@@ -266,12 +293,15 @@ jobs:
     - name: Install development tools
       run: |
         sudo apt update -qq
-        sudo apt install -y build-essential devscripts equivs git
+        sudo apt install -y build-essential devscripts equivs gdb git
 
     - name: Clone repository
       uses: actions/checkout@v7
       with:
         fetch-depth: 0
+
+    - name: Keep core dumps
+      uses: ./.github/actions/core-dumps
 
     - name: Install XRootD build dependencies
       run: mk-build-deps --install --remove -s sudo debian/control <<< yes
