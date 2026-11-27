@@ -162,11 +162,12 @@ StatHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *r
 
     // We got a "file not found" type of response.  In this case, we could interpret
     // this as a directory.
-    std::string https_url, err_msg;
+    std::string https_url;
     const auto s3_url = XrdOucUtils::JoinUrl(m_s3_url, m_path);
     std::string obj;
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
-        if (m_handler) return m_handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg), nullptr);
+    auto st = Factory::GenerateHttpUrl(s3_url, https_url, &obj);
+    if (!st.IsOK()) {
+        if (m_handler) return m_handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
         else return;
     }
     obj = obj.substr(0, obj.find('?'));
@@ -183,7 +184,7 @@ StatHandler::HandleResponse(XrdCl::XRootDStatus *status_raw, XrdCl::AnyObject *r
 
     auto expiry = time(NULL) + m_timeout;
 
-    auto st = DownloadUrl(
+    st = DownloadUrl(
         https_url,
         m_header_callout,
         new DirListResponseHandler(
@@ -512,11 +513,12 @@ Filesystem::DirList(const std::string          &path,
                     XrdCl::ResponseHandler     *handler,
                     time_t                      timeout)
 {
-    std::string https_url, err_msg;
+    std::string https_url;
     const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), path);
     std::string obj;
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+    auto st = Factory::GenerateHttpUrl(s3_url, https_url, &obj);
+    if (!st.IsOK()) {
+        return st;
     }
     obj = obj.substr(0, obj.find('?'));
     if (!obj.empty() && obj.back() != '/') {
@@ -553,9 +555,10 @@ Filesystem::DirList(const std::string          &path,
 std::pair<XrdCl::XRootDStatus, XrdCl::FileSystem*>
 Filesystem::GetFSHandle(const std::string &path) {
     const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), path);
-    std::string https_url, err_msg;
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg)) {
-        return std::make_pair(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg), nullptr);
+    std::string https_url;
+    auto st = Factory::GenerateHttpUrl(s3_url, https_url, nullptr);
+    if (!st.IsOK()) {
+        return std::make_pair(st, nullptr);
     }
     auto loc = https_url.find('/', 8); // strlen("https://") -> 8
     if (loc == std::string::npos) {
@@ -639,10 +642,11 @@ Filesystem::MkDir(const std::string        &input_path,
     }
 
     // Try creating a zero-sized sentinel.
-    std::string https_url, err_msg;
+    std::string https_url;
     const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), path);
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, nullptr, err_msg)) {
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+    auto st = Factory::GenerateHttpUrl(s3_url, https_url, nullptr);
+    if (!st.IsOK()) {
+        return st;
     }
 
     XrdCl::File *http_file(new XrdCl::File(https_url));
@@ -730,10 +734,10 @@ Filesystem::Stat(const std::string      &path,
                  time_t                  timeout)
 {
     auto cleaned_path = Factory::CleanObjectName(path);
-    std::string https_url, err_msg, obj;
+    std::string https_url, obj;
     const auto s3_url = XrdOucUtils::JoinUrl(m_url.GetURL(), cleaned_path);
-    if (!Factory::GenerateHttpUrl(s3_url, https_url, &obj, err_msg)) {
-        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidAddr, 0, err_msg);
+    if (auto st = Factory::GenerateHttpUrl(s3_url, https_url, &obj); !st.IsOK()) {
+        return st;
     }
     auto query = obj.find('?');
     if (query != std::string::npos) {
