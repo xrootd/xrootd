@@ -99,6 +99,7 @@ XrdOucPListAnchor XrdPssSys::XPList;
 XrdNetSecurity   *XrdPssSys::Police[XrdPssSys::PolNum] = {0, 0};
 
 XrdOucTList *XrdPssSys::ManList   =  0;
+XrdPssPrtyQ *XrdPssSys::prtyQ     =  0;
       char  *XrdPssSys::fileOrgn  =  0;
 const char  *XrdPssSys::protName  =  "root:";
 const char  *XrdPssSys::hdrData   =  "";
@@ -263,6 +264,10 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
               }
           }
       }
+
+// Setup to handle file sessions
+//
+   if (fSess >= 0) prtyQ = new XrdPssPrtyQ(fSess);
 
 // Finalize the configuration
 //
@@ -512,6 +517,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("defaults",      xdef);
    TS_DBG("debug",         TRACEPSS_Debug);
    TS_Xeq("export",        xexp);
+   TS_Xeq("fsessions",     xfses);
    TS_PSX("inetmode",      ParseINet);
    TS_Xeq("origin",        xorig);
    TS_Xeq("permit",        xperm);
@@ -671,7 +677,7 @@ int XrdPssSys::xdef(XrdSysError *Eroute, XrdOucStream &Config)
 /*                                  x e x p                                   */
 /******************************************************************************/
 
-/* Function: xrcp
+/* Function: xexp
 
    Purpose:  To parse the directive: {export | path} <path> [<options>]
 
@@ -693,6 +699,43 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 // Check if we are allowing object id's
 //
    if (*(pP->Path()) == '*') XrdPosixConfig::setOids(true);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                 x f s e s                                  */
+/******************************************************************************/
+
+/* Function: xfses
+
+   Purpose:  To parse the directive: fsession {<num> | *}
+
+             <num>    the maximum number of sessions allowed for opened files
+                      The valid range is 1 to 10,000.
+             *        each open file should have its own sesson.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xfses(XrdSysError *Eroute, XrdOucStream &Config)
+{
+   char* val;
+
+// Get the argument
+//
+   if (!(val = Config.GetWord()))
+      {Eroute->Emsg("Config", "fsessions argument not specified."); return 1;}
+
+// Handle the argument as needed
+//
+   if (!strcmp(val, "*")) fSess = 0;
+      else {if (XrdOuca2x::a2i(*Eroute,"fsession value",val,&fSess,1,10000))
+               return 1;
+            if (fSess == 1) fSess = -1;
+           }
+
+// All done
+//
    return 0;
 }
 
