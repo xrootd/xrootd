@@ -156,6 +156,7 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
 //
    instMutex.Lock();
    lp->Instance = myInstance++;
+   lp->PollInfo.Generation = lp->Instance;
    instMutex.UnLock();
 
 // Establish the address and connection name of this link
