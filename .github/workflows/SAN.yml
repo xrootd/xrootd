@@ -45,7 +45,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update -q
-        sudo apt install -y build-essential devscripts equivs git
+        sudo apt install -y build-essential clang devscripts equivs git libclang-rt-dev llvm
 
     - name: Checkout repository
       uses: actions/checkout@v7

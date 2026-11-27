@@ -227,9 +227,11 @@ list(APPEND ENVIRON "XROOTD=$<TARGET_FILE:xrootd>")
 list(APPEND ENVIRON "XRDFS=$<TARGET_FILE:xrdfs>")
 list(APPEND ENVIRON "PYTHONDONTWRITEBYTECODE=1")
 
+# CMake gives the launcher (CMAKE_TEST_LAUNCHER) only to the tests of the
+# programs of the project, thus add it to the command of the interpreter.
 foreach(test copy file filesystem glob threads url)
   add_test(NAME python.${test}
-    COMMAND ${Python_EXECUTABLE} -m pytest -p no:cacheprovider
+    COMMAND ${CMAKE_TEST_LAUNCHER} ${Python_EXECUTABLE} -m pytest -p no:cacheprovider
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_${test}.py)
   set_tests_properties(python.${test} PROPERTIES ENVIRONMENT "${ENVIRON}")
 endforeach()

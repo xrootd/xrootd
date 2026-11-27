@@ -263,27 +263,49 @@ CC=clang CXX=clang++ ctest -V -DSANITIZE=thread -S test.cmake
 - It selects the matching `CTEST_MEMORYCHECK_TYPE`, so that the tests run under
   `ctest_memcheck`, and the findings can be sent to CDash with `-DCDASH=1`.
 - It sets the options of the runtime in `ASAN_OPTIONS` and the other
-  `<RUNTIME>_OPTIONS` variables. The undefined behavior sanitizer needs
-  `halt_on_error=1`. Without it, the sanitizer reports a finding and
-  continues, and the test passes.
+  `<RUNTIME>_OPTIONS` variables. The undefined behavior sanitizer, and each
+  of its checks, such as `bounds`, needs `halt_on_error=1`. Without it, the
+  sanitizer reports a finding and continues, and the test passes.
 - It turns the leak detection of the address sanitizer off (`detect_leaks=0`).
   Use `-DSANITIZE=leak` to find leaks.
 - It leaves out the `vptr` check of the undefined behavior sanitizer. That
   check refers to the type information of every polymorphic class it sees.
   `XrdUtils` only declares `XrdOss`, `XrdOssDF`, and `XrdSecProtector`, so the
   link fails with `undefined reference to typeinfo for ...`.
-- With Clang, it links the libraries against the shared runtime with
-  `-shared-libsan`, and adds the directory of the runtime to the RPATH. Clang
-  links a static runtime into executables only, and leaves shared libraries
-  with undefined sanitizer symbols. A program which is not instrumented, like
-  the interpreter which runs the tests for the Python bindings, cannot resolve
-  them.
-- It sets `verify_asan_link_order=0`. Such a program receives the runtime only
-  when it opens one of the libraries, and the address sanitizer rejects this
-  by default.
+- The launcher of the tests (`CMAKE_TEST_LAUNCHER`) loads the shared runtime
+  of the sanitizer first, with `LD_PRELOAD`. It is for the Python tests, as
+  Python is not instrumented. Without the preload, the functions of libc come
+  before the interceptors of the runtime. For example, the thread sanitizer
+  then crashes in `__tsan_func_entry`, as it does not know the threads of the
+  libraries. Clang has the runtime next to its builtins library
+  (`-print-libgcc-file-name -rtlib=compiler-rt`), and GCC in its library
+  directory (`-print-file-name`). Clang has no shared runtime of the leak
+  sanitizer, and its libraries do not need one.
+- On macOS, the launcher loads the runtime with `DYLD_INSERT_LIBRARIES`, and
+  the options of the runtime contain `strip_env=0`. The `python3` of
+  Homebrew starts `Python.app`, and without this option the runtime removes
+  itself from the variable before that start. Do not run a program which
+  System Integrity Protection (SIP) protects between the launcher and Python,
+  such as `/usr/bin/env`: SIP removes the variable.
+- On macOS, it sets `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` for the thread
+  sanitizer. Its runtime starts a thread, and macOS then aborts the child of
+  the fork of a daemon (`xrootd -b`) when the child initializes an
+  Objective-C class, for example in `getaddrinfo()`.
 - It raises the reserve of static thread-local storage with `GLIBC_TUNABLES`.
-  Without it, the same program cannot open a library built with the thread or
-  leak sanitizer, and fails with `cannot allocate memory in static TLS block`.
+  Without it, a program which is not instrumented cannot open a library
+  built with the thread or leak sanitizer, and fails with
+  `cannot allocate memory in static TLS block`.
+- It builds the memory sanitizer without the Python bindings
+  (`-DENABLE_PYTHON=OFF`). The memory sanitizer needs all the code of a
+  process to be instrumented, and it has no shared runtime.
+- With Clang on Linux, it links the programs and the libraries against the
+  shared runtime with `-shared-libsan`, and adds its directory to the RPATH.
+  Clang links a static runtime into executables only. A unit test, and a
+  server which a Python test starts, receive the preload, thus they must use
+  the same runtime.
+- It sets `verify_asan_link_order=0`. A test which preloads a library into a
+  server, for example `checkclose` in `tpc/http/curl.bats`, puts it before
+  the runtime, and the address sanitizer rejects this by default.
 - With Clang, it leaves the sources under `vendor/` uninstrumented, through the
   special case list in [.ci/ignorelist.txt](../.ci/ignorelist.txt). GCC has no
   equivalent option.

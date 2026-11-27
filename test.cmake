@@ -142,12 +142,24 @@ if(SANITIZE)
   elseif(SANITIZE STREQUAL "memory")
     set(CTEST_MEMORYCHECK_TYPE "MemorySanitizer")
     set(RUNTIME msan)
+    # MemorySanitizer needs all the code of a process to be instrumented, and
+    # it has no shared runtime, thus Python cannot load the bindings
+    list(APPEND CMAKE_ARGS -DENABLE_PYTHON=OFF)
   elseif(SANITIZE STREQUAL "thread")
     set(CTEST_MEMORYCHECK_TYPE "ThreadSanitizer")
     set(RUNTIME tsan)
   elseif(SANITIZE STREQUAL "undefined")
     set(CTEST_MEMORYCHECK_TYPE "UndefinedBehaviorSanitizer")
     list(APPEND CMAKE_CXX_FLAGS -fno-sanitize=vptr)
+    set(OPTIONS print_stacktrace=1 halt_on_error=1)
+    set(RUNTIME ubsan)
+  elseif(SANITIZE MATCHES "address")
+    # A list of sanitizers, such as address,undefined
+    set(RUNTIME asan)
+  elseif(SANITIZE MATCHES "thread")
+    set(RUNTIME tsan)
+  else()
+    # A check of the undefined behavior sanitizer, such as bounds
     set(OPTIONS print_stacktrace=1 halt_on_error=1)
     set(RUNTIME ubsan)
   endif()
@@ -167,37 +179,71 @@ if(SANITIZE)
     set(ENV{LSAN_OPTIONS} "suppressions=${CTEST_SOURCE_DIRECTORY}/.ci/lsan.supp")
   endif()
 
-  if(OPTIONS)
-    string(JOIN "," OPTIONS ${OPTIONS})
-    string(TOUPPER ${RUNTIME}_OPTIONS OPTIONS_VARIABLE)
-    set(ENV{${OPTIONS_VARIABLE}} "${OPTIONS}")
-    set(CTEST_MEMORYCHECK_SANITIZER_OPTIONS "${OPTIONS}")
-  endif()
-
   # Sanitizer builds need more thread-local storage than usual, ask for more.
   # This is needed so that a program which is not instrumented (e.g. Python)
   # can load instrumented libraries without static TLS allocation failures.
   set(ENV{GLIBC_TUNABLES} "glibc.rtld.optional_static_tls=65536")
 
-  if(COMPILER_ID MATCHES "Clang")
-    execute_process(COMMAND ${COMPILER} -print-runtime-dir
-      OUTPUT_VARIABLE RUNTIME_DIR OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  # On macOS, the runtime of the thread sanitizer starts a thread. Thus the
+  # child of the fork of a daemon (xrootd -b) aborts when it initializes an
+  # Objective-C class, for example in getaddrinfo(), unless this check is off
+  if(CMAKE_HOST_APPLE AND RUNTIME STREQUAL "tsan")
+    set(ENV{OBJC_DISABLE_INITIALIZE_FORK_SAFETY} YES)
+  endif()
 
-    if(RUNTIME_DIR)
-      get_filename_component(RUNTIME_DIR "${RUNTIME_DIR}" REALPATH)
-    endif()
-
-    if(IS_DIRECTORY "${RUNTIME_DIR}")
-      message("Sanitizer runtime directory: ${RUNTIME_DIR}")
-      foreach(TYPE EXE MODULE SHARED)
-        list(PREPEND CMAKE_ARGS
-          "-DCMAKE_${TYPE}_LINKER_FLAGS=-shared-libsan -Wl,-rpath,${RUNTIME_DIR}")
-      endforeach()
+  # Python is not instrumented, thus the launcher of the tests loads the
+  # shared runtime first, else the functions of libc come before the
+  # interceptors of the runtime. Clang has no shared runtime of the leak
+  # sanitizer, and its libraries do not need one.
+  if(RUNTIME MATCHES "^(asan|tsan|ubsan)$" OR
+     (RUNTIME STREQUAL "lsan" AND NOT COMPILER_ID MATCHES "Clang"))
+    if(CMAKE_HOST_APPLE)
+      execute_process(COMMAND ${COMPILER} -print-file-name=libclang_rt.${RUNTIME}_osx_dynamic.dylib
+        OUTPUT_VARIABLE FILE OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    elseif(COMPILER_ID MATCHES "Clang")
+      # The runtime is next to the builtins library, with the same suffix
+      execute_process(COMMAND ${COMPILER} -print-libgcc-file-name -rtlib=compiler-rt
+        OUTPUT_VARIABLE FILE OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+      string(REPLACE ubsan ubsan_standalone LIBRARY ${RUNTIME})
+      string(REGEX REPLACE "builtins([^/]*)\\.a$" "${LIBRARY}\\1.so" FILE "${FILE}")
     else()
-      message(WARNING "Could not find the Clang runtime directory. Tests which "
-                      "load the libraries into a program that is not "
-                      "instrumented may fail.")
+      execute_process(COMMAND ${COMPILER} -print-file-name=lib${RUNTIME}.so
+        OUTPUT_VARIABLE FILE OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
     endif()
+
+    if(IS_ABSOLUTE "${FILE}" AND EXISTS "${FILE}")
+      get_filename_component(SANITIZER_RUNTIME "${FILE}" REALPATH)
+      message("Sanitizer runtime: ${SANITIZER_RUNTIME}")
+      if(CMAKE_HOST_APPLE)
+        # The programs of Apple Clang link the shared runtime. The python3 of
+        # Homebrew starts Python.app, and the runtime removes itself from
+        # DYLD_INSERT_LIBRARIES unless strip_env=0.
+        list(APPEND OPTIONS strip_env=0)
+        list(APPEND TEST_LAUNCHER
+          ${CMAKE_COMMAND} -E env DYLD_INSERT_LIBRARIES=${SANITIZER_RUNTIME})
+      else()
+        list(APPEND TEST_LAUNCHER ${CMAKE_COMMAND} -E env LD_PRELOAD=${SANITIZER_RUNTIME})
+      endif()
+      # Clang links a static runtime into programs, thus link all with the
+      # shared runtime, which the preload then does not load a second time
+      if(COMPILER_ID MATCHES "Clang" AND NOT CMAKE_HOST_APPLE)
+        get_filename_component(RUNTIME_DIR "${SANITIZER_RUNTIME}" DIRECTORY)
+        foreach(TYPE EXE MODULE SHARED)
+          list(PREPEND CMAKE_ARGS
+            "-DCMAKE_${TYPE}_LINKER_FLAGS=-shared-libsan -Wl,-rpath,${RUNTIME_DIR}")
+        endforeach()
+      endif()
+    else()
+      message(WARNING "Could not find the shared runtime of the sanitizer "
+                      "(${FILE}). The Python tests may fail.")
+    endif()
+  endif()
+
+  if(OPTIONS)
+    string(JOIN "," OPTIONS ${OPTIONS})
+    string(TOUPPER ${RUNTIME}_OPTIONS OPTIONS_VARIABLE)
+    set(ENV{${OPTIONS_VARIABLE}} "${OPTIONS}")
+    set(CTEST_MEMORYCHECK_SANITIZER_OPTIONS "${OPTIONS}")
   endif()
 
   set(IGNORELIST ${CTEST_SOURCE_DIRECTORY}/.ci/ignorelist.txt)
@@ -226,6 +272,14 @@ list(PREPEND CMAKE_ARGS -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS})
 list(PREPEND CMAKE_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS})
 
 set(CMAKE_ARGS $ENV{CMAKE_ARGS} ${CMAKE_ARGS})
+
+# CMake gives the launcher to the tests of its programs. Escape the semicolons
+# of the list, else ctest_configure() splits it, after the expansion of
+# CMAKE_ARGS above, which removes the escapes.
+if(TEST_LAUNCHER)
+  string(REPLACE ";" "\\;" TEST_LAUNCHER "${TEST_LAUNCHER}")
+  list(PREPEND CMAKE_ARGS "-DCMAKE_TEST_LAUNCHER=${TEST_LAUNCHER}")
+endif()
 
 if(DEFINED ENV{GITHUB_ACTIONS})
   set(CTEST_SITE "GitHub Actions ($ENV{GITHUB_REPOSITORY_OWNER})")
