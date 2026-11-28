@@ -32,7 +32,8 @@ add_library(XrdClHttpObj OBJECT
   XrdClHttpTape.cc           XrdClHttpTape.hh
   XrdClHttpTokenFileParser.cc XrdClHttpTokenFileParser.hh
   XrdClHttpUtil.cc           XrdClHttpUtil.hh
-                           XrdClHttpVerb.hh
+                              XrdClHttpVerb.hh
+  XrdClHttpWebDav.cc         XrdClHttpWebDav.hh
   XrdClHttpWorker.hh
 )
 

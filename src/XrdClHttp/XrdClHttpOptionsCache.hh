@@ -30,6 +30,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <utility>
  
  namespace XrdClHttp {
  
@@ -70,22 +71,18 @@
     }
 
     void Put(const std::string &url, const HttpVerbs &verbs, const std::chrono::steady_clock::time_point &now=std::chrono::steady_clock::now()) const {
-        std::string modified_url;
-        auto key = GetUrlKey(url, modified_url);
+        auto key = GetUrlKey(url);
+        if (key.empty()) return;
 
         const std::unique_lock sentry(m_mutex);
 
         auto isKnown = !verbs.IsSet(HttpVerb::kUnknown);
         auto lifetime = isKnown ? g_expiry_duration : g_negative_expiry_duration;
 
-// C++20 can elide the allocation for the string_view
-#if __cplusplus >= 202002L
         auto iter = m_verbs_map.find(key);
-#else
-        auto iter = m_verbs_map.find(std::string(key));
-#endif
         if (iter == m_verbs_map.end()) {
-            m_verbs_map.emplace(key, VerbEntry{now + lifetime, verbs});
+            m_verbs_map.emplace(std::move(key),
+                                VerbEntry{now + lifetime, verbs});
         } else if (isKnown || iter->second.m_verbs.IsSet(HttpVerb::kUnknown)) {
             // Previous entry didn't know the verbs, but now we do
             iter->second = {now + lifetime, verbs};
@@ -93,15 +90,14 @@
     }
 
     HttpVerbs Get(const std::string &url, const std::chrono::steady_clock::time_point &now=std::chrono::steady_clock::now()) const {
-        std::string modified_url;
-        auto key = GetUrlKey(url, modified_url);
+        auto key = GetUrlKey(url);
+        if (key.empty()) {
+            m_cache_miss++;
+            return HttpVerbs{};
+        }
 
         const std::shared_lock sentry(m_mutex);
-#if __cplusplus >= 202002L
         auto iter = m_verbs_map.find(key);
-#else
-        auto iter = m_verbs_map.find(std::string(key));
-#endif
         if (iter == m_verbs_map.end()) {
             m_cache_miss++;
             return HttpVerbs{};
@@ -114,28 +110,8 @@
         return iter->second.m_verbs;
     }
 
-    // Get the cache key for a given URL
-    //
-    // Cache key should consist of the schema, host, and port portion of the URL.
-    static std::string_view GetUrlKey(const std::string &url, std::string &modified_url) {
-        auto authority_loc = url.find("://");
-        if (authority_loc == std::string::npos) {
-            return std::string_view();
-        }
-        auto path_loc = url.find('/', authority_loc + 3);
-        if (path_loc == std::string::npos) {
-            path_loc = url.length();
-        }
-
-        std::string_view url_view{url};
-        auto host_loc = url_view.substr(authority_loc + 3, path_loc - authority_loc - 3).find('@');
-        if (host_loc == std::string::npos) {
-            return url_view.substr(0, path_loc);
-        }
-        host_loc += authority_loc + 3;
-        modified_url = url.substr(0, authority_loc + 3) + std::string(url_view.substr(host_loc + 1, path_loc - host_loc - 1));
-        return modified_url;
-    }
+    // Return a normalized resource URL without credentials or request parameters.
+    static std::string GetUrlKey(const std::string &url);
 
     uint64_t GetCacheHits() const {return m_cache_hit;}
     uint64_t GetCacheMisses() const {return m_cache_miss;}
@@ -161,24 +137,13 @@ private:
     mutable std::atomic<uint64_t> m_cache_hit{0};
     mutable std::atomic<uint64_t> m_cache_miss{0};
 
-    template<typename ... Bases>
-    struct overload : Bases ...
-    {
-        using is_transparent = void;
-        using Bases::operator() ... ;
-    };
-    using transparent_string_hash = overload<
-        std::hash<std::string>,
-        std::hash<std::string_view>
-    >;
-
     struct VerbEntry {
         std::chrono::steady_clock::time_point m_expiry;
         HttpVerbs m_verbs;
     };
 
     mutable std::shared_mutex m_mutex;
-    mutable std::unordered_map<std::string, VerbEntry, VerbsCache::transparent_string_hash, std::equal_to<>> m_verbs_map;
+    mutable std::unordered_map<std::string, VerbEntry> m_verbs_map;
 
     static std::once_flag m_expiry_launch;
     static VerbsCache g_cache;

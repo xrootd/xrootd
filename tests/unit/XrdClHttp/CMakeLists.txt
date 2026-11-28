@@ -12,13 +12,16 @@ add_unit_tests(
     XrdClHttpHeaderBuilderForbiddenEntry.cc
     XrdClHttpHeaderBuilderForbiddenHeader.cc
     XrdClHttpHeaderBuilderParsing.cc
+    XrdClHttpOptionsCache.cc
     XrdClHttpParseTimeout.cc
     XrdClHttpTape.cc
     XrdClHttpTokenFileParser.cc
     XrdClHttpUtil.cc
+    XrdClHttpWebDav.cc
   LIBRARIES
     XrdClHttpObj
     XrdCl
+    XrdXml
     CURL::libcurl
   INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_SOURCE_DIR}

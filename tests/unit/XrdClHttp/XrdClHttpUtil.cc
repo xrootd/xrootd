@@ -54,6 +54,15 @@ TEST(HeaderParserTest, RejectsInvalidResponseFieldNames)
   EXPECT_FALSE(parser.Parse("application/type: json\r\n"));
 }
 
+TEST(HeaderParserTest, RecognizesPropfindAfterACommaAndSpaceInAllow)
+{
+  XrdClHttp::HeaderParser parser;
+  ASSERT_TRUE(parser.Parse("HTTP/1.1 200 OK\r\n"));
+  ASSERT_TRUE(parser.Parse("Allow: MKCOL, PROPFIND, PUT\r\n"));
+  ASSERT_TRUE(parser.Parse("\r\n"));
+  EXPECT_TRUE(parser.GetAllowedVerbs().IsSet(XrdClHttp::VerbsCache::HttpVerb::kPROPFIND));
+}
+
 TEST(HeaderParserTest, ParsesSupportedDigestAlgorithms)
 {
   XrdClHttp::ChecksumInfo checksums;
