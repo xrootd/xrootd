@@ -3,10 +3,15 @@
 line of a file, for the tests of the monitoring (see start_collector in
 server.bash).
 
-Usage: udp-collector.py <portfile> <outfile> <pidfile>
+The source address of each datagram is written to <outfile>.from, one address
+per line, in the same order. That line in <outfile> is unchanged. An
+IPv4-mapped IPv6 address is written as IPv4.
 
-Binds a free port on both IP stacks, or on IPv4 only when the kernel has no
-IPv6 (Linux with ipv6.disable=1), writes it to <portfile>, then detaches
+Usage: udp-collector.py <portfile> <outfile> <pidfile> [port]
+
+Binds <port>, or a free port when it is omitted or 0, on both IP stacks, or
+on IPv4 only when the kernel has no IPv6 (Linux with ipv6.disable=1), writes
+it to <portfile>, then detaches
 into its own session, thus a test can start a server which sends to the port
 as soon as this command returns. With 'send json' a datagram is JSON, the last
 record terminated by a null byte."""
@@ -16,14 +21,15 @@ import socket
 import sys
 
 portfile, outfile, pidfile = sys.argv[1:4]
+port = int(sys.argv[4]) if len(sys.argv) > 4 else 0
 
 try:
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
-    sock.bind(("::", 0))
+    sock.bind(("::", port))
 except OSError:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", 0))
+    sock.bind(("0.0.0.0", port))
 
 with open(portfile, "w") as f:
     f.write("%d\n" % sock.getsockname()[1])
@@ -46,8 +52,20 @@ os.closerange(sock.fileno() + 1, maxfd)
 with open(pidfile, "w") as f:
     f.write("%d\n" % os.getpid())
 
-with open(outfile, "a", buffering=1) as out:
+def source_of(addr):
+    host = addr[0]
+    if host.startswith("::ffff:"):
+        mapped = host[7:]
+        if mapped.count(".") == 3:
+            return mapped
+    return host
+
+
+# The source line is written first. A reader that has seen the datagram line
+# has already seen its source: the datagram file is never ahead of the source file.
+with open(outfile, "a", buffering=1) as out, open(outfile + ".from", "a", buffering=1) as src:
     while True:
-        data, _ = sock.recvfrom(65536)
+        data, addr = sock.recvfrom(65536)
         text = data.rstrip(b"\x00").decode("utf-8", "replace")
+        src.write(source_of(addr) + "\n")
         out.write(text.rstrip("\n").replace("\n", " ") + "\n")

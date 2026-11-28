@@ -30,37 +30,98 @@
 
 #include <stdlib.h>
 #include <string.h>
-  
+
 #include "XrdNet/XrdNetPMark.hh"
+
+/******************************************************************************/
+/*                               F i n d C g i                                */
+/******************************************************************************/
+
+bool XrdNetPMark::FindCgi(const char *cgi, const char *key,
+                          const char *&val, size_t &n)
+{
+   size_t keyLen;
+
+   val = 0;
+   n = 0;
+   if (!cgi || !*cgi || !key || !(keyLen = strlen(key))) return false;
+
+// The same scan as XrdOucEnv, except an empty value is kept. XrdOucEnv drops
+// one, so scitag.flow= would look like a missing key. The name is the whole
+// token: note=scitag.flow=1024 is a different key. The last one wins.
+//
+   bool found = false;
+   const char *p = cgi;
+   while (*p)
+        {while (*p == '&') p++;
+         if (!*p) break;
+         const char *name = p;
+         while (*p && *p != '=' && *p != '&') p++;
+         if (*p != '=') continue;
+         size_t nlen = static_cast<size_t>(p - name);
+         p++;
+         const char *v = p;
+         while (*p && *p != '&') p++;
+         if (nlen == keyLen && !memcmp(name, key, keyLen))
+            {found = true;
+             val = v;
+             n = static_cast<size_t>(p - v);
+            }
+        }
+   return found;
+}
+
+/******************************************************************************/
+/*                                F l o w I D                                 */
+/******************************************************************************/
+
+bool XrdNetPMark::FlowID(const char *val, size_t n, int &flow)
+{
+   size_t i = 0;
+
+   flow = 0;
+   if (!val || !n) return false;
+   if (val[0] == '+')
+      {if (n == 1) return false;
+       i = 1;
+      }
+   if (val[i] < '0' || val[i] > '9') return false;
+
+// Leading zeros do not change the integer. What remains is at most five
+// digits: 65535 is the top of the range, and a longer significand cannot be
+// inside it. Stopping there also keeps the multiply inside an int.
+//
+   while (i < n && val[i] == '0') i++;
+   if (i == n || n - i > 5) return false;
+
+   int v = 0;
+   for (; i < n; i++)
+       {if (val[i] < '0' || val[i] > '9') return false;
+        v = v * 10 + (val[i] - '0');
+       }
+   if (v < minTotID || v > maxTotID) return false;
+   flow = v;
+   return true;
+}
 
 /******************************************************************************/
 /*                                 g e t E A                                  */
 /******************************************************************************/
-  
+
 bool XrdNetPMark::getEA(const char *cgi, int &ecode, int &acode)
 {
+   const char *val = 0;
+   size_t n = 0;
+   int flow = 0;
 
-  ecode = acode = 0;
-// If we have cgi, see if we can extract rge codes from there
+   ecode = acode = 0;
+// A missing key is not a tag. A present value that is not one integer in
+// 65..65535, including an empty value, is the 0,0 mark.
 //
-  if (cgi) {
-    const char *stP = strstr(cgi, "scitag.flow=");
-    if (stP) {
-      char *eol;
-      int eacode = strtol(stP + 12, &eol, 10);
-      if (*eol == '&' || *eol == 0) {
-        if (eacode >= XrdNetPMark::minTotID && eacode <= XrdNetPMark::maxTotID) {
-          ecode = eacode >> XrdNetPMark::btsActID;
-          acode = eacode & XrdNetPMark::mskActID;
-        }
-        // According to the specification, if the provided scitag.flow has an incorrect value
-        // the packets will be marked with a scitag = 0
-        return true;
+   if (!FindCgi(cgi, "scitag.flow", val, n)) return false;
+   if (FlowID(val, n, flow))
+      {ecode = flow >> btsActID;
+       acode = flow & mskActID;
       }
-    }
-  }
-
-   // No go
-   //
-   return false;
+   return true;
 }

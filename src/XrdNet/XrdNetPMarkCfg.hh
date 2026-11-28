@@ -42,6 +42,8 @@ class XrdSysTrace;
 
 class XrdNetPMarkCfg : public XrdNetPMark
 {
+friend bool XrdNetPMark::getMark(XrdSecEntity &client, const char *path,
+                                 const char *cgi, int &ecode, int &acode);
 public:
 
         XrdNetPMark::Handle *Begin(XrdSecEntity &Client,
@@ -64,6 +66,7 @@ static  int          Parse(XrdSysError *eLog, XrdOucStream &Config);
 private:
            ~XrdNetPMarkCfg() {}
 
+static bool Admitted(XrdSecEntity &client);
 static bool ConfigDefs();
 static bool ConfigPV2E(char *info);
 static bool ConfigRU2A(char *info);

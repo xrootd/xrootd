@@ -48,10 +48,13 @@ class Handle
                        {if (Valid()) {ec = eCode; ac = aCode; return true;}
                         ec = ac = 0; return false;
                        }
-                  // According to the specifications, ExpID and actID can be equal to 0 for HTTP-TPC.
-      bool        Valid() {return (eCode == 0 && aCode == 0) 
+                  // 0,0 is the mark for an out-of-range tag. Activity 0 with an
+                  // experiment in range is a partial mark (scitag.flow=1024).
+                  // minActID stays the registry floor used by the defs loader.
+      bool        Valid() {return (eCode == 0 && aCode == 0)
                                || (eCode >= minExpID && eCode <= maxExpID
-                               &&  aCode >= minActID && aCode <= maxActID);}
+                               && (aCode == 0
+                               || (aCode >= minActID && aCode <= maxActID)));}
 
                   Handle(const char *app=0, int ecode=0, int acode=0)
                         : appName(strdup(app ? app : "unknown")),
@@ -77,6 +80,24 @@ virtual Handle *Begin(XrdNetAddrInfo &addr, Handle     &handle,
                                             const char *tident) = 0;
 
 static  bool    getEA(const char *cgi, int &ecode, int &acode);
+
+// The mark Begin() would emit for this open. False when Begin() would not
+// mark it. This does not start a firefly, so the caller can compare the
+// effective mark with the one already running. Static like getEA: the mark
+// policy is process-wide, and a virtual here would change the public vtable.
+static  bool    getMark(XrdSecEntity &Client, const char *path,
+                        const char *cgi, int &ecode, int &acode);
+
+// The last value of key in an &-separated CGI string. XrdOucEnv drops an
+// empty value, so a present empty token is not a missing key. Returns false
+// when the key is absent. On success val points into cgi and n is its length.
+static  bool    FindCgi(const char *cgi, const char *key,
+                        const char *&val, size_t &n);
+
+// One flow id: an optional '+', then digits, the whole token, in
+// minTotID..maxTotID. Leading zeros do not change the integer. flow is that
+// integer, or 0 when the token is anything else.
+static  bool    FlowID(const char *val, size_t n, int &flow);
 
                 XrdNetPMark() {}
 virtual        ~XrdNetPMark() {} // This object cannot be deleted!
