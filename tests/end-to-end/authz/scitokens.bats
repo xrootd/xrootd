@@ -80,6 +80,14 @@ status() {
     BEARER_TOKEN_FILE="$BATS_FILE_TMPDIR/create.token" run ! xrdcp "$ROOTS//protected/subdir/root$N.txt" copy.txt
 }
 
+@test "an explicit roots token file overrides the ambient token" {
+    local target="$ROOTS//protected/subdir/root$N.txt"
+    BEARER_TOKEN_FILE="$BATS_FILE_TMPDIR/create.token" xrdcp local.txt "$target"
+    BEARER_TOKEN_FILE="$BATS_FILE_TMPDIR/create.token" \
+        xrdcp "$target?xrd.ztn=$BATS_FILE_TMPDIR/read.token" copy.txt
+    run -0 cmp local.txt copy.txt
+}
+
 @test "a read token reads the uploaded file over roots" {
     BEARER_TOKEN_FILE="$BATS_FILE_TMPDIR/create.token" xrdcp local.txt "$ROOTS//protected/subdir/root$N.txt"
     BEARER_TOKEN_FILE="$BATS_FILE_TMPDIR/read.token" xrdcp "$ROOTS//protected/subdir/root$N.txt" copy.txt

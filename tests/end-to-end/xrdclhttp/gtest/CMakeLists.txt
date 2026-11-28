@@ -5,6 +5,7 @@ add_executable(xrdcl-test
   ChecksumTest.cc
   DeleteTest.cc
   MkcolTest.cc
+  MoveTest.cc
   ReadTest.cc
   WriteTest.cc
 )

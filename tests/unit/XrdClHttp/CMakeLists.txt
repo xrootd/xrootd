@@ -7,6 +7,9 @@ find_package(CURL REQUIRED)
 
 add_unit_tests(
   SOURCES
+    XrdClHttpWebDav.cc
+    XrdClHttpClientConfig.cc
+    XrdClHttpOptionsCache.cc
     XrdClHttpHeaderBuilderAppendMissing.cc
     XrdClHttpHeaderBuilderEntrySeparation.cc
     XrdClHttpHeaderBuilderForbiddenEntry.cc
@@ -19,6 +22,7 @@ add_unit_tests(
   LIBRARIES
     XrdClHttpObj
     XrdCl
+    XrdXml
     CURL::libcurl
   INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_SOURCE_DIR}

@@ -3,7 +3,9 @@ import pytest
 from XRootD.client.responses import XRootDStatus, XRootDNotFoundError, \
   XRootDAuthorizationError, \
   XRootDTimeoutError, XRootDChecksumError, XRootDOperationError, \
-  raise_on_error
+  XRootDAlreadyExistsError, XRootDQuotaError, XRootDTemporaryError, \
+  XRootDUnsupportedError, \
+  ChecksumInfo, raise_on_error
 
 
 def status(code, ok=False, shellcode=0, message='error', errno=0):
@@ -44,6 +46,12 @@ def test_status_error_name_and_exceptions():
   (3034, XRootDTimeoutError),
   (3035, XRootDTimeoutError),
   (3019, XRootDChecksumError),
+  (3018, XRootDAlreadyExistsError),
+  (3032, XRootDAlreadyExistsError),
+  (3021, XRootDQuotaError),
+  (3003, XRootDTemporaryError),
+  (3024, XRootDTemporaryError),
+  (3013, XRootDUnsupportedError),
   (3012, XRootDOperationError),
 ])
 def test_server_error_exceptions(errno, exception_type):
@@ -59,3 +67,23 @@ def test_raise_on_error():
   with pytest.raises(XRootDNotFoundError) as excinfo:
     status(XRootDStatus.errNotFound).raise_on_error()
   assert excinfo.value.status.code == XRootDStatus.errNotFound
+
+
+def test_checksum_info():
+  checksum = ChecksumInfo('adler32 deadbeef\n')
+  assert checksum.algorithm == 'adler32'
+  assert checksum.value == 'deadbeef'
+
+  checksum = ChecksumInfo(b'adler32 deadbeef\0')
+  assert checksum.algorithm == 'adler32'
+  assert checksum.value == 'deadbeef'
+
+  checksum = ChecksumInfo('md5 abc123\0')
+  assert checksum.algorithm == 'md5'
+  assert checksum.value == 'abc123'
+
+
+@pytest.mark.parametrize('response', ['', 'adler32', 'adler32\0'])
+def test_checksum_info_rejects_invalid_response(response):
+  with pytest.raises(ValueError, match='Invalid checksum response'):
+    ChecksumInfo(response)

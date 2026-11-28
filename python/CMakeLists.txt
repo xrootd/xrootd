@@ -97,6 +97,7 @@ set(PYXROOTD_SOURCES
   libs/__init__.py
   libs/client/__init__.py
   libs/client/_version.py
+  libs/client/auth.py
   libs/client/copyprocess.py
   libs/client/env.py
   libs/client/file.py
@@ -106,6 +107,7 @@ set(PYXROOTD_SOURCES
   libs/client/glob_funcs.py
   libs/client/py.typed
   libs/client/responses.py
+  libs/client/storage.py
   libs/client/url.py
   libs/client/utils.py
   src/__init__.py)
@@ -227,7 +229,7 @@ list(APPEND ENVIRON "XROOTD=$<TARGET_FILE:xrootd>")
 list(APPEND ENVIRON "XRDFS=$<TARGET_FILE:xrdfs>")
 list(APPEND ENVIRON "PYTHONDONTWRITEBYTECODE=1")
 
-foreach(test copy file filesystem glob threads url)
+foreach(test auth copy file filesystem glob responses storage threads url)
   add_test(NAME python.${test}
     COMMAND ${Python_EXECUTABLE} -m pytest -p no:cacheprovider
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_${test}.py)
